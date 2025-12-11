@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\Cache;
 class InsightAPI
 {
     protected string $baseURL = 'https://insight.volcengineapi.com/';
-    protected string $xInsightBizName = '';
-    protected string $xInsightBizSecret = '';
+    protected string $xInsightBizName = '2113336772';
+    protected string $xInsightBizSecret = 'GKSEKFlMv9vwkl4pcODaqNo2Jt9Z1EAd';
     protected $accessToken = null;
     protected $tokenExpireAt = null;
     protected Client $client;

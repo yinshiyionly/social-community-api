@@ -42,8 +42,11 @@ class InsightAPI
             'X-Insight-Biz-Secret' => $this->xInsightBizSecret,
         ];
 
+        // 要鉴权的接口 token 放在 header 中并且移除 secret
         if ($withAuth && $this->accessToken) {
-            $headers['Authorization'] = 'Bearer ' . $this->accessToken;
+            unset($headers['X-Insight-Biz-Secret']);
+            $headers['X-Insight-Access-Token'] = $this->accessToken;
+            // $headers['Authorization'] = 'Bearer ' . $this->accessToken;
         }
 
         return $headers;

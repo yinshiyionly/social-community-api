@@ -15,11 +15,8 @@ class InsightAPI
     protected $tokenExpireAt = null;
     protected Client $client;
 
-    public function __construct(string $bizName = '', string $bizSecret = '')
+    public function __construct()
     {
-        $this->xInsightBizName = $bizName;
-        $this->xInsightBizSecret = $bizSecret;
-
         $this->client = new Client([
             'base_uri' => $this->baseURL,
             'timeout' => 30,
@@ -68,8 +65,7 @@ class InsightAPI
         // Fetch new token from API (Requirements 2.3, 2.4)
         try {
             $response = $this->client->get('oauth/access_token', [
-                'headers' => $this->getHeaders(),
-                'json' => [],
+                'headers' => $this->getHeaders()
             ]);
 
             $result = json_decode($response->getBody()->getContents(), true);

@@ -5,14 +5,13 @@ namespace App\Helper\Volcengine;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class InsightAPI
 {
     protected string $baseURL = 'https://insight.volcengineapi.com/';
     protected string $xInsightBizName = '2113336772';
     protected string $xInsightBizSecret = 'GKSEKFlMv9vwkl4pcODaqNo2Jt9Z1EAd';
-    protected $accessToken = null;
-    protected $tokenExpireAt = null;
     protected Client $client;
 
     public function __construct()
@@ -24,7 +23,7 @@ class InsightAPI
     }
 
     /**
-     * Generate a cache key for storing token-related data
+     * 生成缓存key
      *
      * @param string $suffix The suffix to append to the cache key (e.g., 'access_token', 'expire_at')
      * @return string The generated cache key
@@ -34,6 +33,13 @@ class InsightAPI
         return 'volcengine_insight_' . md5($this->xInsightBizName) . '_' . $suffix;
     }
 
+    /**
+     * 获取请求头
+     *
+     * @param bool $withAuth
+     * @return array
+     * @throws \Exception
+     */
     protected function getHeaders(bool $withAuth = false): array
     {
         $headers = [
@@ -43,29 +49,34 @@ class InsightAPI
         ];
 
         // 要鉴权的接口 token 放在 header 中并且移除 secret
-        if ($withAuth && $this->accessToken) {
+        if ($withAuth) {
             unset($headers['X-Insight-Biz-Secret']);
-            $headers['X-Insight-Access-Token'] = $this->accessToken;
-            // $headers['Authorization'] = 'Bearer ' . $this->accessToken;
+            try {
+                $headers['X-Insight-Access-Token'] = $this->getAccessToken();
+            } catch (\Exception $e) {
+                $msg = '获取access-token失败: ' . $e->getMessage();
+                $this->errorLog($msg, []);
+                throw new \Exception($msg);
+            }
         }
 
         return $headers;
     }
 
-    public function getAccessToken(): ?array
+    /**
+     * 获取access-token
+     *
+     * @return array|mixed
+     * @throws \Exception
+     */
+    public function getAccessToken()
     {
-        // Check cache first (Requirement 2.1)
         $cachedToken = Cache::get($this->getCacheKey('access_token'));
         $cachedExpireAt = Cache::get($this->getCacheKey('expire_at'));
-
-        // Return cached token if valid (with 60-second buffer) (Requirements 2.2, 2.3, 2.4)
-        if ($cachedToken && $cachedExpireAt && time() < $cachedExpireAt - 60) {
-            $this->accessToken = $cachedToken;
-            $this->tokenExpireAt = $cachedExpireAt;
-            return ['access_token' => $cachedToken, 'expires_at' => $cachedExpireAt];
+        if (!empty($cachedToken) && !empty($cachedExpireAt) && time() < $cachedExpireAt - 60) {
+            return $cachedToken;
         }
 
-        // Fetch new token from API (Requirements 2.3, 2.4)
         try {
             $response = $this->client->get('oauth/access_token', [
                 'headers' => $this->getHeaders()
@@ -73,31 +84,43 @@ class InsightAPI
 
             $result = json_decode($response->getBody()->getContents(), true);
 
-            if (isset($result['access_token'])) {
-                $expiresIn = $result['expires_in'] ?? 7200;
-                $expireAt = time() + $expiresIn;
+            if (isset($result['status']) && $result['status'] == 0) {
+                if (isset($result['data']['access_token'])) {
+                    $expiresIn = $result['data']['expire'] ?? 0;
+                    $expireAt = time() + $expiresIn;
 
-                // Update instance properties
-                $this->accessToken = $result['access_token'];
-                $this->tokenExpireAt = $expireAt;
+                    $cacheTtl = max($expiresIn - 60, 0);
+                    Cache::put($this->getCacheKey('access_token'), $result['data']['access_token'], $cacheTtl);
+                    Cache::put($this->getCacheKey('expire_at'), $expireAt, $cacheTtl);
 
-                // Store in cache with TTL of expires_in - 60 seconds (Requirements 1.1, 1.2, 3.2)
-                $cacheTtl = max($expiresIn - 60, 0);
-                Cache::put($this->getCacheKey('access_token'), $result['access_token'], $cacheTtl);
-                Cache::put($this->getCacheKey('expire_at'), $expireAt, $cacheTtl);
+                    return $result['data']['access_token'];
+                }
             }
+            $msg = '[火山内容洞察]获取access-token失败: ' . $result['message'] ?? '未知错误';
+            $this->errorLog($msg, ['headers' => $this->getHeaders(), 'result' => $result]);
 
-            return $result;
+            throw new \Exception($msg);
         } catch (GuzzleException $e) {
             return ['error' => $e->getMessage()];
         }
     }
 
+    /**
+     * 创建实时任务
+     *
+     * @param array $body
+     * @return array|mixed
+     * @throws \Exception
+     */
     public function bizSubCreateTask(array $body)
     {
         try {
+            /*$body = [
+                'rule' => [],
+                'sync_mode' => false
+            ];*/
             $response = $this->client->post('openapi/biz_sub/create_task', [
-                'headers' => $this->getHeaders(),
+                'headers' => $this->getHeaders(true),
                 'json' => $body
             ]);
 
@@ -114,6 +137,13 @@ class InsightAPI
         }
     }
 
+    /**
+     * 更新实时任务
+     *
+     * @param array $body
+     * @return array|mixed
+     * @throws \Exception
+     */
     public function bizSubUpdateTask(array $body)
     {
         try {
@@ -124,7 +154,7 @@ class InsightAPI
                 'sync_mode' => false, // false-异步 true-同步，默认false
             ];*/
             $response = $this->client->post('openapi/biz_sub/update_task', [
-                'headers' => $this->getHeaders(),
+                'headers' => $this->getHeaders(true),
                 'json' => $body
             ]);
 
@@ -152,7 +182,7 @@ class InsightAPI
     {
         try {
             $response = $this->client->get('openapi/biz_sub/get_task_rule', [
-                'headers' => $this->getHeaders(),
+                'headers' => $this->getHeaders(true),
                 'query' => [
                     'task_id' => $taskId
                 ]
@@ -172,97 +202,14 @@ class InsightAPI
     }
 
     /**
-     * 检查 token 是否有效
-     * Checks both instance properties and cache for token validity
-     * Applies 60-second buffer before actual expiration (Requirement 3.1)
+     * 记录错误日志
+     *
+     * @param string $msg
+     * @param array $params
+     * @return void
      */
-    public function isTokenValid(): bool
-    {
-        // First check instance properties
-        if ($this->accessToken !== null && $this->tokenExpireAt !== null) {
-            return time() < $this->tokenExpireAt - 60; // 60-second buffer
-        }
-
-        // Fall back to checking cache for expiration timestamp (Requirement 3.1)
-        $cachedToken = Cache::get($this->getCacheKey('access_token'));
-        $cachedExpireAt = Cache::get($this->getCacheKey('expire_at'));
-
-        if ($cachedToken && $cachedExpireAt) {
-            // Apply 60-second buffer before actual expiration
-            return time() < $cachedExpireAt - 60;
-        }
-
-        return false;
-    }
-
-    /**
-     * 确保有有效的 token
-     */
-    protected function ensureToken(): void
-    {
-        if (!$this->isTokenValid()) {
-            $this->getAccessToken();
-        }
-    }
-
     protected function errorLog(string $msg, array $params)
     {
         Log::channel('daily')->error($msg, $params);
-    }
-
-    /**
-     * 发送 GET 请求
-     */
-    public function get(string $path, array $query = []): ?array
-    {
-        $this->ensureToken();
-
-        try {
-            $response = $this->client->get($path, [
-                'headers' => $this->getHeaders(true),
-                'query' => $query,
-            ]);
-
-            return json_decode($response->getBody()->getContents(), true);
-        } catch (GuzzleException $e) {
-            return ['error' => $e->getMessage()];
-        }
-    }
-
-    /**
-     * 发送 POST 请求
-     */
-    public function post(string $path, array $data = []): ?array
-    {
-        $this->ensureToken();
-
-        try {
-            $response = $this->client->post($path, [
-                'headers' => $this->getHeaders(true),
-                'json' => $data,
-            ]);
-
-            return json_decode($response->getBody()->getContents(), true);
-        } catch (GuzzleException $e) {
-            return ['error' => $e->getMessage()];
-        }
-    }
-
-    /**
-     * 设置凭证
-     * Clears cached token for previous credentials before updating (Requirements 4.1, 4.2)
-     */
-    public function setCredentials(string $bizName, string $bizSecret): self
-    {
-        // Clear cached token for previous credentials before updating (Requirement 4.1)
-        Cache::forget($this->getCacheKey('access_token'));
-        Cache::forget($this->getCacheKey('expire_at'));
-
-        // Update credentials (Requirement 4.2 - cache key prefix will use new business name)
-        $this->xInsightBizName = $bizName;
-        $this->xInsightBizSecret = $bizSecret;
-        $this->accessToken = null;
-        $this->tokenExpireAt = null;
-        return $this;
     }
 }

@@ -67,7 +67,7 @@ class InsightAPI
 
         // Fetch new token from API (Requirements 2.3, 2.4)
         try {
-            $response = $this->client->post('oauth/access_token', [
+            $response = $this->client->get('oauth/access_token', [
                 'headers' => $this->getHeaders(),
                 'json' => [],
             ]);

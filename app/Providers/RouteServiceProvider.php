@@ -46,6 +46,18 @@ class RouteServiceProvider extends ServiceProvider
             // 后台系统文件上传模块路由
             Route::prefix('api')
                 ->group(base_path('routes/file.php'));
+
+            // 公关维权-材料管理
+            Route::prefix('api')
+                ->group(base_path('routes/material.php'));
+
+            // 舆情数据同步接口（独立认证）
+            Route::prefix('api')
+                ->group(base_path('routes/insight.php'));
+
+            // 监测任务
+            Route::prefix('api')
+                ->group(base_path('routes/detection.php'));
         });
     }
 }

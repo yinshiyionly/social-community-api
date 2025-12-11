@@ -2,6 +2,7 @@
 
 namespace App\Helper\KeywordParser;
 
+use InvalidArgumentException;
 
 class KeywordRuleParser
 {
@@ -14,9 +15,252 @@ class KeywordRuleParser
         $this->input = trim($expression);
         $this->pos = 0;
 
+        // 先验证表达式
+        $this->validate($this->input);
+
         $result = $this->parseExpression();
 
-        return ["Rule" => ["and", $result]];
+        return ["rule" => ["and", $result]];
+    }
+
+    /**
+     * 验证表达式语法
+     * @throws InvalidArgumentException
+     */
+    public function validate(string $expression): void
+    {
+        $expr = trim($expression);
+
+        if (empty($expr)) {
+            throw new InvalidArgumentException("表达式不能为空");
+        }
+
+        // 1. 检查括号匹配
+        $this->validateBrackets($expr);
+
+        // 2. 检查运算符位置
+        $this->validateOperators($expr);
+
+        // 3. 检查空操作数
+        $this->validateOperands($expr);
+    }
+
+    /**
+     * 验证括号匹配
+     */
+    private function validateBrackets(string $expr): void
+    {
+        $depth = 0;
+        $positions = [];
+
+        for ($i = 0; $i < strlen($expr); $i++) {
+            if ($this->isEscapedAtStr($expr, $i)) {
+                continue;
+            }
+
+            if ($expr[$i] === '(') {
+                $depth++;
+                $positions[] = $i;
+
+                // 检查空括号
+                $closePos = $this->findMatchingBracket($expr, $i);
+                if ($closePos !== -1) {
+                    $inner = substr($expr, $i + 1, $closePos - $i - 1);
+                    if (empty(trim($inner))) {
+                        throw new InvalidArgumentException("存在空括号");
+                    }
+                }
+            } elseif ($expr[$i] === ')') {
+                $depth--;
+                if ($depth < 0) {
+                    throw new InvalidArgumentException("位置 {$i} 处存在多余的右括号 ')'");
+                }
+                array_pop($positions);
+            }
+        }
+
+        if ($depth > 0) {
+            $pos = end($positions);
+            throw new InvalidArgumentException("位置 {$pos} 处的左括号 '(' 没有匹配的右括号");
+        }
+    }
+
+    /**
+     * 验证运算符位置
+     */
+    private function validateOperators(string $expr): void
+    {
+        $len = strlen($expr);
+        $operators = ['+', '/'];
+
+        // 找到第一个非空白、非转义的字符
+        $firstNonSpace = -1;
+        for ($i = 0; $i < $len; $i++) {
+            if (!ctype_space($expr[$i])) {
+                $firstNonSpace = $i;
+                break;
+            }
+        }
+
+        // 找到最后一个非空白字符
+        $lastNonSpace = -1;
+        for ($i = $len - 1; $i >= 0; $i--) {
+            if (!ctype_space($expr[$i])) {
+                $lastNonSpace = $i;
+                break;
+            }
+        }
+
+        if ($firstNonSpace === -1) {
+            return;
+        }
+
+        // 检查是否以运算符开头（排除转义）
+        if (in_array($expr[$firstNonSpace], $operators) && !$this->isEscapedAtStr($expr, $firstNonSpace)) {
+            throw new InvalidArgumentException("表达式不能以运算符 '{$expr[$firstNonSpace]}' 开头");
+        }
+
+        // 检查是否以运算符结尾（排除转义）
+        if (in_array($expr[$lastNonSpace], $operators) && !$this->isEscapedAtStr($expr, $lastNonSpace)) {
+            throw new InvalidArgumentException("表达式不能以运算符 '{$expr[$lastNonSpace]}' 结尾");
+        }
+
+        // 检查连续运算符
+        $prevOp = null;
+        $prevOpPos = -1;
+        for ($i = 0; $i < $len; $i++) {
+            if ($this->isEscapedAtStr($expr, $i)) {
+                continue;
+            }
+
+            $char = $expr[$i];
+            if (in_array($char, $operators)) {
+                if ($prevOp !== null) {
+                    // 检查两个运算符之间是否只有空白
+                    $between = trim(substr($expr, $prevOpPos + 1, $i - $prevOpPos - 1));
+                    if (empty($between)) {
+                        throw new InvalidArgumentException("位置 {$prevOpPos} 和 {$i} 处存在连续的运算符 '{$prevOp}' 和 '{$char}'");
+                    }
+                }
+                $prevOp = $char;
+                $prevOpPos = $i;
+            } elseif (!ctype_space($char) && $char !== '(' && $char !== ')') {
+                $prevOp = null;
+                $prevOpPos = -1;
+            }
+        }
+    }
+
+    /**
+     * 验证操作数（检查空操作数）
+     */
+    private function validateOperands(string $expr): void
+    {
+        $this->validateOperandsRecursive($expr, 0);
+    }
+
+    private function validateOperandsRecursive(string $expr, int $basePos): void
+    {
+        $expr = trim($expr);
+        if (empty($expr)) {
+            return;
+        }
+
+        // 如果整个表达式被括号包裹，递归检查内部
+        if ($expr[0] === '(' && !$this->isEscapedAtStr($expr, 0)) {
+            $closePos = $this->findMatchingBracket($expr, 0);
+            if ($closePos === strlen($expr) - 1) {
+                $inner = substr($expr, 1, $closePos - 1);
+                $this->validateOperandsRecursive($inner, $basePos + 1);
+                return;
+            }
+        }
+
+        // 查找顶层运算符并验证两边
+        $operators = ['+', '/'];
+        $depth = 0;
+
+        for ($i = 0; $i < strlen($expr); $i++) {
+            if ($this->isEscapedAtStr($expr, $i)) {
+                continue;
+            }
+
+            $char = $expr[$i];
+            if ($char === '(') {
+                $depth++;
+            } elseif ($char === ')') {
+                $depth--;
+            } elseif (in_array($char, $operators) && $depth === 0) {
+                $left = trim(substr($expr, 0, $i));
+                $right = trim(substr($expr, $i + 1));
+
+                if (empty($left)) {
+                    throw new InvalidArgumentException("运算符 '{$char}' 左侧缺少操作数");
+                }
+                if (empty($right)) {
+                    throw new InvalidArgumentException("运算符 '{$char}' 右侧缺少操作数");
+                }
+
+                // 检查左侧是否以运算符结尾
+                $leftLast = $left[strlen($left) - 1];
+                if (in_array($leftLast, $operators) && !$this->isEscapedAtStr($left, strlen($left) - 1)) {
+                    throw new InvalidArgumentException("运算符 '{$leftLast}' 后面缺少操作数");
+                }
+
+                // 检查右侧是否以运算符开头
+                $rightFirst = $right[0];
+                if (in_array($rightFirst, $operators) && !$this->isEscapedAtStr($right, 0)) {
+                    throw new InvalidArgumentException("运算符 '{$rightFirst}' 前面缺少操作数");
+                }
+
+                // 递归验证左右两边
+                $this->validateOperandsRecursive($left, $basePos);
+                $this->validateOperandsRecursive($right, $basePos + $i + 1);
+                return;
+            }
+        }
+
+        // 检查括号内的表达式
+        $depth = 0;
+        for ($i = 0; $i < strlen($expr); $i++) {
+            if ($this->isEscapedAtStr($expr, $i)) {
+                continue;
+            }
+
+            if ($expr[$i] === '(') {
+                $closePos = $this->findMatchingBracket($expr, $i);
+                if ($closePos !== -1) {
+                    $inner = substr($expr, $i + 1, $closePos - $i - 1);
+                    if (empty(trim($inner))) {
+                        throw new InvalidArgumentException("位置 {$i} 处存在空括号");
+                    }
+                    $this->validateOperandsRecursive($inner, $basePos + $i + 1);
+                    $i = $closePos;
+                }
+            }
+        }
+    }
+
+    /**
+     * 找到匹配的右括号位置
+     */
+    private function findMatchingBracket(string $str, int $openPos): int
+    {
+        $depth = 1;
+        for ($i = $openPos + 1; $i < strlen($str); $i++) {
+            if ($this->isEscapedAtStr($str, $i)) {
+                continue;
+            }
+            if ($str[$i] === '(') {
+                $depth++;
+            } elseif ($str[$i] === ')') {
+                $depth--;
+                if ($depth === 0) {
+                    return $i;
+                }
+            }
+        }
+        return -1;
     }
 
     private function parseExpression(): array

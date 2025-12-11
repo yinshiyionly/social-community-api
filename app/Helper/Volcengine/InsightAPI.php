@@ -138,18 +138,21 @@ class InsightAPI
         }
     }
 
-    public function bizSubGetTaskRule(array $body)
+    /**
+     * 获取任务状态接口
+     *
+     * @param int $taskId
+     * @return array|mixed
+     * @throws \Exception
+     */
+    public function bizSubGetTaskRule(int $taskId)
     {
         try {
-            /*$body = [
-                'rule' => [],
-                'enable_status' => 0, // 任务开启状态 1是开启 0是关闭
-                'task_id' => 1, // 更改的任务ID序号，必填
-                'sync_mode' => false, // false-异步 true-同步，默认false
-            ];*/
             $response = $this->client->get('openapi/biz_sub/get_task_rule', [
                 'headers' => $this->getHeaders(),
-                'query' => ''
+                'query' => [
+                    'task_id' => $taskId
+                ]
             ]);
 
             $result = json_decode($response->getBody()->getContents(), true);
@@ -157,8 +160,8 @@ class InsightAPI
             if (isset($result['status']) && $result['status'] == 0) {
                 return $result;
             }
-            $msg = '[火山内容洞察]创建实时任务失败: ' . $result['message'] ?? '未知错误';
-            $this->errorLog($msg, ['body' => $body, 'result' => $result]);
+            $msg = '[火山内容洞察]获取任务状态接口失败: ' . $result['message'] ?? '未知错误';
+            $this->errorLog($msg, ['task_id' => $taskId, 'result' => $result]);
             throw new \Exception($msg);
         } catch (GuzzleException $e) {
             return ['error' => $e->getMessage()];

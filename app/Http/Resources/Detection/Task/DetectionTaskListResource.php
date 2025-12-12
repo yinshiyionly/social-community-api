@@ -30,8 +30,8 @@ class DetectionTaskListResource extends JsonResource
             'external_enable_status' => $this->external_enable_status,
             'text_plain' => $this->text_plain,
             // 'data_site' => $this->data_site,
-            'created_at' => $this->created_at->format('Y-m-d H:i:s'),
-            'updated_at' => $this->updated_at->format('Y-m-d H:i:s'),
+            'created_at' => !empty($this->created_at) ? $this->created_at->format('Y-m-d H:i:s') : '',
+            'updated_at' => !empty($this->updated_at) ? $this->updated_at->format('Y-m-d H:i:s') : '',
         ];
     }
 }

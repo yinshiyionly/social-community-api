@@ -44,16 +44,16 @@ class DetectionTaskItemResource extends JsonResource
 
             // 预警配置
             'warn_name' => $this->warn_name,
-            'warn_reception_start_time' => $this->warn_reception_start_time->format('H:i'),
-            'warn_reception_end_time' => $this->warn_reception_end_time->format('H:i'),
+            'warn_reception_start_time' => !empty($this->warn_reception_start_time) ? $this->warn_reception_start_time->format('Y-m-d H:i:s') : '',
+            'warn_reception_end_time' => !empty($this->warn_reception_end_time) ? $this->warn_reception_end_time->format('Y-m-d H:i:s') : '',
             'warn_publish_email_state' => $this->warn_publish_email_state,
             'warn_publish_email_config' => $this->warn_publish_email_config,
             'warn_publish_wx_state' => $this->warn_publish_wx_state,
             'warn_publish_wx_config' => $this->warn_publish_wx_config,
 
             // 时间信息
-            'created_at' => $this->created_at->format('Y-m-d H:i:s'),
-            'updated_at' => $this->updated_at->format('Y-m-d H:i:s'),
+            'created_at' => !empty($this->created_at) ? $this->created_at->format('Y-m-d H:i:s') : '',
+            'updated_at' => !empty($this->updated_at) ? $this->updated_at->format('Y-m-d H:i:s') : '',
         ];
     }
 }

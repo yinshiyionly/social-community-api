@@ -170,11 +170,12 @@ class Handler extends ExceptionHandler
         return response()->json([
             'code' => $code,
             'msg' => $message,
-            'data' => config('app.debug') ? [
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => collect($e->getTrace())->take(5)->toArray(),
-            ] : [],
+            'data' => []
+//            'data' => config('app.debug') ? [
+//                'file' => $e->getFile(),
+//                'line' => $e->getLine(),
+//                'trace' => collect($e->getTrace())->take(5)->toArray(),
+//            ] : [],
         ]);
     }
 

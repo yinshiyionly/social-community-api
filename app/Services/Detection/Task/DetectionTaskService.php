@@ -25,8 +25,13 @@ class DetectionTaskService
         $pageSize = (int)($params['pageSize'] ?? 10);
 
         return DetectionTaskMaster::query()
-            ->when(isset($params['keyword']) && $params['keyword'] != '', function ($q) use ($params) {
-                $q->where('text_plain', 'like', '%' . $params['keyword'] . '%');
+            // 文本关键词-模糊搜索
+            ->when(isset($params['text_plain']) && $params['text_plain'] != '', function ($q) use ($params) {
+                $q->where('text_plain', 'like', '%' . $params['text_plain'] . '%');
+            })
+            // 任务名称-模糊搜索
+            ->when(isset($params['task_name']) && $params['task_name'] != '', function ($q) use ($params) {
+                $q->where('task_name', 'like', '%' . $params['task_name'] . '%');
             })
             ->orderByDesc('task_id')
             ->paginate($pageSize, ['*'], 'page', $pageNum);

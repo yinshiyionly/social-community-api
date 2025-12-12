@@ -20,13 +20,9 @@ class ApiResponse
 
         if ($data !== null && !empty($data)) {
             if ($data instanceof LengthAwarePaginator) {
-                // 分页数据 - 使用SoybeanAdmin规范格式
-                $response['data'] = [
-                    'current' => $data->currentPage(),
-                    'size' => $data->perPage(),
-                    'total' => $data->total(),
-                    'records' => $data->items(),
-                ];
+                // 分页数据
+                $response['total'] = $data->total();
+                $response['rows'] = $data->items();
             } else {
                 return response()->json(array_merge($response, $data));
             }
@@ -63,12 +59,8 @@ class ApiResponse
         return response()->json([
             'code' => ResponseCode::SUCCESS,
             'msg' => $message,
-            'data' => [
-                'current' => $paginator->currentPage(),
-                'size' => $paginator->perPage(),
-                'total' => $paginator->total(),
-                'rows' => $items,
-            ],
+            'total' => $paginator->total(),
+            'rows' => $items
         ]);
     }
 

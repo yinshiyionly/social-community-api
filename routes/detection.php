@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Detection\DetectionConfigController;
 use App\Http\Controllers\Detection\DetectionTaskController;
 use Illuminate\Support\Facades\Route;
 
@@ -27,4 +28,5 @@ Route::middleware('system.auth')->prefix('detection')->group(function () {
         Route::delete('/delete/{taskId}', [DetectionTaskController::class, 'destroy'])
             ->where('taskId', '[0-9]+');
     });
+    Route::get('config/industryTag', [DetectionConfigController::class, 'industryTag']);
 });

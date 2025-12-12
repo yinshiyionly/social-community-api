@@ -22,7 +22,18 @@ class DetectionTaskListResource extends JsonResource
     public function toArray($request): array
     {
         return [
-
+            'task_id' => $this->task_id,
+            'task_name' => $this->task_name,
+            'status' => $this->status,
+            'status_label' => $this->status_label,
+            'external_task_id' => $this->external_task_id,
+            'external_enable_status' => $this->external_enable_status,
+            'text_plain' => $this->text_plain,
+            'data_site' => $this->data_site,
+            'warn_state' => $this->warn_state,
+            'warn_state_label' => $this->warn_state_label,
+            'created_at' => $this->created_at->format('Y-m-d H:i:s'),
+            'updated_at' => $this->updated_at->format('Y-m-d H:i:s'),
         ];
     }
 }

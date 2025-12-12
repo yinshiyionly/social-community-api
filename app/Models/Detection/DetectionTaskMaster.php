@@ -25,7 +25,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property array|null $data_site 数据站点-抖音
  * @property int $warn_state 预警状态
  * @property string $warn_name 预警名称
- * @property array|null $warn_keyword 预警关键词
  * @property \Illuminate\Support\Carbon|null $warn_reception_start_time 预警接收开始时间
  * @property \Illuminate\Support\Carbon|null $warn_reception_end_time 预警接收结束时间
  * @property int $warn_publish_email_state 预警邮箱推送开关
@@ -141,7 +140,6 @@ class DetectionTaskMaster extends Model
         'data_site',
         'warn_state',
         'warn_name',
-        'warn_keyword',
         'warn_reception_start_time',
         'warn_reception_end_time',
         'warn_publish_email_state',
@@ -169,7 +167,6 @@ class DetectionTaskMaster extends Model
         'based_location_plain' => 'array',
         'data_site' => 'array',
         'warn_state' => 'integer',
-        'warn_keyword' => 'array',
         'warn_reception_start_time' => 'datetime',
         'warn_reception_end_time' => 'datetime',
         'warn_publish_email_state' => 'integer',

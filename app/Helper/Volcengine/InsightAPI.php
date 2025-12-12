@@ -101,7 +101,9 @@ class InsightAPI
 
             throw new \Exception($msg);
         } catch (GuzzleException $e) {
-            return ['error' => $e->getMessage()];
+            $msg = '[火山内容洞察]guzzle异常access-token: ' . $e->getMessage();
+            $this->errorLog($msg, []);
+            throw new \Exception($msg);
         }
     }
 
@@ -133,7 +135,9 @@ class InsightAPI
             $this->errorLog($msg, ['body' => $body, 'result' => $result]);
             throw new \Exception($msg);
         } catch (GuzzleException $e) {
-            return ['error' => $e->getMessage()];
+            $msg = '[火山内容洞察]guzzle异常创建实时任务: ' . $e->getMessage();
+            $this->errorLog($msg, []);
+            throw new \Exception($msg);
         }
     }
 
@@ -167,7 +171,9 @@ class InsightAPI
             $this->errorLog($msg, ['body' => $body, 'result' => $result]);
             throw new \Exception($msg);
         } catch (GuzzleException $e) {
-            return ['error' => $e->getMessage()];
+            $msg = '[火山内容洞察]guzzle异常更新实时任务: ' . $e->getMessage();
+            $this->errorLog($msg, []);
+            throw new \Exception($msg);
         }
     }
 
@@ -197,7 +203,34 @@ class InsightAPI
             $this->errorLog($msg, ['task_id' => $taskId, 'result' => $result]);
             throw new \Exception($msg);
         } catch (GuzzleException $e) {
-            return ['error' => $e->getMessage()];
+            $msg = '[火山内容洞察]guzzle异常获取任务状态: ' . $e->getMessage();
+            $this->errorLog($msg, []);
+            throw new \Exception($msg);
+        }
+    }
+
+    public function bizSubSensitiveWordsCheck(array $wordList)
+    {
+        try {
+            $response = $this->client->get('openapi/biz_sub/sensitive_words_check', [
+                'headers' => $this->getHeaders(true),
+                'json' => [
+                    'words' => $wordList
+                ]
+            ]);
+
+            $result = json_decode($response->getBody()->getContents(), true);
+
+            if (isset($result['status']) && $result['status'] == 0) {
+                return $result;
+            }
+            $msg = '[火山内容洞察]敏感词校验接口失败: ' . $result['message'] ?? '未知错误';
+            $this->errorLog($msg, ['word_list' => $wordList, 'result' => $result]);
+            throw new \Exception($msg);
+        } catch (GuzzleException $e) {
+            $msg = '[火山内容洞察]guzzle异常敏感词校验: ' . $e->getMessage();
+            $this->errorLog($msg, []);
+            throw new \Exception($msg);
         }
     }
 

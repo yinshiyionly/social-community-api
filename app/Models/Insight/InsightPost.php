@@ -25,7 +25,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $post_type 发文类型
  * @property array|null $video_info 视频信息
  * @property array|null $based_location 相关位置
- * @property string|null $matched_task_ids 命中任务ID
+ * @property array|null $matched_task_ids 命中任务ID
  * @property int $process_state 处理状态
  */
 class InsightPost extends Model
@@ -87,7 +87,7 @@ class InsightPost extends Model
      *
      * @var string
      */
-    protected $table = 'insight_post';
+    protected $table = 'insight_post_1';
 
     /**
      * 主键字段
@@ -156,6 +156,7 @@ class InsightPost extends Model
         'status' => 'integer',
         'post_type' => 'integer',
         'process_state' => 'integer',
+        'matched_task_ids' => 'array'
     ];
 
     /**

@@ -50,14 +50,11 @@ class CreateDetectionTaskRequest extends FormRequest
             'tag_plain.*' => ['string', 'max:100'],
 
             // 数据来源平台
-            'data_site' => ['required', 'array', 'min:1'],
+            // 'data_site' => ['required', 'array', 'min:1'],
             'data_site.*' => ['string', 'max:50'],
 
             // 预警名称
             'warn_name' => ['nullable', 'string', 'max:255'],
-
-            // 预警关键词
-            'warn_keyword' => ['nullable', 'string', 'max:1000'],
 
             // 预警邮箱开关 1-开启 2-关闭
             'warn_publish_email_state' => ['nullable', 'integer', Rule::in([1, 2])],
@@ -130,7 +127,6 @@ class CreateDetectionTaskRequest extends FormRequest
             'data_site.*.string' => '数据来源平台必须是字符串',
 
             'warn_name.max' => '预警名称不能超过255个字符',
-            'warn_keyword.max' => '预警关键词不能超过1000个字符',
 
             'warn_publish_email_state.in' => '预警邮箱开关值无效，只能是1或2',
             'warn_publish_email_config.required_if' => '开启邮箱预警时，预警邮箱配置不能为空',
@@ -171,7 +167,6 @@ class CreateDetectionTaskRequest extends FormRequest
             'tag_plain' => '行业标签',
             'data_site' => '数据来源平台',
             'warn_name' => '预警名称',
-            'warn_keyword' => '预警关键词',
             'warn_publish_email_state' => '预警邮箱开关',
             'warn_publish_email_config' => '预警邮箱配置',
             'warn_publish_wx_state' => '预警微信开关',

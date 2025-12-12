@@ -274,11 +274,13 @@ class DetectionTaskService
 
         try {
             // todo 使用 laravel model 的 dirty 检测机制, 只更新变更的字段
-            $originData->fill($update);
-            $changed = $originData->getDirty(); // 只获取变化的字段
-            if (!empty($changed)) {
-                $originData->update($changed);
-            }
+            // todo dirty 后的json数据会导致转义
+            // $originData->fill($update);
+            // $changed = $originData->getDirty(); // 只获取变化的字段
+            // if (!empty($changed)) {
+            //    $originData->update($changed);
+            // }
+            $originData->update($update);
         } catch (\Exception $e) {
             $msg = '更新监测任务失败: ' . $e->getMessage();
             $this->errorLog($msg, ['task_id' => $taskId, 'data' => $data]);

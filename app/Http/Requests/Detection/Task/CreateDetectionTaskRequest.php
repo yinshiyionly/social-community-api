@@ -33,10 +33,10 @@ class CreateDetectionTaskRequest extends FormRequest
     {
         return [
             // 任务名称
-            'task_name' => ['required', 'string', 'max:255'],
+            'task_name' => ['required', 'string', 'max:100', Rule::unique('detection_task_master', 'task_name')->whereNull('deleted_at')],
 
             // 文本关键词
-            'text_plain' => ['required', 'string', 'max:100'],
+            'text_plain' => ['required', 'string', 'max:100', Rule::unique('detection_task_master', 'text_plain')->whereNull('deleted_at')],
 
             // 地域配置
             'based_location_plain' => ['nullable', 'array'],
@@ -106,10 +106,13 @@ class CreateDetectionTaskRequest extends FormRequest
     {
         return [
             'task_name.required' => '任务名称不能为空',
-            'task_name.max' => '任务名称不能超过255个字符',
+            'task_name.max' => '任务名称不能超过100个字符',
+            'task_name.unique' => '任务名称已存在',
 
             'text_plain.required' => '文本关键词不能为空',
             'text_plain.max' => '文本关键词不能超过100个字符',
+            'text_plain.unique' => '文本关键词已存在',
+
 
             'based_location_plain.array' => '地域配置格式错误',
             'based_location_plain.region.max' => '地区名称不能超过100个字符',

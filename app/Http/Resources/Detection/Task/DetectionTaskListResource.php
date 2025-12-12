@@ -29,9 +29,7 @@ class DetectionTaskListResource extends JsonResource
             'external_task_id' => $this->external_task_id,
             'external_enable_status' => $this->external_enable_status,
             'text_plain' => $this->text_plain,
-            'data_site' => $this->data_site,
-            'warn_state' => $this->warn_state,
-            'warn_state_label' => $this->warn_state_label,
+            // 'data_site' => $this->data_site,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at->format('Y-m-d H:i:s'),
         ];

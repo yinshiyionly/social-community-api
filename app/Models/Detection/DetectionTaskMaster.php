@@ -23,7 +23,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property array|null $based_location_rule 火山内容洞察实时任务rule规则-相关位置信息类
  * @property array|null $based_location_plain 内部系统明文规则-相关位置信息类
  * @property array|null $data_site 数据站点-抖音
- * @property int $warn_state 预警状态
  * @property string $warn_name 预警名称
  * @property \Illuminate\Support\Carbon|null $warn_reception_start_time 预警接收开始时间
  * @property \Illuminate\Support\Carbon|null $warn_reception_end_time 预警接收结束时间
@@ -74,26 +73,6 @@ class DetectionTaskMaster extends Model
      */
     public const EXTERNAL_ENABLE_STATUS_OFF = 0;
 
-    // ==================== 预警状态常量 ====================
-
-    /**
-     * 预警状态: 启用
-     */
-    public const WARN_STATE_ENABLED = 1;
-
-    /**
-     * 预警状态: 禁用
-     */
-    public const WARN_STATE_DISABLED = 2;
-
-    /**
-     * 预警状态标签映射
-     */
-    public const WARN_STATE_LABELS = [
-        self::WARN_STATE_ENABLED => '启用',
-        self::WARN_STATE_DISABLED => '禁用',
-    ];
-
     // ==================== 推送开关常量 ====================
 
     /**
@@ -138,7 +117,6 @@ class DetectionTaskMaster extends Model
         'based_location_rule',
         'based_location_plain',
         'data_site',
-        'warn_state',
         'warn_name',
         'warn_reception_start_time',
         'warn_reception_end_time',
@@ -166,7 +144,6 @@ class DetectionTaskMaster extends Model
         'based_location_rule' => 'array',
         'based_location_plain' => 'array',
         'data_site' => 'array',
-        'warn_state' => 'integer',
         'warn_reception_start_time' => 'datetime',
         'warn_reception_end_time' => 'datetime',
         'warn_publish_email_state' => 'integer',
@@ -187,16 +164,6 @@ class DetectionTaskMaster extends Model
     }
 
     /**
-     * 获取预警状态标签
-     *
-     * @return string
-     */
-    public function getWarnStateLabelAttribute(): string
-    {
-        return self::WARN_STATE_LABELS[$this->warn_state] ?? '未知';
-    }
-
-    /**
      * 判断任务是否启用
      *
      * @return bool
@@ -204,16 +171,6 @@ class DetectionTaskMaster extends Model
     public function isEnabled(): bool
     {
         return $this->status === self::STATUS_ENABLED;
-    }
-
-    /**
-     * 判断预警是否启用
-     *
-     * @return bool
-     */
-    public function isWarnEnabled(): bool
-    {
-        return $this->warn_state === self::WARN_STATE_ENABLED;
     }
 
     /**

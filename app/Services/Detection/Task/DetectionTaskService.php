@@ -49,13 +49,13 @@ class DetectionTaskService
         }
 
         // 2. 根据task_id查询数据表
-        $postData = InsightPost::query()
+        /*$postData = InsightPost::query()
             ->whereRaw("JSON_CONTAINS(matched_task_ids, CAST(? AS JSON), '$')", [$taskId])
             ->orderByDesc('publish_time')
             ->get();
 
         // 3. 将 postData 附加到 item
-        $item->post_data = $postData;
+        $item->post_data = $postData;*/
 
         return $item;
     }
@@ -148,7 +148,6 @@ class DetectionTaskService
             'based_location_rule' => $basedLocationRule ?? [],
             'based_location_plain' => $data['based_location_plain'] ?? [],
             'data_site' => $data['data_site'] ?? [],
-            'warn_state' => $data['warn_state'] ?? 2,
             'warn_name' => $data['warn_name'] ?? '',
             'warn_reception_start_time' => $data['warn_reception_start_time'] ?? null,
             'warn_reception_end_time' => $data['warn_reception_end_time'] ?? null,
@@ -262,7 +261,6 @@ class DetectionTaskService
             'based_location_rule' => $basedLocationRule ?? [],
             'based_location_plain' => $data['based_location_plain'] ?? [],
             'data_site' => $data['data_site'] ?? [],
-            'warn_state' => $data['warn_state'] ?? 2,
             'warn_name' => $data['warn_name'] ?? '',
             'warn_reception_start_time' => $data['warn_reception_start_time'] ?? null,
             'warn_reception_end_time' => $data['warn_reception_end_time'] ?? null,

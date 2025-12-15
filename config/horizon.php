@@ -185,120 +185,66 @@ return [
 
     'environments' => [
         'develop' => [
-            // 企业微信外部联系人事件队列
-            'wx-external-event' => [
+            // 预警任务
+            'detection-task' => [
                 'connection' => 'redis',
-                'queue' => ['wx-external-event'],
-                'maxProcesses' => 8,
+                'queue' => ['detection-task'],
+                'maxProcesses' => 2,
                 'memory' => 256,
                 'tries' => 3,
                 'timeout' => 600
             ],
-            // 企业微信员工同步队列
-            'wechat-work-sync' => [
+            // 预警邮箱
+            'detection-email' => [
                 'connection' => 'redis',
-                'queue' => ['wechat-work-sync'],
-                'maxProcesses' => 1,
+                'queue' => ['detection-email'],
+                'maxProcesses' => 2,
                 'memory' => 256,
                 'tries' => 3,
                 'timeout' => 600,
-            ],
-            // 营期分班队列
-            'camp-distribute' => [
-                'connection' => 'redis',
-                'queue' => ['camp-distribute'],
-                'maxProcesses' => 8,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600,
-            ],
-            // 通用订单队列
-            'order-process' => [
-                'connection' => 'redis',
-                'queue' => ['order-process'],
-                'maxProcesses' => 4,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600,
-            ],
+            ]
         ],
 
         'production' => [
-            // 企业微信外部联系人事件队列
-            'wx-external-event' => [
+            // 预警任务
+            'detection-task' => [
                 'connection' => 'redis',
-                'queue' => ['wx-external-event'],
-                'maxProcesses' => 8,
+                'queue' => ['detection-task'],
+                'maxProcesses' => 2,
                 'memory' => 256,
                 'tries' => 3,
                 'timeout' => 600
             ],
-            // 企业微信员工同步队列
-            'wechat-work-sync' => [
+            // 预警邮箱
+            'detection-email' => [
                 'connection' => 'redis',
-                'queue' => ['wechat-work-sync'],
-                'maxProcesses' => 1,
+                'queue' => ['detection-email'],
+                'maxProcesses' => 2,
                 'memory' => 256,
                 'tries' => 3,
                 'timeout' => 600,
-            ],
-            // 营期分班队列
-            'camp-distribute' => [
-                'connection' => 'redis',
-                'queue' => ['camp-distribute'],
-                'maxProcesses' => 8,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600,
-            ],
-            // 通用订单队列
-            'order-process' => [
-                'connection' => 'redis',
-                'queue' => ['order-process'],
-                'maxProcesses' => 4,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600,
-            ],
+            ]
         ],
 
         'local' => [
-            // 企业微信外部联系人事件队列
-            'wx-external-event' => [
+            // 预警任务
+            'detection-task' => [
                 'connection' => 'redis',
-                'queue' => ['wx-external-event'],
+                'queue' => ['detection-task'],
                 'maxProcesses' => 2,
                 'memory' => 256,
                 'tries' => 3,
                 'timeout' => 600
             ],
-            // 企业微信员工同步队列
-            'wechat-work-sync' => [
+            // 预警邮箱
+            'detection-email' => [
                 'connection' => 'redis',
-                'queue' => ['wechat-work-sync'],
-                'maxProcesses' => 1,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600,
-            ],
-            // 营期分班队列
-            'camp-distribute' => [
-                'connection' => 'redis',
-                'queue' => ['camp-distribute'],
+                'queue' => ['detection-email'],
                 'maxProcesses' => 2,
                 'memory' => 256,
                 'tries' => 3,
                 'timeout' => 600,
-            ],
-            // 通用订单队列
-            'order-process' => [
-                'connection' => 'redis',
-                'queue' => ['order-process'],
-                'maxProcesses' => 2,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600,
-            ],
+            ]
         ],
     ],
 ];

@@ -11,6 +11,7 @@ use App\Http\Requests\Detection\Task\UpdateDetectionTaskRequest;
 use App\Http\Resources\ApiResponse;
 use App\Http\Resources\Detection\Task\DetectionTaskItemResource;
 use App\Http\Resources\Detection\Task\DetectionTaskListResource;
+use App\Http\Resources\Detection\Task\InsightPostListResource;
 use App\Services\Detection\Task\DetectionTaskService;
 use Illuminate\Http\Request;
 
@@ -117,5 +118,19 @@ class DetectionTaskController extends Controller
         $this->detectionTaskService->delete($taskId);
 
         return ApiResponse::deleted();
+    }
+
+    /**
+     * 根据外部任务ID获取洞察数据列表
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     * @throws ApiException
+     */
+    public function getInsightData(Request $request)
+    {
+        $result = $this->detectionTaskService->getInsightDataByExternalTaskId($request->all());
+
+        return ApiResponse::paginate($result, InsightPostListResource::class);
     }
 }

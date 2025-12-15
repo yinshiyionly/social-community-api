@@ -27,6 +27,9 @@ Route::middleware('system.auth')->prefix('detection')->group(function () {
         // 删除
         Route::delete('/delete/{taskId}', [DetectionTaskController::class, 'destroy'])
             ->where('taskId', '[0-9]+');
+        // 根据外部任务ID获取数据列表
+        Route::get('/data', [DetectionTaskController::class, 'getInsightData']);
     });
+    // 配置-行业标签
     Route::get('config/industryTag', [DetectionConfigController::class, 'industryTag']);
 });

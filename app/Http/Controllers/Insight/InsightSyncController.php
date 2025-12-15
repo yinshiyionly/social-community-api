@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Insight;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ApiResponse;
+use App\Jobs\Detection\Task\DetectionTaskWarnJob;
 use App\Models\Insight\InsightPost;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -54,13 +55,19 @@ class InsightSyncController extends Controller
                 $data
             );
 
+            // 异步队列处理具体的负向数据并发送预警邮件
+            $jobParams = [
+                'origin_id' => $data['origin_id'],
+                'sentiment' => $data['sentiment']
+            ];
+            DetectionTaskWarnJob::dispatch($jobParams);
+
             return ApiResponse::success([], '数据同步成功');
         } catch (Throwable $e) {
             // 记录错误日志
             Log::error('Insight sync failed', [
-                'origin_id' => $itemDoc['origin_id'] ?? 'unknown',
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'origin_id' => $itemDoc['origin_id'],
+                'error' => $e->getMessage()
             ]);
 
             return ApiResponse::error('Database error: ' . $e->getMessage(), 500, 500);
@@ -77,14 +84,14 @@ class InsightSyncController extends Controller
     private function parseItemDoc(array $itemDoc): array
     {
         // 处理 matched_task_ids：数组转字符串
-        $matchedTaskIds = null;
+        /*$matchedTaskIds = null;
         if (isset($itemDoc['matched_task_ids'])) {
             if (is_array($itemDoc['matched_task_ids'])) {
                 $matchedTaskIds = implode(',', $itemDoc['matched_task_ids']);
             } else {
-                $matchedTaskIds = (string) $itemDoc['matched_task_ids'];
+                $matchedTaskIds = (string)$itemDoc['matched_task_ids'];
             }
-        }
+        }*/
 
         // 映射字段
         return [
@@ -97,12 +104,13 @@ class InsightSyncController extends Controller
             'url' => $itemDoc['url'] ?? '',
             'title' => $itemDoc['title'] ?? null,
             'feature' => $itemDoc['feature'] ?? null,
+            'sentiment' => $itemDoc['feature']['sentiment'] ?? 0,
             'poi' => $itemDoc['poi'] ?? null,
             'status' => $itemDoc['status'] ?? 1,
             'post_type' => $itemDoc['post_type'] ?? 0,
             'video_info' => $itemDoc['video_info'] ?? null,
             'based_location' => $itemDoc['based_location'] ?? null,
-            'matched_task_ids' => $matchedTaskIds,
+            'matched_task_ids' => $itemDoc['matched_task_ids'] ?? [],
             'process_state' => InsightPost::PROCESS_STATE_PENDING,
         ];
     }
@@ -123,10 +131,10 @@ class InsightSyncController extends Controller
 
         // 如果是数字（时间戳）
         if (is_numeric($value)) {
-            $timestamp = (int) $value;
+            $timestamp = (int)$value;
             // 如果是毫秒时间戳，转换为秒
             if ($timestamp > 9999999999) {
-                $timestamp = (int) ($timestamp / 1000);
+                $timestamp = (int)($timestamp / 1000);
             }
             return date('Y-m-d H:i:s', $timestamp);
         }

@@ -132,6 +132,7 @@ class InsightPost extends Model
         'url',
         'title',
         'feature',
+        'sentiment',
         'poi',
         'status',
         'post_type',
@@ -139,6 +140,7 @@ class InsightPost extends Model
         'based_location',
         'matched_task_ids',
         'process_state',
+        'process_at',
     ];
 
     /**

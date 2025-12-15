@@ -510,6 +510,54 @@ class DetectionTaskService
     }
 
     /**
+     * 根据外部任务ID获取洞察数据列表
+     *
+     * @param array $params
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     * @throws ApiException
+     */
+    public function getInsightDataByExternalTaskId(array $params)
+    {
+        $externalTaskId = (int)($params['external_task_id'] ?? 0);
+        $pageNum = (int)($params['pageNum'] ?? 1);
+        $pageSize = (int)($params['pageSize'] ?? 10);
+
+        if ($externalTaskId < 0) {
+            throw new ApiException('外部任务ID不能为空');
+        }
+
+        // 验证任务是否存在
+        $task = DetectionTaskMaster::query()
+            ->where('external_task_id', $externalTaskId)
+            ->first();
+
+        if (empty($task)) {
+            throw new ApiException('任务不存在');
+        }
+
+        // 查询匹配该外部任务ID的洞察数据
+        return InsightPost::query()
+            ->whereJsonContains('matched_task_ids', $externalTaskId)
+            // 发布时间范围筛选
+            ->when(isset($params['publish_time_start']) && $params['publish_time_start'] != '', function ($q) use ($params) {
+                $q->where('publish_time', '>=', $params['publish_time_start']);
+            })
+            ->when(isset($params['publish_time_end']) && $params['publish_time_end'] != '', function ($q) use ($params) {
+                $q->where('publish_time', '<=', $params['publish_time_end']);
+            })
+            // 处理状态筛选
+            ->when(isset($params['process_state']) && $params['process_state'] !== '', function ($q) use ($params) {
+                $q->where('process_state', (int)$params['process_state']);
+            })
+            // 标题关键词搜索
+            ->when(isset($params['title']) && $params['title'] != '', function ($q) use ($params) {
+                $q->where('title', 'like', '%' . $params['title'] . '%');
+            })
+            ->orderByDesc('publish_time')
+            ->paginate($pageSize, ['*'], 'page', $pageNum);
+    }
+
+    /**
      * 记录错误日志
      *
      * @param string $msg

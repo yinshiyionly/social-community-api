@@ -60,7 +60,10 @@ class InsightSyncController extends Controller
                 'origin_id' => $data['origin_id'],
                 'sentiment' => $data['sentiment']
             ];
-            DetectionTaskWarnJob::dispatch($jobParams);
+            // todo 只处理负向情绪的数据
+            if ($jobParams['sentiment'] == 2) {
+                DetectionTaskWarnJob::dispatch($jobParams);
+            }
 
             return ApiResponse::success([], '数据同步成功');
         } catch (Throwable $e) {

@@ -482,7 +482,7 @@ class DetectionTaskService
     {
         $basedLocationParser = new BasedLocationParser();
         try {
-            return $basedLocationParser->parse($basedLocationPlain);
+            return $basedLocationParser->parseMultiple($basedLocationPlain);
         } catch (\Exception $e) {
             $msg = '解析地域错误: ' . $e->getMessage();
             $this->errorLog($msg, ['based_location_plain' => $basedLocationPlain]);
@@ -538,22 +538,30 @@ class DetectionTaskService
         // 查询匹配该外部任务ID的洞察数据
         return InsightPost::query()
             ->whereJsonContains('matched_task_ids', $externalTaskId)
-            // 发布时间范围筛选
+            // source_type 发文来源类型
+            ->when(isset($params['source_type']) && $params['source_type'] == '抖音', function ($q) use ($params) {
+                $q->where('main_domain', 'douyin.com');
+            })
+            // publish_time_start 发布时间范围筛选
             ->when(isset($params['publish_time_start']) && $params['publish_time_start'] != '', function ($q) use ($params) {
                 $q->where('publish_time', '>=', $params['publish_time_start']);
             })
+            // publish_time_end 发布时间范围筛选
             ->when(isset($params['publish_time_end']) && $params['publish_time_end'] != '', function ($q) use ($params) {
                 $q->where('publish_time', '<=', $params['publish_time_end']);
             })
-            // 处理状态筛选
-            ->when(isset($params['process_state']) && $params['process_state'] !== '', function ($q) use ($params) {
-                $q->where('process_state', (int)$params['process_state']);
+            // list_order 发文时间排序
+            ->when(isset($params['list_order']) && in_array($params['list_order'], ['asc', 'desc']), function ($q) use ($params) {
+                $q->orderBy('publish_time', $params['list_order']);
+            })
+            ->when(isset($params['sentiment']) && in_array($params['sentiment'], [0, 1, 2]), function ($q) use ($params) {
+                $q->where('sentiment', $params['sentiment']);
             })
             // 标题关键词搜索
             ->when(isset($params['title']) && $params['title'] != '', function ($q) use ($params) {
                 $q->where('title', 'like', '%' . $params['title'] . '%');
             })
-            ->orderByDesc('publish_time')
+            // ->orderByDesc('publish_time')
             ->paginate($pageSize, ['*'], 'page', $pageNum);
     }
 

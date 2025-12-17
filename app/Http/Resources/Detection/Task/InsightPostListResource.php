@@ -63,8 +63,16 @@ class InsightPostListResource extends JsonResource
             'tags' => $this->feature['tags'] ?? [],
             // 'poi' => $this->poi,
             // 'video_info' => $this->video_info,
-            'based_location' => $this->based_location['public_location']['location'] ?? '',
+            'based_location' => $this->formatBasedLocation($this->based_location ?? []),
             'matched_task_ids' => $this->matched_task_ids,
         ];
+    }
+
+    protected function formatBasedLocation($basedLocation)
+    {
+        if (isset($basedLocation['public_location']['region']) && isset($basedLocation['public_location']['province'])) {
+            return sprintf("%s-%s", $basedLocation['public_location']['region'], $basedLocation['public_location']['province']);
+        }
+        return $basedLocation['public_location']['location'];
     }
 }

@@ -53,15 +53,20 @@ class MaterialEnterpriseService
      */
     public function getList(array $params): LengthAwarePaginator
     {
-        $current = (int) ($params['current'] ?? 1);
-        $size = (int) ($params['size'] ?? 10);
+        $pageNum = (int)($params['pageNum'] ?? 1);
+        $pageSize = (int)($params['pageSize'] ?? 10);
 
         return MaterialEnterprise::query()
-            ->when(isset($params['keyword']) && $params['keyword'] !== '', function ($query) use ($params) {
-                $query->where('name', 'like', '%' . $params['keyword'] . '%');
+            // 企业名称-模糊搜索
+            ->when(isset($params['name']) && $params['name'] != '', function ($q) use ($params) {
+                $q->where('name', 'like', '%' . $params['name'] . '%');
+            })
+            // 联系人姓名-模糊搜索
+            ->when(isset($params['contact_name']) && $params['contact_name'] != '', function ($q) use ($params) {
+                $q->where('contact_name', 'like', '%' . $params['contact_name'] . '%');
             })
             ->orderBy('id', 'desc')
-            ->paginate($size, ['*'], 'page', $current);
+            ->paginate($pageSize, ['*'], 'page', $pageNum);
     }
 
     /**
@@ -105,7 +110,6 @@ class MaterialEnterpriseService
      * @param int $id 企业资料ID
      * @param array $data 更新数据
      * @return bool
-     * @throws ApiException
      */
     public function update(int $id, array $data): bool
     {
@@ -124,7 +128,6 @@ class MaterialEnterpriseService
      *
      * @param int $id 企业资料ID
      * @return bool
-     * @throws ApiException
      */
     public function delete(int $id): bool
     {

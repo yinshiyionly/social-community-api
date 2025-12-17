@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources\PublicRelation\MaterialPolitics;
 
+use App\Helper\RegionHelper;
 use App\Http\Resources\BaseResource;
 
 /**
@@ -22,6 +23,12 @@ class MaterialPoliticsListResource extends BaseResource
      */
     public function toArray($request): array
     {
+        $region = RegionHelper::getNames(
+            $this->province_code,
+            $this->city_code,
+            $this->district_code
+        );
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -30,8 +37,11 @@ class MaterialPoliticsListResource extends BaseResource
             'contact_phone' => $this->contact_phone,
             'contact_email' => $this->contact_email,
             'province_code' => $this->province_code,
+            'province' => $region['province'],
             'city_code' => $this->city_code,
+            'city' => $region['city'],
             'district_code' => $this->district_code,
+            'district' => $region['district'],
             'contact_address' => $this->contact_address,
             'status' => $this->status,
             'status_label' => $this->status_label,

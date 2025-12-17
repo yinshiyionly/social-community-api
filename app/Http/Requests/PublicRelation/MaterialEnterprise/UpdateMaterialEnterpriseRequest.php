@@ -27,9 +27,17 @@ class UpdateMaterialEnterpriseRequest extends FormRequest
      */
     public function rules(): array
     {
+        $id = request()->get('id', 0);
         return [
             // Required fields (same as create)
-            'name' => 'required|string|max:100',
+            'name' => [
+                'required',
+                'string',
+                'max:50',
+                Rule::unique('material_enterprise', 'name')
+                    ->whereNull('deleted_at')
+                    ->ignore($id, 'id')
+            ],
             'contact_name' => 'required|string|max:20',
             'contact_phone' => ['required', 'string', 'regex:/^1[3-9]\d{9}$/'],
 
@@ -49,13 +57,13 @@ class UpdateMaterialEnterpriseRequest extends FormRequest
             'proof_material.*.url' => 'required_with:proof_material|string',
 
             // Enum field validations
-            'type' => ['nullable', 'string', Rule::in(MaterialEnterprise::TYPE_OPTIONS)],
-            'nature' => ['nullable', 'string', Rule::in(MaterialEnterprise::NATURE_OPTIONS)],
-            'industry' => ['nullable', 'string', Rule::in(MaterialEnterprise::INDUSTRY_OPTIONS)],
-            'contact_identity' => ['nullable', 'string', Rule::in(MaterialEnterprise::CONTACT_IDENTITY_OPTIONS)],
+            'type' => ['required', 'string', Rule::in(MaterialEnterprise::TYPE_OPTIONS)],
+            'nature' => ['required', 'string', Rule::in(MaterialEnterprise::NATURE_OPTIONS)],
+            'industry' => ['required', 'string', Rule::in(MaterialEnterprise::INDUSTRY_OPTIONS)],
+            'contact_identity' => ['required', 'string', Rule::in(MaterialEnterprise::CONTACT_IDENTITY_OPTIONS)],
 
             // Email validation
-            'contact_email' => 'nullable|email|max:50',
+            'contact_email' => 'required|email|max:50',
 
             // Status validation
             'status' => ['nullable', 'integer', Rule::in([MaterialEnterprise::STATUS_ENABLED, MaterialEnterprise::STATUS_DISABLED])],
@@ -74,6 +82,7 @@ class UpdateMaterialEnterpriseRequest extends FormRequest
             'name.required' => '企业名称不能为空',
             'name.string' => '企业名称必须是字符串',
             'name.max' => '企业名称不能超过100个字符',
+            'name.unique' => '企业名称已经存在',
 
             // Contact name validation messages
             'contact_name.required' => '联系人姓名不能为空',
@@ -107,12 +116,17 @@ class UpdateMaterialEnterpriseRequest extends FormRequest
             'proof_material.*.url.string' => '证据材料的文件地址必须是字符串',
 
             // Enum field validation messages
+            'type.required' => '企业类型不能为空',
             'type.in' => '企业类型无效',
+            'nature.required' => '企业性质不能为空',
             'nature.in' => '企业性质无效',
+            'industry.required' => '行业分类不能为空',
             'industry.in' => '行业分类无效',
+            'contact_identity.required' => '联系人身份不能为空',
             'contact_identity.in' => '联系人身份无效',
 
             // Email validation messages
+            'contact_email.required' => '电子邮件不能为空',
             'contact_email.email' => '电子邮件格式不正确',
             'contact_email.max' => '电子邮件不能超过50个字符',
 

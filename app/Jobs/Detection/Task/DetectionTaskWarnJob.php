@@ -118,7 +118,13 @@ class DetectionTaskWarnJob implements ShouldQueue, ShouldBeUnique
                 return true;
             }
             $innerTaskList = $this->getInnerTaskListByMatchedTaskIds($data['matched_task_ids']);
-            Log::channel('job')->info(sprintf('数据 origin_id: %s 在内部系统关联查询到 %d 条实时监测任务', $this->params['origin_id'], count($innerTaskList)));
+            Log::channel('job')->info(
+                sprintf('数据 origin_id: %s 在内部系统关联查询到 %d 条实时监测任务, 分别是: %s',
+                    $this->params['origin_id'],
+                    count($innerTaskList),
+                    collect($data)->pluck('task_id')->implode(',')
+                )
+            );
 
             // 4. 循环处理 innerTaskList
             foreach ($innerTaskList as $item) {

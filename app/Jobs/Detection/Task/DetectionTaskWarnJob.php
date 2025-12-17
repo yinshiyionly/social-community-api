@@ -122,7 +122,7 @@ class DetectionTaskWarnJob implements ShouldQueue, ShouldBeUnique
                 sprintf('数据 origin_id: %s 在内部系统关联查询到 %d 条实时监测任务, 分别是: %s',
                     $this->params['origin_id'],
                     count($innerTaskList),
-                    collect($data)->pluck('task_id')->implode(',')
+                    collect($innerTaskList)->pluck('task_id')->implode(',')
                 )
             );
 

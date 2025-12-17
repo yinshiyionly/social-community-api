@@ -95,8 +95,9 @@ class MaterialPoliticsController extends Controller
      * @param int $id 政治类资料ID
      * @return JsonResponse
      */
-    public function update(UpdateMaterialPoliticsRequest $request, int $id): JsonResponse
+    public function update(UpdateMaterialPoliticsRequest $request): JsonResponse
     {
+        $id = (int)$request->get('id', 0);
         $this->materialPoliticsService->update($id, $request->validated());
 
         return ApiResponse::updated();

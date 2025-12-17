@@ -518,7 +518,7 @@ class DetectionTaskService
      */
     public function getInsightDataByExternalTaskId(array $params)
     {
-        $externalTaskId = (int)($params['external_task_id'] ?? 0);
+        $externalTaskId = (int)($params['external_task_id'] ?? -1);
         $pageNum = (int)($params['pageNum'] ?? 1);
         $pageSize = (int)($params['pageSize'] ?? 10);
 

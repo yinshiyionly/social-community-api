@@ -49,15 +49,16 @@ class MaterialPoliticsService
      */
     public function getList(array $params): LengthAwarePaginator
     {
-        $current = (int) ($params['current'] ?? 1);
-        $size = (int) ($params['size'] ?? 10);
+        $pageNum = (int)($params['pageNum'] ?? 1);
+        $pageSize = (int)($params['pageSize'] ?? 10);
 
         return MaterialPolitics::query()
-            ->when(isset($params['keyword']) && $params['keyword'] !== '', function ($query) use ($params) {
-                $query->where('name', 'like', '%' . $params['keyword'] . '%');
+            // 姓名-模糊搜索
+            ->when(isset($params['name']) && $params['name'] !== '', function ($query) use ($params) {
+                $query->where('name', 'like', '%' . $params['name'] . '%');
             })
             ->orderBy('id', 'desc')
-            ->paginate($size, ['*'], 'page', $current);
+            ->paginate($pageSize, ['*'], 'page', $pageNum);
     }
 
     /**

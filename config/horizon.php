@@ -184,7 +184,7 @@ return [
     ],
 
     'environments' => [
-        'develop' => [
+        'development' => [
             // 预警任务
             'detection-task' => [
                 'connection' => 'redis',

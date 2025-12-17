@@ -33,6 +33,7 @@ class InsightSyncController extends Controller
     {
         // 获取 item_doc 数据
         $itemDoc = $request->input('item_doc');
+        Log::channel('daily')->info('舆情同步数据', ['item_doc' => $itemDoc]);
 
         // 验证 item_doc 是否存在
         if (empty($itemDoc)) {

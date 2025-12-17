@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\PublicRelation;
 
+use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PublicRelation\MaterialEnterprise\CreateMaterialEnterpriseRequest;
 use App\Http\Requests\PublicRelation\MaterialEnterprise\UpdateMaterialEnterpriseRequest;
@@ -63,6 +64,7 @@ class MaterialEnterpriseController extends Controller
      *
      * @param int $id 企业资料ID
      * @return JsonResponse
+     * @throws ApiException
      */
     public function show(int $id): JsonResponse
     {
@@ -89,10 +91,9 @@ class MaterialEnterpriseController extends Controller
     /**
      * 更新企业资料
      *
-     * PUT /public-relation/material-enterprise/{id}
+     * PUT /public-relation/material-enterprise
      *
      * @param UpdateMaterialEnterpriseRequest $request 更新企业资料请求
-     * @param int $id 企业资料ID
      * @return JsonResponse
      */
     public function update(UpdateMaterialEnterpriseRequest $request): JsonResponse
@@ -112,6 +113,7 @@ class MaterialEnterpriseController extends Controller
      *
      * @param int $id 企业资料ID
      * @return JsonResponse
+     * @throws ApiException
      */
     public function destroy(int $id): JsonResponse
     {

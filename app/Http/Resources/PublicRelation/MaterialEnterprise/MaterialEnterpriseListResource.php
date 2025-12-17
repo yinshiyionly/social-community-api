@@ -23,12 +23,23 @@ class MaterialEnterpriseListResource extends BaseResource
     public function toArray($request): array
     {
         return [
+            // 主键ID
             'id' => $this->id,
+            // 企业名称
             'name' => $this->name,
+            // 企业类型
             'type' => $this->type,
+            // 企业性质
             'nature' => $this->nature,
+            // 行业分类
             'industry' => $this->industry,
+            // 联系人身份
+            'contact_identity' => $this->contact_identity,
+            // 联系人姓名
             'contact_name' => $this->contact_name,
+            // 联系人邮箱
+            'contact_email' => $this->contact_email ?? '',
+            // 联系人手机号
             'contact_phone' => $this->contact_phone,
             'status' => $this->status,
             'status_label' => $this->status_label,

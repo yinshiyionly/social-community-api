@@ -43,7 +43,7 @@ class CreateMaterialPoliticsRequest extends FormRequest
             'contact_address' => 'required|string|max:255',
 
             // Report material array validation
-            'report_material' => 'nullable|array',
+            'report_material' => 'required|array',
             'report_material.*.name' => 'required_with:report_material|string',
             'report_material.*.url' => 'required_with:report_material|string',
 
@@ -104,6 +104,7 @@ class CreateMaterialPoliticsRequest extends FormRequest
             'contact_address.max' => '通讯地址不能超过255个字符',
 
             // Report material validation messages
+            'report_material.required' => '举报材料不能为空',
             'report_material.array' => '举报材料必须是数组',
             'report_material.*.name.required_with' => '举报材料的文件名称不能为空',
             'report_material.*.name.string' => '举报材料的文件名称必须是字符串',

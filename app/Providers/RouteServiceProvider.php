@@ -51,6 +51,10 @@ class RouteServiceProvider extends ServiceProvider
             Route::prefix('api')
                 ->group(base_path('routes/material.php'));
 
+            // 公关维权-我要投诉
+            Route::prefix('api')
+                ->group(base_path('routes/complaint.php'));
+
             // 舆情数据同步接口（独立认证）
             Route::prefix('api')
                 ->group(base_path('routes/insight.php'));

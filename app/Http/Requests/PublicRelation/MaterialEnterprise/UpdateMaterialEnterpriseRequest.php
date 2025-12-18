@@ -41,36 +41,24 @@ class UpdateMaterialEnterpriseRequest extends FormRequest
             'contact_name' => 'required|string|max:20',
             'contact_phone' => ['required', 'string', 'regex:/^1[3-9]\d{9}$/'],
 
-            // Enterprise material validation messages
-            'enterprise_material.required' => '企业材料不能为空',
-            'enterprise_material.array' => '企业材料必须是数组',
-            'enterprise_material.*.name.required_with' => '企业材料的文件名称不能为空',
-            'enterprise_material.*.name.string' => '企业材料的文件名称必须是字符串',
-            'enterprise_material.*.url.required_with' => '企业材料的文件地址不能为空',
-            'enterprise_material.*.url.string' => '企业材料的文件地址必须是字符串',
+            // Enterprise material array validation
+            'enterprise_material' => 'required|array',
+            'enterprise_material.*.name' => 'required_with:enterprise_material|string',
+            'enterprise_material.*.url' => 'required_with:enterprise_material|string',
 
-            // Report material validation messages
-            'report_material.required' => '举报材料不能为空',
-            'report_material.array' => '举报材料必须是数组',
-            'report_material.*.name.required_with' => '举报材料的文件名称不能为空',
-            'report_material.*.name.string' => '举报材料的文件名称必须是字符串',
-            'report_material.*.url.required_with' => '举报材料的文件地址不能为空',
-            'report_material.*.url.string' => '举报材料的文件地址必须是字符串',
+            // Report material array validation
+            'report_material' => 'required|array',
+            'report_material.*.name' => 'required_with:report_material|string',
+            'report_material.*.url' => 'required_with:report_material|string',
 
-            // Proof material validation messages
-            'proof_material.required' => '证据材料不能为空',
-            'proof_material.array' => '证据材料必须是数组',
-            'proof_material.*.name.required_with' => '证据材料的文件名称不能为空',
-            'proof_material.*.name.string' => '证据材料的文件名称必须是字符串',
-            'proof_material.*.url.required_with' => '证据材料的文件地址不能为空',
-            'proof_material.*.url.string' => '证据材料的文件地址必须是字符串',
+            // Proof material array validation
+            'proof_material' => 'required|array',
+            'proof_material.*.name' => 'required_with:proof_material|string',
+            'proof_material.*.url' => 'required_with:proof_material|string',
 
-            'contact_material.required' => '联系人材料不能为空',
-            'contact_material.array' => '联系人材料必须是数组',
-            'contact_material.*.name.required_with' => '联系人材料的文件名称不能为空',
-            'contact_material.*.name.string' => '联系人材料的文件名称必须是字符串',
-            'contact_material.*.url.required_with' => '联系人材料的文件地址不能为空',
-            'contact_material.*.url.string' => '联系人材料的文件地址必须是字符串',
+            'contact_material' => 'required|array',
+            'contact_material.*.name' => 'required_with:contact_material|string',
+            'contact_material.*.url' => 'required_with:contact_material|string',
 
             // Enum field validations
             'type' => ['required', 'string', Rule::in(MaterialEnterprise::TYPE_OPTIONS)],
@@ -111,6 +99,7 @@ class UpdateMaterialEnterpriseRequest extends FormRequest
             'contact_phone.regex' => '有效电话格式不正确',
 
             // Enterprise material validation messages
+            'enterprise_material.required' => '企业材料不能为空',
             'enterprise_material.array' => '企业材料必须是数组',
             'enterprise_material.*.name.required_with' => '企业材料的文件名称不能为空',
             'enterprise_material.*.name.string' => '企业材料的文件名称必须是字符串',
@@ -118,6 +107,7 @@ class UpdateMaterialEnterpriseRequest extends FormRequest
             'enterprise_material.*.url.string' => '企业材料的文件地址必须是字符串',
 
             // Report material validation messages
+            'report_material.required' => '举报材料不能为空',
             'report_material.array' => '举报材料必须是数组',
             'report_material.*.name.required_with' => '举报材料的文件名称不能为空',
             'report_material.*.name.string' => '举报材料的文件名称必须是字符串',
@@ -125,11 +115,19 @@ class UpdateMaterialEnterpriseRequest extends FormRequest
             'report_material.*.url.string' => '举报材料的文件地址必须是字符串',
 
             // Proof material validation messages
+            'proof_material.required' => '证据材料不能为空',
             'proof_material.array' => '证据材料必须是数组',
             'proof_material.*.name.required_with' => '证据材料的文件名称不能为空',
             'proof_material.*.name.string' => '证据材料的文件名称必须是字符串',
             'proof_material.*.url.required_with' => '证据材料的文件地址不能为空',
             'proof_material.*.url.string' => '证据材料的文件地址必须是字符串',
+
+            'contact_material.required' => '联系人材料不能为空',
+            'contact_material.array' => '联系人材料必须是数组',
+            'contact_material.*.name.required_with' => '联系人材料的文件名称不能为空',
+            'contact_material.*.name.string' => '联系人材料的文件名称必须是字符串',
+            'contact_material.*.url.required_with' => '联系人材料的文件地址不能为空',
+            'contact_material.*.url.string' => '联系人材料的文件地址必须是字符串',
 
             // Enum field validation messages
             'type.required' => '企业类型不能为空',

@@ -26,12 +26,12 @@ class MaterialDefamationItemResource extends BaseResource
     {
         return [
             'id' => $this->id,
+            'real_name' => $this->real_name,
+            'contact_phone' => $this->contact_phone,
+            'contact_email' => $this->contact_email,
             'report_subject' => $this->report_subject,
             'occupation_category' => $this->occupation_category,
             'enterprise_name' => $this->enterprise_name,
-            'contact_phone' => $this->contact_phone,
-            'contact_email' => $this->contact_email,
-            'real_name' => $this->real_name,
             'report_material' => $this->processMaterialUrls($this->report_material),
             'status' => $this->status,
             'status_label' => $this->status_label,

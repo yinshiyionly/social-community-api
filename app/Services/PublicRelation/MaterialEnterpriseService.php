@@ -212,12 +212,12 @@ class MaterialEnterpriseService
     public function getReportEntityList()
     {
         return MaterialEnterprise::query()
-            ->pluck('contact_name', 'id') // 结果为 [id => contact_name]
             ->where('status', MaterialEnterprise::STATUS_ENABLED)
-            ->map(function ($label, $value) {
+            ->pluck('contact_name')
+            ->map(function ($label) {
                 return [
                     'label' => $label,
-                    'value' => $value,
+                    'value' => $label
                 ];
             })
             ->values(); // 重新索引数组

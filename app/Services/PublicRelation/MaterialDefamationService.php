@@ -200,12 +200,12 @@ class MaterialDefamationService
     public function getReportEntityList()
     {
         return MaterialDefamation::query()
-            ->pluck('real_name', 'id') // 结果为 [id => contact_name]
             ->where('status', MaterialDefamation::STATUS_ENABLED)
-            ->map(function ($label, $value) {
+            ->pluck('real_name')
+            ->map(function ($label) {
                 return [
                     'label' => $label,
-                    'value' => $value,
+                    'value' => $label
                 ];
             })
             ->values(); // 重新索引数组

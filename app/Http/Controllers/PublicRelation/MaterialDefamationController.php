@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\PublicRelation;
 
+use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PublicRelation\MaterialDefamation\CreateMaterialDefamationRequest;
 use App\Http\Requests\PublicRelation\MaterialDefamation\UpdateMaterialDefamationRequest;
@@ -92,11 +93,12 @@ class MaterialDefamationController extends Controller
      * PUT /public-relation/material-defamation/{id}
      *
      * @param UpdateMaterialDefamationRequest $request 更新诽谤资料请求
-     * @param int $id 诽谤资料ID
      * @return JsonResponse
+     * @throws ApiException
      */
-    public function update(UpdateMaterialDefamationRequest $request, int $id): JsonResponse
+    public function update(UpdateMaterialDefamationRequest $request): JsonResponse
     {
+        $id = (int)$request->get('id', 0);
         $this->materialDefamationService->update($id, $request->validated());
 
         return ApiResponse::updated();

@@ -191,4 +191,23 @@ class MaterialDefamationService
 
         return $model;
     }
+
+    /**
+     * 获取举报人实体列表
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    public function getReportEntityList()
+    {
+        return MaterialDefamation::query()
+            ->pluck('real_name', 'id') // 结果为 [id => contact_name]
+            ->where('status', MaterialDefamation::STATUS_ENABLED)
+            ->map(function ($label, $value) {
+                return [
+                    'label' => $label,
+                    'value' => $value,
+                ];
+            })
+            ->values(); // 重新索引数组
+    }
 }

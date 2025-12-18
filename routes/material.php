@@ -26,6 +26,8 @@ Route::middleware('system.auth')->prefix('material')->group(function () {
         // 删除
         Route::delete('/delete/{id}', [MaterialEnterpriseController::class, 'destroy'])
             ->where('id', '[0-9]+');
+        // 获取举报人实体列表
+        Route::get('/report_entity', [MaterialEnterpriseController::class, 'getReportEntityList']);
     });
 
     // 公关维权-资料管理-政治类资料
@@ -42,6 +44,8 @@ Route::middleware('system.auth')->prefix('material')->group(function () {
         // 删除
         Route::delete('/delete/{id}', [MaterialPoliticsController::class, 'destroy'])
             ->where('id', '[0-9]+');
+        // 获取举报人实体列表
+        Route::get('/report_entity', [MaterialPoliticsController::class, 'getReportEntityList']);
     });
 
     // 公关维权-资料管理-诽谤类资料
@@ -58,5 +62,7 @@ Route::middleware('system.auth')->prefix('material')->group(function () {
         // 删除
         Route::delete('/delete/{id}', [MaterialDefamationController::class, 'destroy'])
             ->where('id', '[0-9]+');
+        // 获取举报人实体列表
+        Route::get('/report_entity', [MaterialDefamationController::class, 'getReportEntityList']);
     });
 });

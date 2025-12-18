@@ -120,4 +120,16 @@ class MaterialDefamationController extends Controller
 
         return ApiResponse::deleted();
     }
+
+    /**
+     * 获取举报人实体列表
+     *
+     * @return JsonResponse
+     */
+    public function getReportEntityList()
+    {
+        $data = $this->materialDefamationService->getReportEntityList();
+
+        return ApiResponse::success(['data' => $data]);
+    }
 }

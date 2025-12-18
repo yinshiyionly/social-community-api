@@ -49,15 +49,16 @@ class MaterialDefamationService
      */
     public function getList(array $params): LengthAwarePaginator
     {
-        $current = (int) ($params['current'] ?? 1);
-        $size = (int) ($params['size'] ?? 10);
+        $pageNum = (int)($params['pageNum'] ?? 1);
+        $pageSize = (int)($params['pageSize'] ?? 10);
 
         return MaterialDefamation::query()
-            ->when(isset($params['keyword']) && $params['keyword'] != '', function ($query) use ($params) {
-                $query->where('real_name', 'like', '%' . $params['keyword'] . '%');
+            // 真实姓名-模糊搜索
+            ->when(isset($params['real_name']) && $params['real_name'] != '', function ($q) use ($params) {
+                $q->where('real_name', 'like', '%' . $params['real_name'] . '%');
             })
             ->orderBy('id', 'desc')
-            ->paginate($size, ['*'], 'page', $current);
+            ->paginate($pageSize, ['*'], 'page', $pageNum);
     }
 
     /**

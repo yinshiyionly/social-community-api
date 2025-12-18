@@ -34,6 +34,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class MaterialEnterprise extends Model
 {
     use SoftDeletes;
+
     // use HasStatusScope;
     // use HasAuditFields;
 
@@ -270,6 +271,7 @@ class MaterialEnterprise extends Model
         'nature',
         'industry',
         'contact_identity',
+        'contact_material',
         'contact_name',
         'contact_phone',
         'contact_email',
@@ -284,6 +286,7 @@ class MaterialEnterprise extends Model
      * @var array<string, string>
      */
     protected $casts = [
+        'contact_material' => 'array',
         'enterprise_material' => 'array',
         'report_material' => 'array',
         'proof_material' => 'array',

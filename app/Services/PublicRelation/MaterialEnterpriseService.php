@@ -33,6 +33,7 @@ class MaterialEnterpriseService
         'enterprise_material',
         'report_material',
         'proof_material',
+        'contact_material'
     ];
 
     /**

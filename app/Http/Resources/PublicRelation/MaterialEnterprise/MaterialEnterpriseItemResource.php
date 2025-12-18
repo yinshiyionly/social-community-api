@@ -43,6 +43,7 @@ class MaterialEnterpriseItemResource extends BaseResource
             'nature' => $this->nature,
             'industry' => $this->industry,
             'contact_identity' => $this->contact_identity,
+            'contact_material' => $this->processMaterialUrls($this->contact_material),
             'contact_name' => $this->contact_name,
             'contact_phone' => $this->contact_phone,
             'contact_email' => $this->contact_email,

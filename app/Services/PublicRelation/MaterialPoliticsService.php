@@ -201,11 +201,11 @@ class MaterialPoliticsService
     {
         return MaterialPolitics::query()
             ->where('status', MaterialPolitics::STATUS_ENABLED)
-            ->pluck('name')
-            ->map(function ($label) {
+            ->pluck('name', 'id')
+            ->map(function ($label, $value) {
                 return [
                     'label' => $label,
-                    'value' => $label
+                    'value' => $value
                 ];
             })
             ->values(); // 重新索引数组

@@ -201,11 +201,11 @@ class MaterialDefamationService
     {
         return MaterialDefamation::query()
             ->where('status', MaterialDefamation::STATUS_ENABLED)
-            ->pluck('real_name')
-            ->map(function ($label) {
+            ->pluck('real_name', 'id')
+            ->map(function ($label, $value) {
                 return [
                     'label' => $label,
-                    'value' => $label
+                    'value' => $value
                 ];
             })
             ->values(); // 重新索引数组

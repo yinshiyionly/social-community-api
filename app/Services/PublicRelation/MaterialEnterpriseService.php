@@ -213,11 +213,11 @@ class MaterialEnterpriseService
     {
         return MaterialEnterprise::query()
             ->where('status', MaterialEnterprise::STATUS_ENABLED)
-            ->pluck('contact_name')
-            ->map(function ($label) {
+            ->pluck('contact_name', 'id')
+            ->map(function ($label, $value) {
                 return [
                     'label' => $label,
-                    'value' => $label
+                    'value' => $value
                 ];
             })
             ->values(); // 重新索引数组

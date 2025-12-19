@@ -1,8 +1,6 @@
 <?php
 
-use App\Http\Controllers\PublicRelation\ComplaintDefamationController;
-use App\Http\Controllers\PublicRelation\ComplaintEnterpriseController;
-use App\Http\Controllers\PublicRelation\ComplaintPoliticsController;
+use App\Http\Controllers\Complaint\ComplaintEnterpriseController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -26,6 +24,10 @@ Route::middleware('system.auth')->prefix('complaint')->group(function () {
         // 删除
         Route::delete('/delete/{id}', [ComplaintEnterpriseController::class, 'destroy'])
             ->where('id', '[0-9]+');
+        // 获取证据种类枚举列表
+        Route::get('/proof-types', [ComplaintEnterpriseController::class, 'getProofTypes']);
+        // 获取可用发件邮箱列表
+        Route::get('/report-emails', [ComplaintEnterpriseController::class, 'getReportEmails']);
     });
 
     // 公关维权-我要投诉-政治类

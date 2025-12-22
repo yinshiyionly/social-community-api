@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Detection;
 
+use App\Models\Traits\HasAuditFields;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -40,6 +41,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class DetectionTaskMaster extends Model
 {
     use SoftDeletes;
+    use HasAuditFields;
 
     // ==================== 状态常量 ====================
 

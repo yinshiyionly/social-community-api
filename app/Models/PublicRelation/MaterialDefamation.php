@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\PublicRelation;
 
+use App\Models\Traits\HasAuditFields;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -28,8 +29,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class MaterialDefamation extends Model
 {
     use SoftDeletes;
-    // use HasStatusScope;
-    // use HasAuditFields;
+    use HasAuditFields;
 
     // ==================== 状态常量 ====================
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\PublicRelation;
 
+use App\Models\Traits\HasAuditFields;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -37,6 +38,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class ComplaintEnterprise extends Model
 {
     use SoftDeletes;
+    use HasAuditFields;
 
     // ==================== 状态常量 ====================
 
@@ -158,6 +160,7 @@ class ComplaintEnterprise extends Model
         'contact_material' => 'array',
         'report_material' => 'array',
         'proof_material' => 'array',
+        'proof_type' => 'array',
         'item_url' => 'array',
         'report_state' => 'integer',
         'status' => 'integer',

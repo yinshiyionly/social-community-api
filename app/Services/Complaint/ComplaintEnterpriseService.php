@@ -286,7 +286,7 @@ class ComplaintEnterpriseService
     public function getMaterialDataByMaterialId(array $data): array
     {
         $materialData = MaterialEnterprise::query()
-            ->select(['enterprise_material', 'contact_material', 'report_material', 'proof_material', 'contact_name'])
+            ->select(['enterprise_material', 'contact_material', 'contact_name'])
             ->where('id', $data['material_id'])
             ->where('status', MaterialEnterprise::STATUS_ENABLED)
             ->first();
@@ -295,8 +295,9 @@ class ComplaintEnterpriseService
         }
         $data['enterprise_material'] = $materialData['enterprise_material'] ?? [];
         $data['contact_material'] = $materialData['contact_material'] ?? [];
-        $data['report_material'] = $materialData['report_material'] ?? [];
-        $data['proof_material'] = $materialData['proof_material'] ?? [];
+        // todo 不由 material_enterprise 数据表带入, 由用户自己上传
+        // $data['report_material'] = $materialData['report_material'] ?? [];
+        // $data['proof_material'] = $materialData['proof_material'] ?? [];
         $data['human_name'] = $materialData['contact_name'] ?? '';
 
         // 处理材料字段URL（移除schema和host）

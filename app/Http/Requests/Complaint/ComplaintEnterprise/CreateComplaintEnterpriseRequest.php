@@ -35,9 +35,20 @@ class CreateComplaintEnterpriseRequest extends FormRequest
             'item_url' => 'required|array|min:1',
             'item_url.*.url' => 'required|string',
             'report_content' => 'required|string',
-            'proof_type' => ['required', 'string', Rule::in(ComplaintEnterprise::PROOF_TYPE_OPTIONS)],
+            'proof_type' => 'required|array|min:1',
+            'proof_type.*' => ['required', 'string', Rule::in(ComplaintEnterprise::PROOF_TYPE_OPTIONS)],
             'send_email' => 'required|string|max:100|exists:report_email,email',
             'channel_name' => 'required|string|max:100',
+
+            // Report material array validation
+            'report_material' => 'required|array',
+            'report_material.*.name' => 'required_with:report_material|string',
+            'report_material.*.url' => 'required_with:report_material|string',
+
+            // Proof material array validation
+            'proof_material' => 'required|array',
+            'proof_material.*.name' => 'required_with:proof_material|string',
+            'proof_material.*.url' => 'required_with:proof_material|string',
 
             // Optional fields
             'report_state' => ['nullable', 'integer', Rule::in(array_keys(ComplaintEnterprise::REPORT_STATE_LABELS))],
@@ -79,8 +90,11 @@ class CreateComplaintEnterpriseRequest extends FormRequest
 
             // proof_type validation messages
             'proof_type.required' => '证据种类不能为空',
-            'proof_type.string' => '证据种类必须是字符串',
-            'proof_type.in' => '证据种类无效，请选择有效的证据种类',
+            'proof_type.array' => '证据种类必须是数组格式',
+            'proof_type.min' => '证据种类至少需要选择一项',
+            'proof_type.*.required' => '证据种类选项不能为空',
+            'proof_type.*.string' => '证据种类选项必须是字符串',
+            'proof_type.*.in' => '证据种类选项无效，请选择有效的证据种类',
 
             // send_email validation messages
             'send_email.required' => '发件箱不能为空',
@@ -92,6 +106,22 @@ class CreateComplaintEnterpriseRequest extends FormRequest
             'channel_name.required' => '官方渠道不能为空',
             'channel_name.string' => '官方渠道必须是字符串',
             'channel_name.max' => '官方渠道不能超过100个字符',
+
+            // Report material validation messages
+            'report_material.required' => '举报材料不能为空',
+            'report_material.array' => '举报材料必须是数组',
+            'report_material.*.name.required_with' => '举报材料的文件名称不能为空',
+            'report_material.*.name.string' => '举报材料的文件名称必须是字符串',
+            'report_material.*.url.required_with' => '举报材料的文件地址不能为空',
+            'report_material.*.url.string' => '举报材料的文件地址必须是字符串',
+
+            // Proof material validation messages
+            'proof_material.required' => '证据材料不能为空',
+            'proof_material.array' => '证据材料必须是数组',
+            'proof_material.*.name.required_with' => '证据材料的文件名称不能为空',
+            'proof_material.*.name.string' => '证据材料的文件名称必须是字符串',
+            'proof_material.*.url.required_with' => '证据材料的文件地址不能为空',
+            'proof_material.*.url.string' => '证据材料的文件地址必须是字符串',
 
             // report_state validation messages
             'report_state.integer' => '举报状态必须是整数',

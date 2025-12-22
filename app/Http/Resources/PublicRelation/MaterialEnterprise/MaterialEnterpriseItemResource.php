@@ -17,17 +17,6 @@ use App\Services\FileUploadService;
 class MaterialEnterpriseItemResource extends BaseResource
 {
     /**
-     * 材料字段名称列表
-     *
-     * @var array
-     */
-    private const MATERIAL_FIELDS = [
-        'enterprise_material',
-        'report_material',
-        'proof_material',
-    ];
-
-    /**
      * Transform the resource into an array.
      *
      * @param \Illuminate\Http\Request $request
@@ -47,8 +36,8 @@ class MaterialEnterpriseItemResource extends BaseResource
             'contact_name' => $this->contact_name,
             'contact_phone' => $this->contact_phone,
             'contact_email' => $this->contact_email,
-            'report_material' => $this->processMaterialUrls($this->report_material),
-            'proof_material' => $this->processMaterialUrls($this->proof_material),
+            // 'report_material' => $this->processMaterialUrls($this->report_material),
+            // 'proof_material' => $this->processMaterialUrls($this->proof_material),
             'status' => $this->status,
             'status_label' => $this->status_label,
             'created_at' => $this->formatDateTime($this->created_at),

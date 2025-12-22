@@ -39,14 +39,14 @@ class CreateMaterialEnterpriseRequest extends FormRequest
             'enterprise_material.*.url' => 'required_with:enterprise_material|string',
 
             // Report material array validation
-            'report_material' => 'required|array',
-            'report_material.*.name' => 'required_with:report_material|string',
-            'report_material.*.url' => 'required_with:report_material|string',
+            // 'report_material' => 'required|array',
+            // 'report_material.*.name' => 'required_with:report_material|string',
+            // 'report_material.*.url' => 'required_with:report_material|string',
 
             // Proof material array validation
-            'proof_material' => 'required|array',
-            'proof_material.*.name' => 'required_with:proof_material|string',
-            'proof_material.*.url' => 'required_with:proof_material|string',
+            // 'proof_material' => 'required|array',
+            // 'proof_material.*.name' => 'required_with:proof_material|string',
+            // 'proof_material.*.url' => 'required_with:proof_material|string',
 
             'contact_material' => 'required|array',
             'contact_material.*.name' => 'required_with:contact_material|string',

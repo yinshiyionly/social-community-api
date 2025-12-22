@@ -31,8 +31,8 @@ class MaterialEnterpriseService
      */
     private const MATERIAL_FIELDS = [
         'enterprise_material',
-        'report_material',
-        'proof_material',
+        // 'report_material',
+        // 'proof_material',
         'contact_material'
     ];
 

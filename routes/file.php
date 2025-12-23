@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 // All file upload routes require authentication and operation logging
-Route::middleware(['system.auth', 'operlog'])->group(function () {
+Route::middleware(['system.auth'])->group(function () {
 
     // File Upload Routes
     Route::prefix('files')->name('files.')->group(function () {

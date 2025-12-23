@@ -126,7 +126,7 @@ class ComplaintPolitics extends Model
     /**
      * 危害小类: 攻击"两个维护"
      */
-    public const REPORT_SUB_TYPE_ATTACK_TWO_SAFEGUARDS = '攻击"两个维护"';
+    public const REPORT_SUB_TYPE_ATTACK_TWO_SAFEGUARDS = '攻击“两个维护”';
 
     /**
      * 危害小类: 危害国家安全、泄露国家秘密

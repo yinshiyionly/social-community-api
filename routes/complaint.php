@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Complaint\ComplaintDefamationController;
 use App\Http\Controllers\Complaint\ComplaintEnterpriseController;
+use App\Http\Controllers\Complaint\ComplaintPoliticsController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -44,6 +46,18 @@ Route::middleware('system.auth')->prefix('complaint')->group(function () {
         // 删除
         Route::delete('/delete/{id}', [ComplaintPoliticsController::class, 'destroy'])
             ->where('id', '[0-9]+');
+        // 获取危害小类枚举列表
+        Route::get('/report-sub-types', [ComplaintPoliticsController::class, 'getReportSubTypes']);
+        // 获取被举报平台枚举列表
+        Route::get('/report-platforms', [ComplaintPoliticsController::class, 'getReportPlatforms']);
+        // 获取APP定位枚举列表
+        Route::get('/app-locations', [ComplaintPoliticsController::class, 'getAppLocations']);
+        // 获取账号平台枚举列表
+        Route::get('/account-platforms', [ComplaintPoliticsController::class, 'getAccountPlatforms']);
+        // 根据账号平台获取账号性质枚举列表
+        Route::get('/account-natures/{platform}', [ComplaintPoliticsController::class, 'getAccountNatures']);
+        // 获取可用发件邮箱列表
+        Route::get('/report-emails', [ComplaintPoliticsController::class, 'getReportEmails']);
     });
 
     // 公关维权-我要投诉-诽谤类
@@ -60,5 +74,7 @@ Route::middleware('system.auth')->prefix('complaint')->group(function () {
         // 删除
         Route::delete('/delete/{id}', [ComplaintDefamationController::class, 'destroy'])
             ->where('id', '[0-9]+');
+        // 获取可用发件邮箱列表
+        Route::get('/report-emails', [ComplaintDefamationController::class, 'getReportEmails']);
     });
 });

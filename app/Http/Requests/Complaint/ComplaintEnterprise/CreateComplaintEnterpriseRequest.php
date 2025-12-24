@@ -37,7 +37,7 @@ class CreateComplaintEnterpriseRequest extends FormRequest
             'report_content' => 'required|string',
             'proof_type' => 'required|array|min:1',
             'proof_type.*' => ['required', 'string', Rule::in(ComplaintEnterprise::PROOF_TYPE_OPTIONS)],
-            'send_email' => 'required|string|max:100|exists:report_email,email',
+            'email_config_id' => 'required|integer|exists:report_email,id',
             'channel_name' => 'required|string|max:100',
 
             // Report material array validation
@@ -96,11 +96,10 @@ class CreateComplaintEnterpriseRequest extends FormRequest
             'proof_type.*.string' => '证据种类选项必须是字符串',
             'proof_type.*.in' => '证据种类选项无效，请选择有效的证据种类',
 
-            // send_email validation messages
-            'send_email.required' => '发件箱不能为空',
-            'send_email.string' => '发件箱必须是字符串',
-            'send_email.max' => '发件箱不能超过100个字符',
-            'send_email.exists' => '发件箱不存在，请选择有效的发件邮箱',
+            // email_config_id validation messages
+            'email_config_id.required' => '发件箱不能为空',
+            'email_config_id.integer' => '发件箱错误',
+            'email_config_id.exists' => '发件箱不存在，请选择有效的发件邮箱',
 
             // channel_name validation messages
             'channel_name.required' => '官方渠道不能为空',

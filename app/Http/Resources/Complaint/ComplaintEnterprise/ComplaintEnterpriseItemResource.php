@@ -40,6 +40,7 @@ class ComplaintEnterpriseItemResource extends BaseResource
             'proof_type' => $this->proof_type,
             'proof_type_label' => $this->proof_type_label,
             'send_email' => $this->send_email,
+            'email_config_id' => $this->email_config_id ?? 0,
             'channel_name' => $this->channel_name,
             'report_state' => $this->report_state,
             'report_state_label' => $this->report_state_label,

@@ -30,6 +30,7 @@ class ComplaintEnterpriseListResource extends BaseResource
             'site_name' => $this->site_name,
             'account_name' => $this->account_name,
             'item_url' => $this->item_url ?? [],
+            'email_config_id' => $this->email_config_id ?? 0,
             'report_state' => $this->report_state,
             'report_state_label' => $this->report_state_label,
             'created_at' => $this->formatDateTime($this->created_at),

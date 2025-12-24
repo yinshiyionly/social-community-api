@@ -16,7 +16,7 @@ use Illuminate\Validation\Rule;
  * - site_name 必填且不超过100字符
  * - site_url 必填且为有效的JSON数组格式 [{"url": "xxx"}]
  * - report_content 必填字符串
- * - send_email 必填且存在于 report_email 表
+ * - email_config_id 必填且存在于 report_email 表
  * - channel_name 必填且不超过100字符
  * - report_material 数组格式，每项包含 name 和 url 字段
  */
@@ -55,7 +55,7 @@ class CreateComplaintDefamationRequest extends FormRequest
             'report_content' => 'required|string',
 
             // 发件邮箱 - 必填，存在于 report_email 表
-            'send_email' => 'required|string|max:100|exists:report_email,email',
+            'email_config_id' => 'required|integer|exists:report_email,id',
 
             // 渠道名称 - 必填，字符串，最大100字符
             'channel_name' => 'required|string|max:100',
@@ -103,10 +103,9 @@ class CreateComplaintDefamationRequest extends FormRequest
             'report_content.string' => '具体举报内容必须是字符串',
 
             // ==================== send_email 验证消息 ====================
-            'send_email.required' => '发件邮箱不能为空',
-            'send_email.string' => '发件邮箱必须是字符串',
-            'send_email.max' => '发件邮箱不能超过100个字符',
-            'send_email.exists' => '发件邮箱不存在，请选择有效的发件邮箱',
+            'email_config_id.required' => '发件邮箱不能为空',
+            'email_config_id.integer' => '发件邮箱错误',
+            'email_config_id.exists' => '发件邮箱不存在，请选择有效的发件邮箱',
 
             // ==================== channel_name 验证消息 ====================
             'channel_name.required' => '官方渠道不能为空',

@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $report_content
  * @property string $proof_type
  * @property string $send_email
+ * @property int $email_config_id
  * @property string $channel_name
  * @property int $report_state
  * @property \Illuminate\Support\Carbon|null $report_time

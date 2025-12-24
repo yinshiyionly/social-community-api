@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property array|null $report_material
  * @property string|null $report_content
  * @property string $send_email
+ * @property int $email_config_id
  * @property string $channel_name
  * @property int $report_state
  * @property \Illuminate\Support\Carbon|null $report_time
@@ -116,6 +117,7 @@ class ComplaintDefamation extends Model
         'report_material',
         'report_content',
         'send_email',
+        'email_config_id',
         'channel_name',
         'report_state',
         'report_time',
@@ -135,6 +137,7 @@ class ComplaintDefamation extends Model
         'report_material' => 'array',
         'material_id' => 'integer',
         'report_state' => 'integer',
+        'email_config_id' => 'integer',
         'status' => 'integer',
         'report_time' => 'datetime',
         'completion_time' => 'datetime',

@@ -207,7 +207,7 @@ class ReportEmailService
                 'to_email' => $receiveEmail,
                 'error' => $e->getMessage(),
             ]);
-            throw new ApiException($msg);
+            throw new ApiException('测试邮件发送失败: 邮箱配置错误或授权码无效');
         }
     }
 }

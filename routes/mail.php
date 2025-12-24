@@ -23,6 +23,8 @@ Route::middleware('system.auth')->prefix('mail')->group(function () {
     // 删除
     Route::delete('/delete/{id}', [ReportEmailController::class, 'destroy'])
         ->where('id', '[0-9]+');
+    // 获取通用不分页列表
+    Route::get('/commonList', [ReportEmailController::class, 'commonList']);
     // 发送测试邮箱
     Route::post('/sendTest', [ReportEmailController::class, 'sendTest']);
 });

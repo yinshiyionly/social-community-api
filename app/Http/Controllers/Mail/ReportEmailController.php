@@ -96,6 +96,17 @@ class ReportEmailController extends Controller
     }
 
     /**
+     * 邮箱配置通用不分页列表
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function commonList()
+    {
+        $data = $this->service->commonList();
+        return ApiResponse::success(['data' => $data]);
+    }
+
+    /**
      * 发送测试邮件
      *
      * @param Request $request

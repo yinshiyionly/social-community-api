@@ -153,6 +153,20 @@ class ReportEmailService
     }
 
     /**
+     * 获取所有邮箱配置列表
+     *
+     * @return array
+     */
+    public function commonList(): array
+    {
+        return ReportEmail::query()
+            ->select(['id', 'email'])
+            // ->where('status', 1)
+            ->get()
+            ->toArray();
+    }
+
+    /**
      * 发送测试邮件
      *
      * @param int $id 邮箱配置ID

@@ -62,6 +62,10 @@ class RouteServiceProvider extends ServiceProvider
             // 监测任务
             Route::prefix('api')
                 ->group(base_path('routes/detection.php'));
+
+            // 邮箱管理
+            Route::prefix('api')
+                ->group(base_path('routes/mail.php'));
         });
     }
 }

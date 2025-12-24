@@ -71,48 +71,106 @@ class MaterialDefamation extends Model
         self::REPORT_SUBJECT_ORGANIZATION,
     ];
 
-    // ==================== 从业类别常量 ====================
+    // ==================== 从业类别常量（公民） ====================
 
     /**
-     * 从业类别: 企业人员
+     * 从业类别(公民): 企业人员
      */
-    public const OCCUPATION_ENTERPRISE = '企业人员';
+    public const OCCUPATION_CITIZEN_ENTERPRISE = '企业人员';
 
     /**
-     * 从业类别: 事业单位人员
+     * 从业类别(公民): 事业单位人员
      */
-    public const OCCUPATION_INSTITUTION = '事业单位人员';
+    public const OCCUPATION_CITIZEN_INSTITUTION = '事业单位人员';
 
     /**
-     * 从业类别: 公务员
+     * 从业类别(公民): 公务员
      */
-    public const OCCUPATION_CIVIL_SERVANT = '公务员';
+    public const OCCUPATION_CITIZEN_CIVIL_SERVANT = '公务员';
 
     /**
-     * 从业类别: 学生
+     * 从业类别(公民): 学生
      */
-    public const OCCUPATION_STUDENT = '学生';
+    public const OCCUPATION_CITIZEN_STUDENT = '学生';
 
     /**
-     * 从业类别: 自由职业者
+     * 从业类别(公民): 自由职业者
      */
-    public const OCCUPATION_FREELANCER = '自由职业者';
+    public const OCCUPATION_CITIZEN_FREELANCER = '自由职业者';
 
     /**
-     * 从业类别: 其它
+     * 从业类别(公民): 其他
      */
-    public const OCCUPATION_OTHER = '其它';
+    public const OCCUPATION_CITIZEN_OTHER = '其他';
 
     /**
-     * 从业类别选项
+     * 从业类别选项（公民）
      */
-    public const OCCUPATION_OPTIONS = [
-        self::OCCUPATION_ENTERPRISE,
-        self::OCCUPATION_INSTITUTION,
-        self::OCCUPATION_CIVIL_SERVANT,
-        self::OCCUPATION_STUDENT,
-        self::OCCUPATION_FREELANCER,
-        self::OCCUPATION_OTHER,
+    public const OCCUPATION_CITIZEN_OPTIONS = [
+        self::OCCUPATION_CITIZEN_ENTERPRISE,
+        self::OCCUPATION_CITIZEN_INSTITUTION,
+        self::OCCUPATION_CITIZEN_CIVIL_SERVANT,
+        self::OCCUPATION_CITIZEN_STUDENT,
+        self::OCCUPATION_CITIZEN_FREELANCER,
+        self::OCCUPATION_CITIZEN_OTHER,
+    ];
+
+    // ==================== 从业类别常量（法人及其他组织） ====================
+
+    /**
+     * 从业类别(组织): 上市企业法人
+     */
+    public const OCCUPATION_ORG_LISTED_ENTERPRISE = '上市企业法人';
+
+    /**
+     * 从业类别(组织): 拟上市企业法人
+     */
+    public const OCCUPATION_ORG_PRE_LISTED_ENTERPRISE = '拟上市企业法人';
+
+    /**
+     * 从业类别(组织): 其他企业法人
+     */
+    public const OCCUPATION_ORG_OTHER_ENTERPRISE = '其他企业法人';
+
+    /**
+     * 从业类别(组织): 机关法人
+     */
+    public const OCCUPATION_ORG_GOVERNMENT = '机关法人';
+
+    /**
+     * 从业类别(组织): 事业单位法人
+     */
+    public const OCCUPATION_ORG_INSTITUTION = '事业单位法人';
+
+    /**
+     * 从业类别(组织): 社会团体法人
+     */
+    public const OCCUPATION_ORG_SOCIAL_GROUP = '社会团体法人';
+
+    /**
+     * 从业类别(组织): 其他组织
+     */
+    public const OCCUPATION_ORG_OTHER = '其他组织';
+
+    /**
+     * 从业类别选项（法人及其他组织）
+     */
+    public const OCCUPATION_ORGANIZATION_OPTIONS = [
+        self::OCCUPATION_ORG_LISTED_ENTERPRISE,
+        self::OCCUPATION_ORG_PRE_LISTED_ENTERPRISE,
+        self::OCCUPATION_ORG_OTHER_ENTERPRISE,
+        self::OCCUPATION_ORG_GOVERNMENT,
+        self::OCCUPATION_ORG_INSTITUTION,
+        self::OCCUPATION_ORG_SOCIAL_GROUP,
+        self::OCCUPATION_ORG_OTHER,
+    ];
+
+    /**
+     * 根据举报主体获取从业类别选项映射
+     */
+    public const OCCUPATION_OPTIONS_BY_SUBJECT = [
+        self::REPORT_SUBJECT_CITIZEN => self::OCCUPATION_CITIZEN_OPTIONS,
+        self::REPORT_SUBJECT_ORGANIZATION => self::OCCUPATION_ORGANIZATION_OPTIONS,
     ];
 
     /**
@@ -156,5 +214,16 @@ class MaterialDefamation extends Model
     public function getStatusLabelAttribute(): string
     {
         return self::STATUS_LABELS[$this->status] ?? '未知';
+    }
+
+    /**
+     * 根据举报主体获取从业类别选项
+     *
+     * @param string|null $reportSubject 举报主体
+     * @return array
+     */
+    public static function getOccupationOptions(?string $reportSubject): array
+    {
+        return self::OCCUPATION_OPTIONS_BY_SUBJECT[$reportSubject] ?? [];
     }
 }

@@ -32,12 +32,16 @@ class CreateMaterialDefamationRequest extends FormRequest
      */
     public function rules(): array
     {
+        // 根据举报主体获取对应的从业类别选项
+        $reportSubject = $this->input('report_subject');
+        $occupationOptions = MaterialDefamation::getOccupationOptions($reportSubject);
+
         return [
             // 举报主体验证
             'report_subject' => ['required', 'string', 'max:50', Rule::in(MaterialDefamation::REPORT_SUBJECT_OPTIONS)],
 
-            // 从业类别验证
-            'occupation_category' => ['required', 'string', 'max:50', Rule::in(MaterialDefamation::OCCUPATION_OPTIONS)],
+            // 从业类别验证（根据举报主体动态验证）
+            'occupation_category' => ['required', 'string', 'max:50', Rule::in($occupationOptions)],
 
             // 单位名称验证
             // required_if: 基于特定值的逻辑

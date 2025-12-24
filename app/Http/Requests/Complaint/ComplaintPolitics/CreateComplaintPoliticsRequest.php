@@ -18,7 +18,7 @@ use Illuminate\Validation\Validator;
  * - account_platform_name 条件必填验证
  * - account_nature 根据 account_platform 动态验证
  * - report_sub_type 危害小类枚举验证
- * - send_email 关联 report_email 表验证
+ * - email_config_id 关联 report_email 表验证
  * - URL 字段数组格式验证
  */
 class CreateComplaintPoliticsRequest extends FormRequest
@@ -81,7 +81,7 @@ class CreateComplaintPoliticsRequest extends FormRequest
 
             // ==================== 通用必填字段 ====================
             'material_id' => 'required|integer',
-            'send_email' => 'required|string|max:100|exists:report_email,email',
+            'email_config_id' => 'required|integer|exists:report_email,id',
             'channel_name' => 'required|string|max:50',
 
             // ==================== 可选字段 ====================
@@ -232,10 +232,9 @@ class CreateComplaintPoliticsRequest extends FormRequest
             // ==================== 通用字段验证消息 ====================
             'material_id.required' => '举报人不能为空',
             'material_id.integer' => '举报人ID必须是整数',
-            'send_email.required' => '发件邮箱不能为空',
-            'send_email.string' => '发件邮箱必须是字符串',
-            'send_email.max' => '发件邮箱不能超过100个字符',
-            'send_email.exists' => '发件邮箱不存在，请选择有效的发件邮箱',
+            'email_config_id.required' => '发件邮箱不能为空',
+            'email_config_id.integer' => '发件邮箱错误',
+            'email_config_id.exists' => '发件邮箱不存在，请选择有效的发件邮箱',
             'channel_name.required' => '官方渠道不能为空',
             'channel_name.string' => '官方渠道必须是字符串',
             'channel_name.max' => '官方渠道不能超过50个字符',

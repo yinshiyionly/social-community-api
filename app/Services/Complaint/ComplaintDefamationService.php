@@ -61,15 +61,15 @@ class ComplaintDefamationService
 
         return ComplaintDefamation::query()
             // 网站名称-模糊搜索
-            ->when(isset($params['site_name']) && $params['site_name'] !== '', function ($q) use ($params) {
+            ->when(isset($params['site_name']) && $params['site_name'] != '', function ($q) use ($params) {
                 $q->where('site_name', 'like', '%' . $params['site_name'] . '%');
             })
             // 举报人-模糊搜索
-            ->when(isset($params['human_name']) && $params['human_name'] !== '', function ($q) use ($params) {
+            ->when(isset($params['human_name']) && $params['human_name'] != '', function ($q) use ($params) {
                 $q->where('human_name', 'like', '%' . $params['human_name'] . '%');
             })
             // 举报状态-精确匹配
-            ->when(isset($params['report_state']) && $params['report_state'] !== '', function ($q) use ($params) {
+            ->when(isset($params['report_state']) && $params['report_state'] != '', function ($q) use ($params) {
                 $q->where('report_state', $params['report_state']);
             })
             ->orderBy('id', 'desc')

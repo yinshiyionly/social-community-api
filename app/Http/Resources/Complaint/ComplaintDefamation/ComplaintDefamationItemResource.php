@@ -45,6 +45,7 @@ class ComplaintDefamationItemResource extends BaseResource
 
             // 邮箱和渠道
             'send_email' => $this->send_email,
+            'email_config_id' => $this->email_config_id,
             'channel_name' => $this->channel_name,
 
             // 状态字段

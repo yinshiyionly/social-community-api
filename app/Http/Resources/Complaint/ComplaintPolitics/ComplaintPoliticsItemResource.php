@@ -54,6 +54,7 @@ class ComplaintPoliticsItemResource extends BaseResource
             'report_material' => $this->processMaterialUrls($this->report_material),
             'report_content' => $this->report_content,
             'send_email' => $this->send_email,
+            'email_config_id' => $this->email_config_id,
             'channel_name' => $this->channel_name,
 
             // 状态字段

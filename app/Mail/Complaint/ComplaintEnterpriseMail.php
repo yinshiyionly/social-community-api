@@ -39,9 +39,6 @@ class ComplaintEnterpriseMail extends Mailable
     {
         $this->mailData = $mailData;
         $this->attachmentPaths = $attachmentPaths;
-
-        // 设置队列名称，便于 Horizon 监控和管理
-        $this->onQueue('complaint-email');
     }
 
     /**

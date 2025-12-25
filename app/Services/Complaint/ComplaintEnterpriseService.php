@@ -358,7 +358,7 @@ class ComplaintEnterpriseService
                 }
 
                 // 获取文件的MIME类型
-                $mimeType = $this->getMimeTypeByExtension(pathinfo($storagePath, PATHINFO_EXTENSION));
+                $mimeType = $this->fileUploadService->getMimeTypeByExtension(pathinfo($storagePath, PATHINFO_EXTENSION));
 
                 // 添加到附件路径数组
                 $attachmentPaths[] = [
@@ -452,43 +452,6 @@ class ComplaintEnterpriseService
             ]);
             return null;
         }
-    }
-
-    /**
-     * 根据文件扩展名获取MIME类型
-     *
-     * @param string $extension 文件扩展名
-     * @return string MIME类型
-     */
-    protected function getMimeTypeByExtension(string $extension): string
-    {
-        $mimeMap = [
-            // 图片
-            'jpg' => 'image/jpeg',
-            'jpeg' => 'image/jpeg',
-            'png' => 'image/png',
-            'gif' => 'image/gif',
-            'webp' => 'image/webp',
-            'svg' => 'image/svg+xml',
-            'bmp' => 'image/bmp',
-            // 文档
-            'pdf' => 'application/pdf',
-            'doc' => 'application/msword',
-            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'xls' => 'application/vnd.ms-excel',
-            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'ppt' => 'application/vnd.ms-powerpoint',
-            'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-            // 文本
-            'txt' => 'text/plain',
-            'csv' => 'text/csv',
-            // 压缩包
-            'zip' => 'application/zip',
-            'rar' => 'application/x-rar-compressed',
-        ];
-
-        $extension = strtolower($extension);
-        return $mimeMap[$extension] ?? 'application/octet-stream';
     }
 
     /**

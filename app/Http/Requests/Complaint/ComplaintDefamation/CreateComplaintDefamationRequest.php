@@ -102,7 +102,7 @@ class CreateComplaintDefamationRequest extends FormRequest
             'report_content.required' => '具体举报内容不能为空',
             'report_content.string' => '具体举报内容必须是字符串',
 
-            // ==================== send_email 验证消息 ====================
+            // ==================== email_config_id 验证消息 ====================
             'email_config_id.required' => '发件邮箱不能为空',
             'email_config_id.integer' => '发件邮箱错误',
             'email_config_id.exists' => '发件邮箱不存在，请选择有效的发件邮箱',

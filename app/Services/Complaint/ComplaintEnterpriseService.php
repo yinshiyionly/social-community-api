@@ -95,6 +95,7 @@ class ComplaintEnterpriseService
                 $q->where('site_name', 'like', '%' . $params['site_name'] . '%');
             })
             // 举报人-模糊搜索
+            // todo 现在是从冗余字段查询 后续是否从关联模型表查询
             ->when(isset($params['human_name']) && $params['human_name'] !== '', function ($q) use ($params) {
                 $q->where('human_name', 'like', '%' . $params['human_name'] . '%');
             })

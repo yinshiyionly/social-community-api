@@ -30,6 +30,8 @@ Route::middleware('system.auth')->prefix('complaint')->group(function () {
         Route::get('/proof-types', [ComplaintEnterpriseController::class, 'getProofTypes']);
         // 获取可用发件邮箱列表
         Route::get('/report-emails', [ComplaintEnterpriseController::class, 'getReportEmails']);
+        // 发送举报邮件
+        Route::post('/sendMail', [ComplaintEnterpriseController::class, 'sendMail']);
     });
 
     // 公关维权-我要投诉-政治类
@@ -58,6 +60,8 @@ Route::middleware('system.auth')->prefix('complaint')->group(function () {
         Route::get('/account-natures/{platform}', [ComplaintPoliticsController::class, 'getAccountNatures']);
         // 获取可用发件邮箱列表
         Route::get('/report-emails', [ComplaintPoliticsController::class, 'getReportEmails']);
+        // 发送举报邮件
+        Route::post('sendMail', [ComplaintPoliticsController::class, 'sendMail']);
     });
 
     // 公关维权-我要投诉-诽谤类
@@ -76,5 +80,7 @@ Route::middleware('system.auth')->prefix('complaint')->group(function () {
             ->where('id', '[0-9]+');
         // 获取可用发件邮箱列表
         Route::get('/report-emails', [ComplaintDefamationController::class, 'getReportEmails']);
+        // 发送举报邮件
+        Route::post('/sendMail', [ComplaintDefamationController::class, 'sendMail']);
     });
 });

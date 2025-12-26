@@ -10,6 +10,7 @@ use App\Http\Requests\Complaint\ComplaintDefamation\UpdateComplaintDefamationReq
 use App\Http\Resources\ApiResponse;
 use App\Http\Resources\Complaint\ComplaintDefamation\ComplaintDefamationItemResource;
 use App\Http\Resources\Complaint\ComplaintDefamation\ComplaintDefamationListResource;
+use App\Jobs\Complaint\ComplaintDefamationSendMailJob;
 use App\Services\Complaint\ComplaintDefamationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -132,5 +133,25 @@ class ComplaintDefamationController extends Controller
         $reportEmails = $this->complaintDefamationService->getReportEmails();
 
         return ApiResponse::success(['data' => $reportEmails]);
+    }
+
+    /**
+     * 发送举报邮件
+     *
+     * 将邮件发送任务推送到队列异步处理。
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function sendMail(Request $request): JsonResponse
+    {
+        $params = $request->validate([
+            'complaint_id' => 'required|integer',
+            'recipient_email' => 'required|email',
+        ]);
+
+        ComplaintDefamationSendMailJob::dispatch($params);
+
+        return ApiResponse::success([], '邮件发送任务已加入队列');
     }
 }

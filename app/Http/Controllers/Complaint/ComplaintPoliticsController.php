@@ -10,6 +10,7 @@ use App\Http\Requests\Complaint\ComplaintPolitics\UpdateComplaintPoliticsRequest
 use App\Http\Resources\ApiResponse;
 use App\Http\Resources\Complaint\ComplaintPolitics\ComplaintPoliticsItemResource;
 use App\Http\Resources\Complaint\ComplaintPolitics\ComplaintPoliticsListResource;
+use App\Jobs\Complaint\ComplaintPoliticsSendMailJob;
 use App\Services\Complaint\ComplaintPoliticsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -219,5 +220,25 @@ class ComplaintPoliticsController extends Controller
         $reportEmails = $this->complaintPoliticsService->getReportEmails();
 
         return ApiResponse::success(['data' => $reportEmails]);
+    }
+
+    /**
+     * 发送举报邮件
+     *
+     * 将邮件发送任务推送到队列异步处理。
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function sendMail(Request $request): JsonResponse
+    {
+        $params = $request->validate([
+            'complaint_id' => 'required|integer',
+            'recipient_email' => 'required|email',
+        ]);
+
+        ComplaintPoliticsSendMailJob::dispatch($params);
+
+        return ApiResponse::success([], '邮件发送任务已加入队列');
     }
 }

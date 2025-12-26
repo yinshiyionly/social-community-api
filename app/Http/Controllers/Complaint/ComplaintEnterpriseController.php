@@ -10,6 +10,7 @@ use App\Http\Requests\Complaint\ComplaintEnterprise\UpdateComplaintEnterpriseReq
 use App\Http\Resources\ApiResponse;
 use App\Http\Resources\Complaint\ComplaintEnterprise\ComplaintEnterpriseItemResource;
 use App\Http\Resources\Complaint\ComplaintEnterprise\ComplaintEnterpriseListResource;
+use App\Jobs\Complaint\ComplaintEnterpriseSendMailJob;
 use App\Services\Complaint\ComplaintEnterpriseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -146,5 +147,25 @@ class ComplaintEnterpriseController extends Controller
         $reportEmails = $this->complaintEnterpriseService->getReportEmails();
 
         return ApiResponse::success(['data' => $reportEmails]);
+    }
+
+    /**
+     * 发送举报邮件
+     *
+     * 将邮件发送任务推送到队列异步处理。
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function sendMail(Request $request): JsonResponse
+    {
+        $params = $request->validate([
+            'complaint_id' => 'required|integer',
+            'recipient_email' => 'required|email',
+        ]);
+
+        ComplaintEnterpriseSendMailJob::dispatch($params);
+
+        return ApiResponse::success([], '邮件发送任务已加入队列');
     }
 }

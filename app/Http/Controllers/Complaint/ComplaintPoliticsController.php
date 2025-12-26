@@ -225,7 +225,7 @@ class ComplaintPoliticsController extends Controller
     /**
      * 发送举报邮件
      *
-     * 将邮件发送任务推送到队列异步处理。
+     * 将邮件发送任务推送到队列异步处理，支持批量发送。
      *
      * @param Request $request
      * @return JsonResponse
@@ -233,11 +233,24 @@ class ComplaintPoliticsController extends Controller
     public function sendMail(Request $request): JsonResponse
     {
         $params = $request->validate([
-            'complaint_id' => 'required|integer',
-            'recipient_email' => 'required|email',
+            'id' => 'required|integer',
+            'recipient_email' => 'required|array',
+            'recipient_email.*' => 'required|email',
+        ], [
+            'id.required' => '举报ID不能为空',
+            'id.integer' => '举报ID必须为整数',
+            'recipient_email.required' => '收件人邮箱不能为空',
+            'recipient_email.array' => '收件人邮箱必须为数组',
+            'recipient_email.*.required' => '收件人邮箱不能为空',
+            'recipient_email.*.email' => '收件人邮箱格式不正确',
         ]);
 
-        ComplaintPoliticsSendMailJob::dispatch($params);
+        foreach ($params['recipient_email'] as $email) {
+            ComplaintPoliticsSendMailJob::dispatch([
+                'complaint_id' => $params['id'],
+                'recipient_email' => $email,
+            ]);
+        }
 
         return ApiResponse::success([], '邮件发送任务已加入队列');
     }

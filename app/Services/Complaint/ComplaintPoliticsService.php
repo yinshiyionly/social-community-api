@@ -485,8 +485,9 @@ class ComplaintPoliticsService
     /**
      * 准备邮件数据
      *
-     * 从 complaint_defamation 表获取举报信息，
-     * 通过 material_id 关联 material_defamation 表获取企业和联系人信息，
+     * 从 complaint_politics 表获取举报信息，
+     * 通过 material_id 关联 material_politics 表获取举报人信息，
+     * 根据 report_platform 动态组装不同平台的数据，
      * 组装完整的邮件数据结构
      *
      * @param ComplaintPolitics $complaint 举报记录
@@ -495,52 +496,143 @@ class ComplaintPoliticsService
      */
     protected function prepareMailData(ComplaintPolitics $complaint): array
     {
-        // 通过 material_id 获取企业资料信息
-        $materialDefamation = MaterialPolitics::query()
+        // 通过 material_id 获取举报人资料信息
+        $materialPolitics = MaterialPolitics::query()
             ->where('id', $complaint->material_id)
             ->where('status', MaterialPolitics::STATUS_ENABLED)
             ->first();
 
-        if (empty($materialDefamation)) {
+        // 举报人资料不存在则抛出异常
+        if (empty($materialPolitics)) {
             throw new ApiException('未找到该举报人的资料');
         }
 
-        // 处理材料字段URL用于展示（拼接完整的schema和host）
-        // todo Storage::disk('volcengine')->get($storagePath) 不需要预先处理好 schema 和 host
-        // $complaint = $this->processMaterialUrlsForDisplay($complaint);
+        // 根据 report_platform 获取平台名称用于邮件主题
+        $platformName = $this->getPlatformNameForSubject($complaint);
 
         // 组装邮件数据结构
-        return [
-            // 邮件主题
-            'subject' => sprintf(
-                "关于%s平台投诉一事",
-                $complaint->site_name ?? ''
-            ),
+        $mailData = [
+            // ==================== 邮件基础信息 ====================
+            // 邮件主题（根据被举报平台动态生成）
+            'subject' => sprintf('关于%s平台投诉一事', $platformName),
+            // 邮件日期
+            'date' => date('Y年m月d日'),
 
-            // ==================== 举报信息（来自 complaint_defamation 表）====================
-            // 举报网站名称
-            'site_name' => $complaint->site_name ?? '',
-            // 详细举报网址（数组格式：[{"url": "xxx"}, {"url": "yyy"}]）
-            'site_url' => $complaint->site_url ?? [],
+            // ==================== 举报人信息（来自 material_politics 表）====================
+            // 举报人姓名
+            'human_name' => $materialPolitics->name ?? '',
+            // 举报人性别（转换为中文标签）
+            'human_gender' => MaterialPolitics::GENDER_LABELS[$materialPolitics->gender] ?? '未知',
+            // 举报人有效联系电话
+            'human_phone' => $materialPolitics->contact_phone ?? '',
+            // 举报人有效电子邮件
+            'human_email' => $materialPolitics->contact_email ?? '',
+            // 举报人通讯地址
+            'human_address' => $materialPolitics->contact_address ?? '',
+
+            // ==================== 举报类型信息（来自 complaint_politics 表）====================
+            // 举报类型（固定为"政治类"）
+            'report_type' => $complaint->report_type ?? ComplaintPolitics::REPORT_TYPE_POLITICS,
+            // 危害小类（重要：不能遗漏）
+            'report_sub_type' => $complaint->report_sub_type ?? '',
+            // 被举报平台（决定邮件模版渲染哪种平台信息）
+            'report_platform' => $complaint->report_platform ?? '',
+
+            // ==================== 举报内容 ====================
             // 具体举报内容
             'report_content' => $complaint->report_content ?? '',
-            // 举报材料（数组格式：[{"name": "xxx", "url": "yyy"}]）
-            'report_material' => $complaint->report_material ?? [],
 
-            // ==================== 举报人信息（来自 material_defamation 表）====================
-            // 举报主体
-            'report_subject' => $materialDefamation->report_subject ?? '',
-            // 从业类别/单位类别
-            'occupation_category' => $materialDefamation->occupation_category ?? '',
-            // 单位名称
-            'enterprise_name' => $materialDefamation->enterprise_name ?? '',
-            // 真实姓名/联系人姓名
-            'real_name' => $materialDefamation->real_name ?? '',
-            // 有效联系电话
-            'contact_phone' => $materialDefamation->contact_phone ?? '',
-            // 有效电子邮件
-            'contact_email' => $materialDefamation->contact_email ?? '',
+            // ==================== 附件信息（用于邮件模版展示附件列表）====================
+            // 举报材料（数组格式：[{"name": "xxx", "url": "yyy"}]）
+            'attachments' => $complaint->report_material ?? [],
         ];
+
+        // 根据被举报平台类型添加对应的平台信息
+        $mailData = $this->appendPlatformData($mailData, $complaint);
+
+        return $mailData;
+    }
+
+    /**
+     * 根据被举报平台获取平台名称（用于邮件主题）
+     *
+     * 根据 report_platform 字段值返回对应的平台名称：
+     * - 网站网页：返回 site_name
+     * - APP：返回 app_name
+     * - 网络账号：返回 account_name
+     *
+     * @param ComplaintPolitics $complaint 举报记录
+     * @return string 平台名称
+     */
+    protected function getPlatformNameForSubject(ComplaintPolitics $complaint): string
+    {
+        switch ($complaint->report_platform) {
+            case ComplaintPolitics::REPORT_PLATFORM_WEBSITE:
+                // 网站网页类型：使用网站名称
+                return $complaint->site_name ?? '未知网站';
+
+            case ComplaintPolitics::REPORT_PLATFORM_APP:
+                // APP类型：使用APP名称
+                return $complaint->app_name ?? '未知APP';
+
+            case ComplaintPolitics::REPORT_PLATFORM_ACCOUNT:
+                // 网络账号类型：使用账号名称
+                return $complaint->account_name ?? '未知账号';
+
+            default:
+                return '未知平台';
+        }
+    }
+
+    /**
+     * 根据被举报平台类型追加对应的平台数据
+     *
+     * 根据 report_platform 字段值追加不同的平台信息：
+     * - 网站网页：追加 site_name, site_url
+     * - APP：追加 app_name, app_location, app_url
+     * - 网络账号：追加 account_platform, account_platform_name, account_nature, account_name, account_url
+     *
+     * @param array $mailData 邮件数据
+     * @param ComplaintPolitics $complaint 举报记录
+     * @return array 追加平台数据后的邮件数据
+     */
+    protected function appendPlatformData(array $mailData, ComplaintPolitics $complaint): array
+    {
+        switch ($complaint->report_platform) {
+            case ComplaintPolitics::REPORT_PLATFORM_WEBSITE:
+                // ==================== 网站网页类型 ====================
+                // 网站名称
+                $mailData['site_name'] = $complaint->site_name ?? '';
+                // 网站网址（数组格式：[{"url": "xxx"}, {"url": "yyy"}]）
+                $mailData['site_url'] = $complaint->site_url ?? [];
+                break;
+
+            case ComplaintPolitics::REPORT_PLATFORM_APP:
+                // ==================== APP类型 ====================
+                // APP名称
+                $mailData['app_name'] = $complaint->app_name ?? '';
+                // APP定位（有害信息链接/APP官方网址/APP下载地址）
+                $mailData['app_location'] = $complaint->app_location ?? '';
+                // APP网址（数组格式：[{"url": "xxx"}, {"url": "yyy"}]）
+                $mailData['app_url'] = $complaint->app_url ?? [];
+                break;
+
+            case ComplaintPolitics::REPORT_PLATFORM_ACCOUNT:
+                // ==================== 网络账号类型 ====================
+                // 账号平台（微信/QQ/微博/贴吧/博客/直播平台/论坛社区/网盘/音频/其他）
+                $mailData['account_platform'] = $complaint->account_platform ?? '';
+                // 账号平台名称（当账号平台为博客/直播平台/论坛社区/网盘/音频/其他时需要填写）
+                $mailData['account_platform_name'] = $complaint->account_platform_name ?? '';
+                // 账号性质（个人/公众/群组/认证/非认证，根据账号平台不同而不同）
+                $mailData['account_nature'] = $complaint->account_nature ?? '';
+                // 账号名称
+                $mailData['account_name'] = $complaint->account_name ?? '';
+                // 账号网址（数组格式：[{"url": "xxx"}, {"url": "yyy"}]）
+                $mailData['account_url'] = $complaint->account_url ?? [];
+                break;
+        }
+
+        return $mailData;
     }
 
     /**
@@ -605,7 +697,7 @@ class ComplaintPoliticsService
     }
 
     /**
-     * 发送诽谤类举报邮件
+     * 发送政治类举报邮件
      *
      * 调用 prepareMailData 准备邮件数据，
      * 调用 collectAttachmentPaths 收集附件（从云存储下载），
@@ -633,16 +725,17 @@ class ComplaintPoliticsService
             // 调用 collectAttachmentPaths 收集附件（从云存储下载到临时目录）
             $attachmentPaths = $this->collectAttachmentPaths($complaint);
 
-            // 创建邮件实例（使用独立的诽谤类举报邮件模版）
+            // 创建邮件实例（使用政治类举报邮件模版）
             $mail = new ComplaintPoliticsMail($mailData, $attachmentPaths);
 
             // 使用 Mail::to() 发送邮件
             Mail::to($recipientEmail)->send($mail);
 
             // 记录发送成功日志
-            Log::channel('daily')->info('诽谤类举报邮件发送成功', [
+            Log::channel('daily')->info('政治类举报邮件发送成功', [
                 'complaint_id' => $complaintId,
                 'recipient_email' => $recipientEmail,
+                'report_platform' => $complaint->report_platform ?? '',
                 'attachment_count' => count($attachmentPaths),
             ]);
 
@@ -652,9 +745,10 @@ class ComplaintPoliticsService
             throw $e;
         } catch (\Exception $e) {
             // 记录邮件发送失败错误日志
-            Log::channel('daily')->error('诽谤类举报邮件发送失败', [
+            Log::channel('daily')->error('政治类举报邮件发送失败', [
                 'complaint_id' => $complaintId,
                 'recipient_email' => $recipientEmail,
+                'report_platform' => $complaint->report_platform ?? '',
                 'error_message' => $e->getMessage(),
                 'error_trace' => $e->getTraceAsString(),
             ]);

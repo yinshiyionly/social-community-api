@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\Log;
  *
  * 用于发送企业类举报信息的邮件，包含举报详情和相关附件材料
  * 使用独立的Blade模版文件，便于后续维护和扩展
+ * 支持根据收件人邮箱域名选择不同的邮件模板：
+ * - @bytedance.com 域名使用抖音专用模板
+ * - 其他域名使用默认模板
  */
 class ComplaintEnterpriseMail extends Mailable
 {
@@ -30,29 +33,47 @@ class ComplaintEnterpriseMail extends Mailable
     protected array $attachmentPaths;
 
     /**
+     * 是否使用抖音专用模板
+     * @var bool
+     */
+    protected bool $useDouyinTemplate;
+
+    /**
      * 构造函数
      *
      * @param array $mailData 邮件数据，包含举报信息和举报人信息
      * @param array $attachmentPaths 附件文件路径列表，每个元素包含 path, name, mime
+     * @param bool $useDouyinTemplate 是否使用抖音专用模板，默认 false
      */
-    public function __construct(array $mailData, array $attachmentPaths = [])
+    public function __construct(array $mailData, array $attachmentPaths = [], bool $useDouyinTemplate = false)
     {
         $this->mailData = $mailData;
         $this->attachmentPaths = $attachmentPaths;
+        $this->useDouyinTemplate = $useDouyinTemplate;
     }
 
     /**
      * 构建邮件
      *
      * 设置邮件主题、视图模版和附件
+     * 根据 useDouyinTemplate 参数选择不同的邮件模板：
+     * - true: 使用抖音专用模板 emails.complaint_enterprise_douyin
+     * - false: 使用默认模板 emails.complaint_enterprise
      *
      * @return $this
      */
     public function build()
     {
+        // 根据参数选择邮件模板视图
+        // 抖音模板: resources/views/emails/complaint_enterprise_douyin.blade.php
+        // 默认模板: resources/views/emails/complaint_enterprise.blade.php
+        $viewName = $this->useDouyinTemplate
+            ? 'emails.complaint_enterprise_douyin'
+            : 'emails.complaint_enterprise';
+
         // 设置邮件主题和视图
         $mail = $this->subject($this->mailData['subject'] ?? '企业类举报信息')
-            ->view('emails.complaint_enterprise')
+            ->view($viewName)
             ->with('data', $this->mailData);
 
         // 添加附件

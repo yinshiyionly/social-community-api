@@ -659,12 +659,17 @@ class ComplaintEnterpriseService
      * 无论成功或失败，都调用 cleanupTempAttachments 清理临时文件，
      * 处理发送异常
      *
+     * 支持根据 useDouyinTemplate 参数选择不同的邮件模板：
+     * - true: 使用抖音专用模板（针对 @bytedance.com 域名）
+     * - false: 使用默认模板
+     *
      * @param int $complaintId 举报记录ID
      * @param string $recipientEmail 收件人邮箱
+     * @param bool $useDouyinTemplate 是否使用抖音专用模板，默认 false
      * @return bool 发送成功返回 true
      * @throws ApiException 记录不存在或邮件发送失败时抛出异常
      */
-    public function sendEmail(int $complaintId, string $recipientEmail): bool
+    public function sendEmail(int $complaintId, string $recipientEmail, bool $useDouyinTemplate = false): bool
     {
         // 获取举报记录
         $complaint = $this->getById($complaintId);
@@ -679,17 +684,20 @@ class ComplaintEnterpriseService
             // 调用 collectAttachmentPaths 收集附件（从云存储下载到临时目录）
             $attachmentPaths = $this->collectAttachmentPaths($complaint);
 
-            // 创建邮件实例（使用独立的企业类举报邮件模版）
-            $mail = new ComplaintEnterpriseMail($mailData, $attachmentPaths);
+            // 创建邮件实例（根据 useDouyinTemplate 参数选择邮件模板）
+            // 抖音模板用于 @bytedance.com 域名的收件人
+            $mail = new ComplaintEnterpriseMail($mailData, $attachmentPaths, $useDouyinTemplate);
 
             // 使用 Mail::to() 发送邮件
             Mail::to($recipientEmail)->send($mail);
 
-            // 记录发送成功日志
+            // 记录发送成功日志（包含模板类型信息）
             Log::channel('daily')->info('企业类举报邮件发送成功', [
                 'complaint_id' => $complaintId,
                 'recipient_email' => $recipientEmail,
                 'attachment_count' => count($attachmentPaths),
+                'use_douyin_template' => $useDouyinTemplate,
+                'template_type' => $useDouyinTemplate ? '抖音专用模板' : '默认模板',
             ]);
 
             return true;
@@ -703,6 +711,7 @@ class ComplaintEnterpriseService
                 'recipient_email' => $recipientEmail,
                 'error_message' => $e->getMessage(),
                 'error_trace' => $e->getTraceAsString(),
+                'use_douyin_template' => $useDouyinTemplate,
             ]);
 
             // 抛出邮件发送失败异常

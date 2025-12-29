@@ -24,8 +24,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property array|null $report_material
  * @property array|null $proof_material
  * @property int $status
- * @property string|null $create_by
- * @property string|null $update_by
+ * @property int $create_by 创建人ID
+ * @property int $update_by 更新人ID
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at

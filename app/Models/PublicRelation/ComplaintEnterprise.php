@@ -30,8 +30,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property \Illuminate\Support\Carbon|null $report_time
  * @property \Illuminate\Support\Carbon|null $completion_time
  * @property int $status
- * @property string|null $create_by
- * @property string|null $update_by
+ * @property int $create_by 创建人ID
+ * @property int $update_by 更新人ID
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at

@@ -35,8 +35,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property \Illuminate\Support\Carbon|null $created_at 创建时间
  * @property \Illuminate\Support\Carbon|null $updated_at 更新时间
  * @property \Illuminate\Support\Carbon|null $deleted_at 删除时间
- * @property string|null $create_by 创建人
- * @property string|null $update_by 更新人
+ * @property int $create_by 创建人ID
+ * @property int $update_by 更新人ID
  */
 class DetectionTaskMaster extends Model
 {

@@ -22,8 +22,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $contact_address 通讯地址
  * @property array|null $report_material 举报材料
  * @property int $status 状态
- * @property string|null $create_by 创建人
- * @property string|null $update_by 更新人
+ * @property int $create_by 创建人ID
+ * @property int $update_by 更新人ID
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at

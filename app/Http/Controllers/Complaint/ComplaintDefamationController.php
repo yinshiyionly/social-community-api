@@ -146,12 +146,13 @@ class ComplaintDefamationController extends Controller
     public function sendMail(Request $request): JsonResponse
     {
         $params = $request->validate([
-            'id' => 'required|integer',
+            'id' => 'required|integer|exists:complaint_defamation,id',
             'recipient_email' => 'required|array',
             'recipient_email.*' => 'required|email',
         ], [
-            'id.required' => '举报ID不能为空',
-            'id.integer' => '举报ID必须为整数',
+            'id.required' => '举报记录不能为空',
+            'id.integer' => '举报记录必须为整数',
+            'id.exists' => '举报记录不存在',
             'recipient_email.required' => '收件人邮箱不能为空',
             'recipient_email.array' => '收件人邮箱必须为数组',
             'recipient_email.*.required' => '收件人邮箱不能为空',

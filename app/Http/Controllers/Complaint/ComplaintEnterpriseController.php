@@ -162,12 +162,13 @@ class ComplaintEnterpriseController extends Controller
     public function sendMail(Request $request): JsonResponse
     {
         $params = $request->validate([
-            'id' => 'required|integer',
+            'id' => 'required|integer|exists:complaint_enterprise,id',
             'recipient_email' => 'required|array',
             'recipient_email.*' => 'required|email',
         ], [
-            'id.required' => '举报ID不能为空',
-            'id.integer' => '举报ID必须为整数',
+            'id.required' => '举报记录不能为空',
+            'id.integer' => '举报记录必须为整数',
+            'id.exists' => '举报记录不存在',
             'recipient_email.required' => '收件人邮箱不能为空',
             'recipient_email.array' => '收件人邮箱必须为数组',
             'recipient_email.*.required' => '收件人邮箱不能为空',
@@ -177,7 +178,7 @@ class ComplaintEnterpriseController extends Controller
         // 获取当前登录用户信息，用于记录邮件发送操作人
         // 如果用户未登录，使用默认值（operator_id=0, operator_name='系统'）
         $user = request()->user();
-        $operatorId = $user ? $user->id : 0;
+        $operatorId = $user ? $user->user_id : 0;
         // 优先使用 nick_name（昵称），其次使用 user_name（用户名），最后使用默认值'系统'
         $operatorName = $user ? ($user->nick_name ?? $user->user_name ?? '系统') : '系统';
 

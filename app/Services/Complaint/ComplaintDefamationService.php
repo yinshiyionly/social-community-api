@@ -559,9 +559,9 @@ class ComplaintDefamationService
         $complaint = $this->getById($id);
 
         // 校验当前状态是否允许审核（仅"平台审核中"状态可以进行审核操作）
-        if ($complaint->report_state !== ComplaintDefamation::REPORT_STATE_PLATFORM_REVIEWING) {
+        /*if ($complaint->report_state !== ComplaintDefamation::REPORT_STATE_PLATFORM_REVIEWING) {
             throw new ApiException('当前状态不允许审核操作，仅"平台审核中"状态可以进行审核');
-        }
+        }*/
 
         // 校验目标状态是否有效
         $allowedStates = [

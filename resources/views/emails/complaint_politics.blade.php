@@ -6,7 +6,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $data['subject'] ?? '政治类举报函' }}</title>
+    <title>{{ $data['subject'] ?? '撤稿申请函' }}</title>
     <style>
         body {
             font-family: 'SimSun', 'Microsoft YaHei', serif;
@@ -68,7 +68,7 @@
 <body>
 <div class="container">
     {{-- 标题 --}}
-    <div class="title">【政治类举报函】</div>
+    {{--<div class="title">【政治类举报函】</div>--}}
 
     {{-- 称呼 --}}
     <div class="greeting">
@@ -77,7 +77,8 @@
 
     {{-- 开头说明 --}}
     <div class="content-block">
-        您好！本人郑重向贵平台举报以下涉及政治类违法违规信息，该信息严重违反国家相关法律法规，恳请您审核后能够予以删除或采取相应处置措施。
+        您好！本人本人实名举报以下涉及政治类违法违规信息，该信息严重违反国家相关法律法规，恳请您审核后能够予以删除或采取相应处置措施。<br>
+        详细举报人信息和举报信息如下，撤稿申请函及其他证据资料见附件
     </div>
 
     {{-- 一、举报人信息 --}}
@@ -146,35 +147,35 @@
     </div>
 
     {{-- 四、法律依据 --}}
-    <div class="section-title">四、法律依据</div>
+   {{-- <div class="section-title">四、法律依据</div>
     <div class="content-block">
         根据《网络信息内容生态治理规定》第六条，网络信息内容生产者不得制作、复制、发布含有下列内容的违法信息：危害国家安全，泄露国家秘密，颠覆国家政权，破坏国家统一的；损害国家荣誉和利益的；歪曲、丑化、亵渎、否定英雄烈士事迹和精神的；宣扬恐怖主义、极端主义或者煽动实施恐怖活动、极端主义活动的；煽动民族仇恨、民族歧视，破坏民族团结的；破坏国家宗教政策，宣扬邪教和封建迷信的。
     </div>
     <div class="content-block">
         根据《中华人民共和国网络安全法》第十二条，任何个人和组织使用网络应当遵守宪法法律，遵守公共秩序，尊重社会公德，不得危害网络安全，不得利用网络从事危害国家安全、荣誉和利益等活动。
-    </div>
+    </div>--}}
 
     {{-- 五、诉求 --}}
-    <div class="section-title">五、诉求</div>
+    {{--<div class="section-title">五、诉求</div>
     <div class="content-block">
         综上所述，本人请求贵平台依据相关法律法规，对上述违法违规信息予以删除或采取其他合理有效措施，以维护国家安全和社会公共利益。
-    </div>
+    </div>--}}
 
     {{-- 六、附件材料 --}}
-    @if(isset($data['attachments']) && is_array($data['attachments']) && count($data['attachments']) > 0)
+    {{--@if(isset($data['attachments']) && is_array($data['attachments']) && count($data['attachments']) > 0)
     <div class="section-title">六、附件材料</div>
     <div class="content-block no-indent">
         @foreach($data['attachments'] as $index => $attachment)
             {{ $index + 1 }}、{{ $attachment['name'] ?? '附件' }}<br>
         @endforeach
     </div>
-    @endif
+    @endif--}}
 
     {{-- 落款 --}}
-    <div style="text-align: right; margin-top: 40px;">
+    {{--<div style="text-align: right; margin-top: 40px;">
         <div>举报人：{{ $data['human_name'] ?? '举报人姓名' }}</div>
         <div>日期：{{ $data['date'] ?? date('Y年m月d日') }}</div>
-    </div>
+    </div>--}}
 </div>
 </body>
 </html>

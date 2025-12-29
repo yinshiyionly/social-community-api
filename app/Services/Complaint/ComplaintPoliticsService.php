@@ -514,7 +514,12 @@ class ComplaintPoliticsService
         $mailData = [
             // ==================== 邮件基础信息 ====================
             // 邮件主题（根据被举报平台动态生成）
-            'subject' => sprintf('关于%s平台投诉一事', $platformName),
+            'subject' => sprintf(
+                "%s账号内容侵权撤稿请求—联系人%s-联系方式%s",
+                $platformName ?? '',
+                $materialPolitics->name ?? '',
+                $materialPolitics->contact_phone ?? ''
+            ),
             // 邮件日期
             'date' => date('Y年m月d日'),
 

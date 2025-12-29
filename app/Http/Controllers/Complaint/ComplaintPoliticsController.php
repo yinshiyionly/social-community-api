@@ -256,9 +256,9 @@ class ComplaintPoliticsController extends Controller
     }
 
     /**
-     * 审核政治类投诉
+     * 批量审核政治类投诉
      *
-     * 平台审核投诉记录，审核通过后创建者才可以发送邮件请求。
+     * 平台批量审核投诉记录，审核通过后创建者才可以发送邮件请求。
      * 仅允许从"平台审核中"状态进行审核操作。
      *
      * @param Request $request
@@ -267,18 +267,27 @@ class ComplaintPoliticsController extends Controller
     public function audit(Request $request): JsonResponse
     {
         $params = $request->validate([
-            'id' => 'required|integer',
-            'report_state' => 'required|integer|in:2,3,4',
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'required|integer',
+            'audit_opinion' => 'required|integer|in:2,3,4',
         ], [
-            'id.required' => '投诉ID不能为空',
-            'id.integer' => '投诉ID必须为整数',
-            'report_state.required' => '审核状态不能为空',
-            'report_state.integer' => '审核状态必须为整数',
-            'report_state.in' => '审核状态值无效，仅支持：2-平台驳回、3-平台审核通过、4-官方审核中',
+            'ids.required' => '投诉ID列表不能为空',
+            'ids.array' => '投诉ID列表必须为数组',
+            'ids.min' => '投诉ID列表至少包含一条记录',
+            'ids.*.required' => '投诉ID不能为空',
+            'ids.*.integer' => '投诉ID必须为整数',
+            'audit_opinion.required' => '审核意见不能为空',
+            'audit_opinion.integer' => '审核意见必须为整数',
+            'audit_opinion.in' => '审核意见值无效，仅支持：2-平台驳回、3-平台审核通过、4-官方审核中',
         ]);
 
-        $this->complaintPoliticsService->audit((int)$params['id'], (int)$params['report_state']);
+        $auditOpinion = (int)$params['audit_opinion'];
 
-        return ApiResponse::success([], '审核操作成功');
+        // 批量审核投诉记录
+        foreach ($params['ids'] as $id) {
+            $this->complaintPoliticsService->audit((int)$id, $auditOpinion);
+        }
+
+        return ApiResponse::success([], '批量审核操作成功');
     }
 }

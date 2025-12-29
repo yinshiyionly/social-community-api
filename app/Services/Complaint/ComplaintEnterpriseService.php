@@ -488,10 +488,10 @@ class ComplaintEnterpriseService
         return [
             // 邮件主题
             'subject' => sprintf(
-                "关于%s平台%s侵权/诽谤我司（%s）一事",
+                "%s账号内容侵权撤稿请求—%s-联系方式:%s",
                 $complaint->site_name ?? '',
-                $complaint->account_name ?? '',
-                $materialEnterprise->name ?? ''
+                $materialEnterprise->name ?? '',
+                $materialEnterprise->contact_phone ?? '',
             ),
 
             // ==================== 举报信息（来自 complaint_enterprise 表）====================

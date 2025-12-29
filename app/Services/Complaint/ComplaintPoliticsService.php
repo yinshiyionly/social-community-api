@@ -494,7 +494,7 @@ class ComplaintPoliticsService
      * @return array 邮件数据数组
      * @throws ApiException
      */
-    protected function prepareMailData(ComplaintPolitics $complaint): array
+    public function prepareMailData(ComplaintPolitics $complaint): array
     {
         // 通过 material_id 获取举报人资料信息
         $materialPolitics = MaterialPolitics::query()

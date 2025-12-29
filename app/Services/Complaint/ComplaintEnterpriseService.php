@@ -488,7 +488,7 @@ class ComplaintEnterpriseService
         return [
             // 邮件主题
             'subject' => sprintf(
-                "%s账号内容侵权撤稿请求—%s-联系方式:%s",
+                "%s账号内容侵权撤稿请求—%s-联系方式%s",
                 $complaint->site_name ?? '',
                 $materialEnterprise->name ?? '',
                 $materialEnterprise->contact_phone ?? '',

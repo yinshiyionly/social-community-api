@@ -453,8 +453,10 @@ class ComplaintDefamationService
         return [
             // 邮件主题
             'subject' => sprintf(
-                "关于%s平台诽谤一事",
-                $complaint->site_name ?? ''
+                "%s账号内容侵权撤稿请求—联系人%s-联系方式%s",
+                $complaint->site_name ?? '',
+                $materialDefamation->real_name ?? '',
+                $materialDefamation->contact_phone ?? ''
             ),
 
             // ==================== 举报信息（来自 complaint_defamation 表）====================

@@ -79,7 +79,7 @@
 <body>
 <div class="container">
     {{-- 标题 --}}
-    <div class="title">【撤稿申请函】</div>
+    {{--<div class="title">【撤稿申请函】</div>--}}
 
     {{-- 称呼 --}}
     <div class="greeting">
@@ -88,12 +88,13 @@
 
     {{-- 开头说明 --}}
     <div class="content-block">
-        您好！我司非常重视来自消费者涉及我司相关人员的网络意见，无奈出具此函并非对网络声音置若罔闻，但该信息的侵权/诽谤内容已对我司产生不良影响，劳烦您审核后能够予以删除或采取同等效果措施；
+        您好！本人实名举报<span>{{ $data['site_name'] ?? '举报网站名称' }}</span>发布相关不实言论，郑重向贵平台致函；<br>
+        详细举报人信息和举报信息如下，撤稿申请函及其他证据资料见附件
     </div>
 
-    <div class="content-block no-indent">
+    {{--<div class="content-block no-indent">
         <span>{{ $data['site_name'] ?? '举报网站名称' }}</span>发布相关不实言论，郑重向贵平台致函如下：
-    </div>
+    </div>--}}
 
     {{-- 一、投诉人信息 --}}
     <div class="section-title">一、投诉人信息</div>
@@ -136,20 +137,20 @@
     </div>
 
     {{-- 附件说明 --}}
-    @if(isset($data['attachments']) && is_array($data['attachments']) && count($data['attachments']) > 0)
+    {{--@if(isset($data['attachments']) && is_array($data['attachments']) && count($data['attachments']) > 0)
         <div class="section-title">四、附件材料</div>
         <div class="content-block no-indent">
             @foreach($data['attachments'] as $index => $attachment)
                 {{ $index + 1 }}、{{ $attachment['name'] ?? '附件' }}<br>
             @endforeach
         </div>
-    @endif
+    @endif--}}
 
     {{-- 落款 --}}
-    <div style="text-align: right; margin-top: 40px;">
+    {{--<div style="text-align: right; margin-top: 40px;">
         <div>投诉人：{{ $data['real_name'] ?? '投诉人姓名' }}</div>
         <div>日期：{{ $data['date'] ?? date('Y年m月d日') }}</div>
-    </div>
+    </div>--}}
 </div>
 </body>
 </html>

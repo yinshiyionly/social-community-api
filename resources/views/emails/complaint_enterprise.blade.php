@@ -123,24 +123,25 @@
         <div class="info-row">{{ $data['proof_type'] ?? '未填写' }}</div>
     @endif
 
-    {{-- 三、侵权事实与理由 --}}
-   {{-- <div class="section-title">三、侵权事实与理由</div>
+    {{-- 三、具体举报内容 --}}
+    <div class="section-title">三、具体举报内容</div>
 
     <div class="content-block">
         {!! nl2br(e($data['report_content'] ?? '请填写侵权事实与理由')) !!}
     </div>
 
-    --}}{{-- 法律依据 --}}{{--
+
+    {{-- 法律依据 --}}{{--
     <div class="section-title">四、法律依据</div>
     <div class="content-block">
         根据《网络信息内容生态治理规定》第六条，禁止制作、发布侵害他人名誉、隐私等合法权益的违法信息。依据《网站平台受理处置涉企网络侵权信息举报工作规范》第四条，平台应重点受理处置虚假信息、侵害名誉权、诽谤性等损害企业合法权益的信息；涉事内容符合上述情形。
     </div>
     <div class="content-block">
         根据《民法典》第一千零二十四条关于名誉权保护的规定，任何组织或者个人不得以侮辱、诽谤等方式侵害他人的名誉权。
-    </div>
+    </div>--}}
 
-    --}}{{-- 诉求 --}}{{--
-    <div class="section-title">五、诉求</div>
+    {{-- 诉求 --}}
+    {{--<div class="section-title">五、诉求</div>
     <div class="content-block">
         综上所述，我方请求贵平台依据相关法律法规，对上述侵权信息予以删除或采取其他合理有效措施，以维护我方合法权益。
     </div>--}}

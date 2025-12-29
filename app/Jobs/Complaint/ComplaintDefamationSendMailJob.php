@@ -2,7 +2,7 @@
 
 namespace App\Jobs\Complaint;
 
-
+use App\Models\PublicRelation\ComplaintDefamationSendHistory;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -10,8 +10,15 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\View;
 use Throwable;
 
+/**
+ * 诽谤类举报邮件发送队列任务
+ *
+ * 负责异步发送诽谤类举报邮件，并记录每次发送的历史记录
+ * 包括发送成功和失败的情况都会保存到 complaint_defamation_send_history 表
+ */
 class ComplaintDefamationSendMailJob implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
@@ -44,12 +51,21 @@ class ComplaintDefamationSendMailJob implements ShouldQueue, ShouldBeUnique
      */
     public $backoff = 60;
 
+    /**
+     * 任务参数
+     *
+     * @var array
+     */
     protected array $params;
 
     /**
      * Create a new job instance.
      *
-     * @param array $params
+     * @param array $params 任务参数，包含：
+     *                      - complaint_id: 举报记录ID
+     *                      - recipient_email: 收件人邮箱
+     *                      - operator_id: 操作人ID（可选，默认0）
+     *                      - operator_name: 操作人姓名（可选，默认'系统'）
      */
     public function __construct(array $params)
     {
@@ -83,6 +99,8 @@ class ComplaintDefamationSendMailJob implements ShouldQueue, ShouldBeUnique
     /**
      * Execute the job.
      *
+     * 执行邮件发送任务，并在发送成功后保存历史记录
+     *
      * @throws \Exception
      */
     public function handle()
@@ -91,6 +109,11 @@ class ComplaintDefamationSendMailJob implements ShouldQueue, ShouldBeUnique
             'params' => $this->params ?? [],
             'attempt' => $this->attempts()
         ]);
+
+        // 初始化变量，用于保存历史记录
+        $mailData = [];
+        $renderedHtml = '';
+
         try {
             // 0. 检查参数
             $this->validateParams();
@@ -99,8 +122,23 @@ class ComplaintDefamationSendMailJob implements ShouldQueue, ShouldBeUnique
             $fileService = new \App\Services\FileUploadService();
             // 2. 实例化诽谤类举报服务类
             $service = new \App\Services\Complaint\ComplaintDefamationService($fileService);
-            // 3. 发送邮件
+
+            // 3. 获取举报记录并准备邮件数据（用于保存历史记录）
+            $complaint = $service->getById((int)$this->params['complaint_id']);
+            $mailData = $service->prepareMailData($complaint);
+
+            // 4. 渲染邮件HTML内容（用于保存历史记录）
+            $renderedHtml = $this->renderMailHtml($mailData);
+
+            // 5. 发送邮件
             $service->sendEmail((int)$this->params['complaint_id'], $this->params['recipient_email']);
+
+            // 6. 发送成功，保存历史记录（状态为成功）
+            $this->saveSendHistory(
+                $mailData,
+                $renderedHtml,
+                ComplaintDefamationSendHistory::SEND_STATUS_SUCCESS
+            );
 
             return true;
         } catch (\Exception $e) {
@@ -110,6 +148,15 @@ class ComplaintDefamationSendMailJob implements ShouldQueue, ShouldBeUnique
                 'attempt' => $this->attempts(),
                 'msg' => $e->getMessage()
             ]);
+
+            // 发送失败，保存历史记录（状态为失败，记录错误信息）
+            $this->saveSendHistory(
+                $mailData,
+                $renderedHtml,
+                ComplaintDefamationSendHistory::SEND_STATUS_FAILED,
+                $e->getMessage()
+            );
+
             throw new \Exception($msg);
         }
     }
@@ -146,12 +193,104 @@ class ComplaintDefamationSendMailJob implements ShouldQueue, ShouldBeUnique
     }
 
     /**
-     * @throws \Exception
+     * 验证任务参数
+     *
+     * 检查必需的参数是否存在：
+     * - complaint_id: 举报记录ID（必需）
+     * - recipient_email: 收件人邮箱（必需）
+     * - operator_id: 操作人ID（可选，默认0）
+     * - operator_name: 操作人姓名（可选，默认'系统'）
+     *
+     * @throws \Exception 参数缺失时抛出异常
      */
     protected function validateParams()
     {
+        // 验证必需参数
         if (empty($this->params['complaint_id']) || !isset($this->params['recipient_email'])) {
             throw new \Exception('队列事件缺少参数');
+        }
+
+        // 设置操作人信息默认值（如果未提供）
+        if (!isset($this->params['operator_id'])) {
+            $this->params['operator_id'] = 0;
+        }
+        if (!isset($this->params['operator_name'])) {
+            $this->params['operator_name'] = '系统';
+        }
+    }
+
+    /**
+     * 渲染邮件HTML内容
+     *
+     * 使用 Laravel 的 View::make()->render() 方法渲染邮件模板，
+     * 生成完整的HTML字符串用于保存到历史记录
+     *
+     * @param array $mailData 邮件数据
+     * @return string 渲染后的HTML内容，渲染失败返回空字符串
+     */
+    protected function renderMailHtml(array $mailData): string
+    {
+        try {
+            // 使用 View::make() 渲染邮件模板
+            // 模板路径: resources/views/emails/complaint_defamation.blade.php
+            return View::make('emails.complaint_defamation', ['data' => $mailData])->render();
+        } catch (\Exception $e) {
+            // 渲染失败，记录错误日志并返回空字符串
+            Log::channel('job')->warning('[诽谤类举报邮件HTML渲染失败]', [
+                'complaint_id' => $this->params['complaint_id'] ?? null,
+                'error_message' => $e->getMessage(),
+            ]);
+            return '';
+        }
+    }
+
+    /**
+     * 保存邮件发送历史记录
+     *
+     * 将邮件发送的详细信息保存到 complaint_defamation_send_history 表，
+     * 包括操作人信息、邮件数据、渲染后的HTML内容和发送状态
+     *
+     * 注意：历史记录保存失败不会影响主流程，仅记录错误日志
+     *
+     * @param array $mailData 邮件数据（JSON格式存储）
+     * @param string $renderedHtml 渲染后的HTML内容
+     * @param int $sendStatus 发送状态：1-成功，2-失败
+     * @param string|null $errorMessage 失败时的错误信息
+     * @return void
+     */
+    protected function saveSendHistory(
+        array $mailData,
+        string $renderedHtml,
+        int $sendStatus,
+        ?string $errorMessage = null
+    ): void {
+        try {
+            // 创建历史记录
+            ComplaintDefamationSendHistory::create([
+                'complaint_id' => (int)$this->params['complaint_id'],
+                'recipient_email' => $this->params['recipient_email'],
+                'operator_id' => (int)($this->params['operator_id'] ?? 0),
+                'operator_name' => $this->params['operator_name'] ?? '系统',
+                'mail_data' => $mailData,
+                'rendered_html' => $renderedHtml,
+                'send_status' => $sendStatus,
+                'error_message' => $errorMessage,
+            ]);
+
+            // 记录保存成功日志
+            Log::channel('job')->info('[诽谤类举报邮件发送历史记录保存成功]', [
+                'complaint_id' => $this->params['complaint_id'],
+                'recipient_email' => $this->params['recipient_email'],
+                'send_status' => $sendStatus,
+            ]);
+        } catch (\Exception $e) {
+            // 历史记录保存失败，记录错误日志但不影响主流程
+            Log::channel('job')->error('[诽谤类举报邮件发送历史记录保存失败]', [
+                'complaint_id' => $this->params['complaint_id'] ?? null,
+                'recipient_email' => $this->params['recipient_email'] ?? null,
+                'send_status' => $sendStatus,
+                'error_message' => $e->getMessage(),
+            ]);
         }
     }
 }

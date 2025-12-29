@@ -139,6 +139,7 @@ class ComplaintDefamationController extends Controller
      * 发送举报邮件
      *
      * 将邮件发送任务推送到队列异步处理，支持批量发送。
+     * 同时获取当前登录用户信息，传递给队列任务用于记录操作人。
      *
      * @param Request $request
      * @return JsonResponse
@@ -159,10 +160,19 @@ class ComplaintDefamationController extends Controller
             'recipient_email.*.email' => '收件人邮箱格式不正确',
         ]);
 
+        // 获取当前登录用户信息，用于记录邮件发送操作人
+        // 如果用户未登录，使用默认值（operator_id=0, operator_name='系统'）
+        $user = request()->user();
+        $operatorId = $user ? $user->user_id : 0;
+        // 优先使用 nick_name（昵称），其次使用 user_name（用户名），最后使用默认值'系统'
+        $operatorName = $user ? ($user->nick_name ?? $user->user_name ?? '系统') : '系统';
+
         foreach ($params['recipient_email'] as $email) {
             ComplaintDefamationSendMailJob::dispatch([
                 'complaint_id' => $params['id'],
                 'recipient_email' => $email,
+                'operator_id' => $operatorId,
+                'operator_name' => $operatorName,
             ]);
         }
 

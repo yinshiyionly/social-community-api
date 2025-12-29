@@ -427,11 +427,13 @@ class ComplaintDefamationService
      * 通过 material_id 关联 material_defamation 表获取企业和联系人信息，
      * 组装完整的邮件数据结构
      *
+     * 注意：此方法为 public，以便 ComplaintDefamationSendMailJob 调用获取邮件数据用于保存历史记录
+     *
      * @param ComplaintDefamation $complaint 举报记录
      * @return array 邮件数据数组
      * @throws ApiException
      */
-    protected function prepareMailData(ComplaintDefamation $complaint): array
+    public function prepareMailData(ComplaintDefamation $complaint): array
     {
         // 通过 material_id 获取企业资料信息
         $materialDefamation = MaterialDefamation::query()

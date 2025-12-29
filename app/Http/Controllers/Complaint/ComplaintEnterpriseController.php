@@ -153,6 +153,7 @@ class ComplaintEnterpriseController extends Controller
      * 发送举报邮件
      *
      * 将邮件发送任务推送到队列异步处理，支持批量发送。
+     * 同时获取当前登录用户信息，传递给队列任务用于记录操作人。
      *
      * @param Request $request
      * @return JsonResponse
@@ -172,13 +173,49 @@ class ComplaintEnterpriseController extends Controller
             'recipient_email.*.email' => '收件人邮箱格式不正确',
         ]);
 
+        // 获取当前登录用户信息，用于记录邮件发送操作人
+        // 如果用户未登录，使用默认值（operator_id=0, operator_name='系统'）
+        $user = auth()->user();
+        $operatorId = $user ? $user->id : 0;
+        // 优先使用 nick_name（昵称），其次使用 user_name（用户名），最后使用默认值'系统'
+        $operatorName = $user ? ($user->nick_name ?? $user->user_name ?? '系统') : '系统';
+
         foreach ($params['recipient_email'] as $email) {
             ComplaintEnterpriseSendMailJob::dispatch([
                 'complaint_id' => $params['id'],
                 'recipient_email' => $email,
+                'operator_id' => $operatorId,
+                'operator_name' => $operatorName,
             ]);
         }
 
         return ApiResponse::success([], '邮件发送任务已加入队列');
+    }
+
+    /**
+     * 审核企业投诉
+     *
+     * 平台审核投诉记录，审核通过后创建者才可以发送邮件请求。
+     * 仅允许从"平台审核中"状态进行审核操作。
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function audit(Request $request): JsonResponse
+    {
+        $params = $request->validate([
+            'id' => 'required|integer',
+            'report_state' => 'required|integer|in:2,3,4',
+        ], [
+            'id.required' => '投诉ID不能为空',
+            'id.integer' => '投诉ID必须为整数',
+            'report_state.required' => '审核状态不能为空',
+            'report_state.integer' => '审核状态必须为整数',
+            'report_state.in' => '审核状态值无效，仅支持：2-平台驳回、3-平台审核通过、4-官方审核中',
+        ]);
+
+        $this->complaintEnterpriseService->audit((int)$params['id'], (int)$params['report_state']);
+
+        return ApiResponse::success([], '审核操作成功');
     }
 }

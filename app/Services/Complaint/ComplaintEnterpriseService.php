@@ -461,11 +461,14 @@ class ComplaintEnterpriseService
      * 通过 material_id 关联 material_enterprise 表获取企业和联系人信息，
      * 组装完整的邮件数据结构
      *
+     * 注意：此方法改为 public 访问级别，以便 ComplaintEnterpriseSendMailJob 可以调用获取邮件数据，
+     * 用于保存邮件发送历史记录
+     *
      * @param ComplaintEnterprise $complaint 举报记录
      * @return array 邮件数据数组
      * @throws ApiException
      */
-    protected function prepareMailData(ComplaintEnterprise $complaint): array
+    public function prepareMailData(ComplaintEnterprise $complaint): array
     {
         // 通过 material_id 获取企业资料信息
         $materialEnterprise = MaterialEnterprise::query()
@@ -590,6 +593,61 @@ class ComplaintEnterpriseService
             'cleaned_count' => $cleanedCount,
             'failed_count' => $failedCount,
         ]);
+    }
+
+    /**
+     * 审核企业投诉
+     *
+     * 平台审核投诉记录，仅允许从"平台审核中"状态进行审核操作。
+     * 审核通过后创建者才可以发送邮件请求。
+     *
+     * @param int $id 投诉记录ID
+     * @param int $reportState 目标审核状态（2-平台驳回、3-平台审核通过、4-官方审核中）
+     * @return bool 审核成功返回 true
+     * @throws ApiException 记录不存在或状态不允许审核时抛出异常
+     */
+    public function audit(int $id, int $reportState): bool
+    {
+        // 获取投诉记录
+        $complaint = $this->getById($id);
+
+        // 校验当前状态是否允许审核（仅"平台审核中"状态可以进行审核操作）
+        if ($complaint->report_state !== ComplaintEnterprise::REPORT_STATE_PLATFORM_REVIEWING) {
+            throw new ApiException('当前状态不允许审核操作，仅"平台审核中"状态可以进行审核');
+        }
+
+        // 校验目标状态是否有效
+        $allowedStates = [
+            ComplaintEnterprise::REPORT_STATE_PLATFORM_REJECTED,   // 2-平台驳回
+            ComplaintEnterprise::REPORT_STATE_PLATFORM_APPROVED,   // 3-平台审核通过
+            ComplaintEnterprise::REPORT_STATE_OFFICIAL_REVIEWING,  // 4-官方审核中
+        ];
+
+        if (!in_array($reportState, $allowedStates, true)) {
+            throw new ApiException('目标审核状态无效');
+        }
+
+        try {
+            // 更新审核状态
+            $result = $complaint->update(['report_state' => $reportState]);
+
+            // 记录审核操作日志
+            Log::channel('daily')->info('企业投诉审核操作成功', [
+                'complaint_id' => $id,
+                'old_state' => ComplaintEnterprise::REPORT_STATE_PLATFORM_REVIEWING,
+                'new_state' => $reportState,
+                'new_state_label' => ComplaintEnterprise::REPORT_STATE_LABELS[$reportState] ?? '未知',
+            ]);
+
+            return $result;
+        } catch (\Exception $e) {
+            $msg = '审核操作失败: ' . $e->getMessage();
+            Log::channel('daily')->error($msg, [
+                'complaint_id' => $id,
+                'report_state' => $reportState,
+            ]);
+            throw new ApiException($msg);
+        }
     }
 
     /**

@@ -254,4 +254,31 @@ class ComplaintPoliticsController extends Controller
 
         return ApiResponse::success([], '邮件发送任务已加入队列');
     }
+
+    /**
+     * 审核政治类投诉
+     *
+     * 平台审核投诉记录，审核通过后创建者才可以发送邮件请求。
+     * 仅允许从"平台审核中"状态进行审核操作。
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function audit(Request $request): JsonResponse
+    {
+        $params = $request->validate([
+            'id' => 'required|integer',
+            'report_state' => 'required|integer|in:2,3,4',
+        ], [
+            'id.required' => '投诉ID不能为空',
+            'id.integer' => '投诉ID必须为整数',
+            'report_state.required' => '审核状态不能为空',
+            'report_state.integer' => '审核状态必须为整数',
+            'report_state.in' => '审核状态值无效，仅支持：2-平台驳回、3-平台审核通过、4-官方审核中',
+        ]);
+
+        $this->complaintPoliticsService->audit((int)$params['id'], (int)$params['report_state']);
+
+        return ApiResponse::success([], '审核操作成功');
+    }
 }

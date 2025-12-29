@@ -697,6 +697,61 @@ class ComplaintPoliticsService
     }
 
     /**
+     * 审核政治类投诉
+     *
+     * 平台审核投诉记录，仅允许从"平台审核中"状态进行审核操作。
+     * 审核通过后创建者才可以发送邮件请求。
+     *
+     * @param int $id 投诉记录ID
+     * @param int $reportState 目标审核状态（2-平台驳回、3-平台审核通过、4-官方审核中）
+     * @return bool 审核成功返回 true
+     * @throws ApiException 记录不存在或状态不允许审核时抛出异常
+     */
+    public function audit(int $id, int $reportState): bool
+    {
+        // 获取投诉记录
+        $complaint = $this->getById($id);
+
+        // 校验当前状态是否允许审核（仅"平台审核中"状态可以进行审核操作）
+        if ($complaint->report_state !== ComplaintPolitics::REPORT_STATE_PLATFORM_REVIEWING) {
+            throw new ApiException('当前状态不允许审核操作，仅"平台审核中"状态可以进行审核');
+        }
+
+        // 校验目标状态是否有效
+        $allowedStates = [
+            ComplaintPolitics::REPORT_STATE_PLATFORM_REJECTED,   // 2-平台驳回
+            ComplaintPolitics::REPORT_STATE_PLATFORM_APPROVED,   // 3-平台审核通过
+            ComplaintPolitics::REPORT_STATE_OFFICIAL_REVIEWING,  // 4-官方审核中
+        ];
+
+        if (!in_array($reportState, $allowedStates, true)) {
+            throw new ApiException('目标审核状态无效');
+        }
+
+        try {
+            // 更新审核状态
+            $result = $complaint->update(['report_state' => $reportState]);
+
+            // 记录审核操作日志
+            Log::channel('daily')->info('政治类投诉审核操作成功', [
+                'complaint_id' => $id,
+                'old_state' => ComplaintPolitics::REPORT_STATE_PLATFORM_REVIEWING,
+                'new_state' => $reportState,
+                'new_state_label' => ComplaintPolitics::REPORT_STATE_LABELS[$reportState] ?? '未知',
+            ]);
+
+            return $result;
+        } catch (\Exception $e) {
+            $msg = '审核操作失败: ' . $e->getMessage();
+            Log::channel('daily')->error($msg, [
+                'complaint_id' => $id,
+                'report_state' => $reportState,
+            ]);
+            throw new ApiException($msg);
+        }
+    }
+
+    /**
      * 发送政治类举报邮件
      *
      * 调用 prepareMailData 准备邮件数据，

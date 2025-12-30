@@ -6,6 +6,7 @@ namespace App\Services\Complaint;
 
 use App\Exceptions\ApiException;
 use App\Mail\Complaint\ComplaintEnterpriseMail;
+use App\Models\Mail\ReportEmail;
 use App\Models\PublicRelation\ComplaintEnterprise;
 use App\Models\PublicRelation\MaterialEnterprise;
 use App\Services\FileUploadService;
@@ -274,8 +275,8 @@ class ComplaintEnterpriseService
      */
     public function getReportEmails(): array
     {
-        return DB::table('report_email')
-            ->select('id', 'email', 'name')
+        return ReportEmail::query()
+            ->select(['id', 'email', 'name'])
             ->get()
             ->toArray();
     }

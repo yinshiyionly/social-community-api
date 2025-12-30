@@ -6,6 +6,7 @@ namespace App\Services\Complaint;
 
 use App\Exceptions\ApiException;
 use App\Mail\Complaint\ComplaintPoliticsMail;
+use App\Models\Mail\ReportEmail;
 use App\Models\PublicRelation\ComplaintPolitics;
 use App\Models\PublicRelation\MaterialPolitics;
 use App\Services\FileUploadService;
@@ -86,7 +87,6 @@ class ComplaintPoliticsService
             ->orderBy('id', 'desc')
             ->paginate($pageSize, ['*'], 'page', $pageNum);
     }
-
 
     /**
      * 根据ID获取政治类投诉详情
@@ -204,7 +204,6 @@ class ComplaintPoliticsService
         // 处理材料字段URL（移除schema和host）
         return $this->processMaterialUrlsForStorage($data);
     }
-
 
     /**
      * 处理材料字段URL用于存储（移除schema和host，只保留path）
@@ -329,12 +328,11 @@ class ComplaintPoliticsService
      */
     public function getReportEmails(): array
     {
-        return DB::table('report_email')
-            ->select('id', 'email', 'name')
+        return ReportEmail::query()
+            ->select(['id', 'email', 'name'])
             ->get()
             ->toArray();
     }
-
 
     /**
      * 收集附件文件路径（从TOS云存储下载到临时目录）

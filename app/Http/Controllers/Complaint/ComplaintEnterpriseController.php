@@ -12,6 +12,7 @@ use App\Http\Resources\ApiResponse;
 use App\Http\Resources\Complaint\ComplaintEnterprise\ComplaintEnterpriseItemResource;
 use App\Http\Resources\Complaint\ComplaintEnterprise\ComplaintEnterpriseListResource;
 use App\Jobs\Complaint\ComplaintEnterpriseSendMailJob;
+use App\Models\PublicRelation\ComplaintEnterprise;
 use App\Services\Complaint\ComplaintEnterpriseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -162,7 +163,14 @@ class ComplaintEnterpriseController extends Controller
     public function sendMail(Request $request): JsonResponse
     {
         $params = $request->validate([
-            'id' => 'required|integer|exists:complaint_enterprise,id',
+            'id' => ['required', 'integer', function ($attr, $value, $fail) {
+                $exists = ComplaintEnterprise::query()
+                    ->where('id', $value)
+                    ->exists();
+                if (!$exists) {
+                    $fail('记录不存在');
+                }
+            }],
             'recipient_email' => 'required|array',
             'recipient_email.*' => 'required|email',
         ], [

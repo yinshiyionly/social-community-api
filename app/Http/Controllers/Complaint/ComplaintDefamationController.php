@@ -11,6 +11,7 @@ use App\Http\Resources\ApiResponse;
 use App\Http\Resources\Complaint\ComplaintDefamation\ComplaintDefamationItemResource;
 use App\Http\Resources\Complaint\ComplaintDefamation\ComplaintDefamationListResource;
 use App\Jobs\Complaint\ComplaintDefamationSendMailJob;
+use App\Models\PublicRelation\ComplaintDefamation;
 use App\Services\Complaint\ComplaintDefamationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -147,7 +148,14 @@ class ComplaintDefamationController extends Controller
     public function sendMail(Request $request): JsonResponse
     {
         $params = $request->validate([
-            'id' => 'required|integer|exists:complaint_defamation,id',
+            'id' => ['required', 'integer', function ($attr, $value, $fail) {
+                $exists = ComplaintDefamation::query()
+                    ->where('id', $value)
+                    ->exists();
+                if (!$exists) {
+                    $fail('记录不存在');
+                }
+            }],
             'recipient_email' => 'required|array',
             'recipient_email.*' => 'required|email',
         ], [

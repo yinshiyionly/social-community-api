@@ -11,6 +11,7 @@ use App\Http\Resources\ApiResponse;
 use App\Http\Resources\Complaint\ComplaintPolitics\ComplaintPoliticsItemResource;
 use App\Http\Resources\Complaint\ComplaintPolitics\ComplaintPoliticsListResource;
 use App\Jobs\Complaint\ComplaintPoliticsSendMailJob;
+use App\Models\PublicRelation\ComplaintPolitics;
 use App\Services\Complaint\ComplaintPoliticsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -234,7 +235,14 @@ class ComplaintPoliticsController extends Controller
     public function sendMail(Request $request): JsonResponse
     {
         $params = $request->validate([
-            'id' => 'required|integer|exists:complaint_politics,id',
+            'id' => ['required', 'integer', function ($attr, $value, $fail) {
+                $exists = ComplaintPolitics::query()
+                    ->where('id', $value)
+                    ->exists();
+                if (!$exists) {
+                    $fail('记录不存在');
+                }
+            }],
             'recipient_email' => 'required|array',
             'recipient_email.*' => 'required|email',
         ], [

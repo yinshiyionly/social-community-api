@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Detection\Task;
 
+use App\Models\Detection\DetectionTaskMaster;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -33,10 +34,24 @@ class CreateDetectionTaskRequest extends FormRequest
     {
         return [
             // 任务名称
-            'task_name' => ['required', 'string', 'max:100', Rule::unique('detection_task_master', 'task_name')->whereNull('deleted_at')],
+            'task_name' => ['required', 'string', 'max:100', function ($attr, $value, $fail) {
+                $exists = DetectionTaskMaster::query()
+                    ->where('task_name', $value)
+                    ->exists();
+                if ($exists) {
+                    $fail('任务名称已存在');
+                }
+            }],
 
             // 文本关键词
-            'text_plain' => ['required', 'string', 'max:100', Rule::unique('detection_task_master', 'text_plain')->whereNull('deleted_at')],
+            'text_plain' => ['required', 'string', 'max:100', function ($attr, $value, $fail) {
+                $exists = DetectionTaskMaster::query()
+                    ->where('text_plain', $value)
+                    ->exists();
+                if ($exists) {
+                    $fail('文本关键词已存在');
+                }
+            }],
 
             // 地域配置
             'based_location_plain' => ['nullable', 'array'],

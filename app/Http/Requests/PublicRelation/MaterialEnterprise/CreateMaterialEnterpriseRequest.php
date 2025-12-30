@@ -29,7 +29,19 @@ class CreateMaterialEnterpriseRequest extends FormRequest
     {
         return [
             // Required fields
-            'name' => ['required', 'string', 'max:50', Rule::unique('material_enterprise', 'name')->whereNull('deleted_at')],
+            'name' => [
+                'required',
+                'string',
+                'max:50',
+                function ($attr, $value, $fail) {
+                    $exists = MaterialEnterprise::query()
+                        ->where('name', $value)
+                        ->exists();
+                    if ($exists) {
+                        $fail('企业名称已经存在');
+                    }
+                }
+            ],
             'contact_name' => 'required|string|max:20',
             'contact_phone' => ['required', 'string', 'regex:/^1[3-9]\d{9}$/'],
 

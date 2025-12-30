@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Complaint\ComplaintDefamation;
 
+use App\Models\Mail\ReportEmail;
 use App\Models\PublicRelation\ComplaintDefamation;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -55,7 +56,14 @@ class CreateComplaintDefamationRequest extends FormRequest
             'report_content' => 'required|string',
 
             // 发件邮箱 - 必填，存在于 report_email 表
-            'email_config_id' => 'required|integer|exists:report_email,id',
+            'email_config_id' => ['required', 'integer', function ($attr, $value, $fail) {
+                $exists = ReportEmail::query()
+                    ->where('id', $value)
+                    ->exists();
+                if (!$exists) {
+                    $fail('发件邮箱不存在，请选择有效的发件邮箱');
+                }
+            }],
 
             // 渠道名称 - 必填，字符串，最大100字符
             'channel_name' => 'required|string|max:100',

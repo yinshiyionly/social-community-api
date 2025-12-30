@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Complaint\ComplaintPolitics;
 
+use App\Models\PublicRelation\ComplaintPolitics;
+
 /**
  * 更新政治类投诉请求验证类
  *
@@ -24,7 +26,14 @@ class UpdateComplaintPoliticsRequest extends CreateComplaintPoliticsRequest
         $rules = parent::rules();
 
         // 添加 id 字段验证：必填、整数、存在于 complaint_politics 表
-        $rules['id'] = 'required|integer|exists:complaint_politics,id';
+        $rules['id'] = ['required', 'integer', function ($attr, $value, $fail) {
+            $exists = ComplaintPolitics::query()
+                ->where('id', $value)
+                ->exists();
+            if (!$exists) {
+                $fail('记录不存在');
+            }
+        }];
 
         return $rules;
     }

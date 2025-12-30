@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Complaint\ComplaintPolitics;
 
+use App\Models\Mail\ReportEmail;
 use App\Models\PublicRelation\ComplaintPolitics;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -81,7 +82,14 @@ class CreateComplaintPoliticsRequest extends FormRequest
 
             // ==================== 通用必填字段 ====================
             'material_id' => 'required|integer',
-            'email_config_id' => 'required|integer|exists:report_email,id',
+            'email_config_id' => ['required', 'integer', function ($attr, $value, $fail) {
+                $exists = ReportEmail::query()
+                    ->where('id', $value)
+                    ->exists();
+                if (!$exists) {
+                    $fail('发件箱不存在，请选择有效的发件邮箱');
+                }
+            }],
             'channel_name' => 'required|string|max:50',
 
             // ==================== 可选字段 ====================

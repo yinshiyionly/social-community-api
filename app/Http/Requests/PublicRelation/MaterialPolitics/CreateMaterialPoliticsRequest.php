@@ -29,7 +29,14 @@ class CreateMaterialPoliticsRequest extends FormRequest
     {
         return [
             // Optional fields - matching DDL structure
-            'name' => ['required', 'string', 'max:50', Rule::unique('material_politics', 'name')->whereNull('deleted_at')],
+            'name' => ['required', 'string', 'max:50', function ($attr, $value, $fail) {
+                $exists = MaterialPolitics::query()
+                    ->where('name', $value)
+                    ->exists();
+                if ($exists) {
+                    $fail('姓名已经存在');
+                }
+            }],
             'gender' => ['required', 'integer', Rule::in([
                 MaterialPolitics::GENDER_UNKNOWN,
                 MaterialPolitics::GENDER_MALE,

@@ -55,7 +55,14 @@ class CreateMaterialDefamationRequest extends FormRequest
             'contact_email' => 'required|email|max:50',
 
             // 真实姓名验证
-            'real_name' => ['required', 'string', 'max:50', Rule::unique('material_defamation', 'real_name')->whereNull('deleted_at')],
+            'real_name' => ['required', 'string', 'max:50', function ($attr, $value, $fail) {
+                $exists = MaterialDefamation::query()
+                    ->where('real_name', $value)
+                    ->exists();
+                if ($exists) {
+                    $fail('真实姓名已经存在');
+                }
+            }],
 
             // 举报材料数组验证
             // 'report_material' => 'required|array',

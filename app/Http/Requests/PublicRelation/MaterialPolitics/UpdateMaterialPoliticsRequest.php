@@ -30,14 +30,15 @@ class UpdateMaterialPoliticsRequest extends FormRequest
         $id = request()->get('id', 0);
         return [
             // Optional fields - matching DDL structure
-            'name' => [
-                'required',
-                'string',
-                'max:50',
-                Rule::unique('material_politics', 'name')
-                    ->whereNull('deleted_at')
-                    ->ignore($id, 'id')
-            ],
+            'name' => ['required', 'string', 'max:50', function ($attr, $value, $fail) use ($id) {
+                $exists = MaterialPolitics::query()
+                    ->where('name', $value)
+                    ->where('id', '!=', $id)
+                    ->exists();
+                if ($exists) {
+                    $fail('姓名已经存在');
+                }
+            }],
             'gender' => ['required', 'integer', Rule::in([
                 MaterialPolitics::GENDER_UNKNOWN,
                 MaterialPolitics::GENDER_MALE,

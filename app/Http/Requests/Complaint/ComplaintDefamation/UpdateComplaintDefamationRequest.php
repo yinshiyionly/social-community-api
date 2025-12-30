@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Complaint\ComplaintDefamation;
 
+use App\Models\Mail\ReportEmail;
 use App\Models\PublicRelation\ComplaintDefamation;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -44,7 +45,14 @@ class UpdateComplaintDefamationRequest extends FormRequest
         return [
             // ==================== 必填字段 ====================
             // ID - 必填，整数，存在于 complaint_defamation 表
-            'id' => 'required|integer|exists:complaint_defamation,id',
+            'id' => ['required', 'integer', function ($attr, $value, $fail) {
+                $exists = ComplaintDefamation::query()
+                    ->where('id', $value)
+                    ->exists();
+                if (!$exists) {
+                    $fail('记录不存在');
+                }
+            }],
 
             // ==================== 可选字段（更新时均为可选） ====================
             // 举报人资料ID - 可选，整数
@@ -61,7 +69,14 @@ class UpdateComplaintDefamationRequest extends FormRequest
             'report_content' => 'nullable|string',
 
             // 发件邮箱 - 可选，存在于 report_email 表
-            'email_config_id' => 'required|integer|exists:report_email,id',
+            'email_config_id' => ['required', 'integer', function ($attr, $value, $fail) {
+                $exists = ReportEmail::query()
+                    ->where('id', $value)
+                    ->exists();
+                if (!$exists) {
+                    $fail('发件邮箱不存在，请选择有效的发件邮箱');
+                }
+            }],
 
             // 渠道名称 - 可选，字符串，最大100字符
             'channel_name' => 'nullable|string|max:100',

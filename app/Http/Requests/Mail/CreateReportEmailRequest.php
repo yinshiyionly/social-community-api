@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Mail;
 
+use App\Models\Mail\ReportEmail;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,7 +19,14 @@ class CreateReportEmailRequest extends FormRequest
     public function rules()
     {
         return [
-            'email' => ['required', 'email', 'max:80', Rule::unique('report_email', 'email')->whereNull('deleted_at')],
+            'email' => ['required', 'email', 'max:80', function ($attr, $value, $fail) {
+                $exists = ReportEmail::query()
+                    ->where('email', $value)
+                    ->exists();
+                if ($exists) {
+                    $fail('邮箱已存在');
+                }
+            }],
             'auth_code' => 'required|string|max:80',
             'smtp_host' => 'required|string|max:80',
             'smtp_port' => 'required|integer|min:1|max:65535',

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Complaint\ComplaintEnterprise;
 
+use App\Models\Mail\ReportEmail;
 use App\Models\PublicRelation\ComplaintEnterprise;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -29,8 +30,14 @@ class UpdateComplaintEnterpriseRequest extends FormRequest
     {
         return [
             // ID is required for update
-            'id' => 'required|integer|exists:complaint_enterprise,id',
-
+            'id' => ['required', 'integer', function ($attr, $value, $fail) {
+                $exists = ComplaintEnterprise::query()
+                    ->where('id', $value)
+                    ->exists();
+                if (!$exists) {
+                    $fail('记录不存在');
+                }
+            }],
             // Optional fields (same as create but nullable)
             'material_id' => 'required|integer',
             'site_name' => 'required|string|max:100',
@@ -41,7 +48,14 @@ class UpdateComplaintEnterpriseRequest extends FormRequest
             'report_content' => 'required|string',
             'proof_type' => 'required|array|min:1',
             'proof_type.*' => ['required', 'string', Rule::in(ComplaintEnterprise::PROOF_TYPE_OPTIONS)],
-            'email_config_id' => 'required|integer|exists:report_email,id',
+            'email_config_id' => ['required', 'integer', function ($attr, $value, $fail) {
+                $exists = ReportEmail::query()
+                    ->where('id', $value)
+                    ->exists();
+                if (!$exists) {
+                    $fail('发件箱不存在，请选择有效的发件邮箱');
+                }
+            }],
             'channel_name' => 'required|string|max:100',
 
             // Report material array validation

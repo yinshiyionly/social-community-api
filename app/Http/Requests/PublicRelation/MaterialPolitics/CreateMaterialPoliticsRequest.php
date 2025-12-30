@@ -43,9 +43,9 @@ class CreateMaterialPoliticsRequest extends FormRequest
             'contact_address' => 'required|string|max:255',
 
             // Report material array validation
-            'report_material' => 'required|array',
-            'report_material.*.name' => 'required_with:report_material|string',
-            'report_material.*.url' => 'required_with:report_material|string',
+            // 'report_material' => 'required|array',
+            // 'report_material.*.name' => 'required_with:report_material|string',
+            // 'report_material.*.url' => 'required_with:report_material|string',
 
             // Status validation
             'status' => ['nullable', 'integer', Rule::in([

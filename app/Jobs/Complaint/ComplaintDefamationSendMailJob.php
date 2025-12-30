@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Complaint;
 
+use App\Models\Mail\ReportEmail;
 use App\Models\PublicRelation\ComplaintDefamationSendHistory;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -9,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\View;
 use Throwable;
@@ -127,13 +129,16 @@ class ComplaintDefamationSendMailJob implements ShouldQueue, ShouldBeUnique
             $complaint = $service->getById((int)$this->params['complaint_id']);
             $mailData = $service->prepareMailData($complaint);
 
-            // 4. 渲染邮件HTML内容（用于保存历史记录）
+            // 4. 根据 email_config_id 配置发件邮箱
+            $this->configureMailer($complaint->email_config_id);
+
+            // 5. 渲染邮件HTML内容（用于保存历史记录）
             $renderedHtml = $this->renderMailHtml($mailData);
 
-            // 5. 发送邮件
+            // 6. 发送邮件
             $service->sendEmail((int)$this->params['complaint_id'], $this->params['recipient_email']);
 
-            // 6. 发送成功，保存历史记录（状态为成功）
+            // 7. 发送成功，保存历史记录（状态为成功）
             $this->saveSendHistory(
                 $mailData,
                 $renderedHtml,
@@ -217,6 +222,46 @@ class ComplaintDefamationSendMailJob implements ShouldQueue, ShouldBeUnique
         if (!isset($this->params['operator_name'])) {
             $this->params['operator_name'] = '系统';
         }
+    }
+
+    /**
+     * 根据 email_config_id 配置 Laravel 邮件系统
+     *
+     * 从 report_email 表查询邮箱配置信息（smtp_host、smtp_port、email、auth_code），
+     * 动态设置 Laravel 邮件配置，使邮件通过指定的发件邮箱发送
+     *
+     * @param int $emailConfigId 邮箱配置ID（关联 report_email 表主键）
+     * @throws \Exception 邮箱配置不存在时抛出异常
+     */
+    protected function configureMailer(int $emailConfigId): void
+    {
+        // 从 report_email 表查询邮箱配置
+        $emailConfig = ReportEmail::find($emailConfigId);
+
+        if (!$emailConfig) {
+            throw new \Exception("邮箱配置不存在，email_config_id: {$emailConfigId}");
+        }
+
+        // 动态配置 Laravel 邮件系统
+        Config::set('mail.default', 'smtp');
+        Config::set('mail.mailers.smtp.host', $emailConfig->smtp_host);
+        Config::set('mail.mailers.smtp.port', $emailConfig->smtp_port);
+        Config::set('mail.mailers.smtp.username', $emailConfig->email);
+        Config::set('mail.mailers.smtp.password', $emailConfig->auth_code);
+        Config::set('mail.mailers.smtp.encryption', $emailConfig->smtp_port == 465 ? 'ssl' : 'tls');
+        Config::set('mail.from.address', $emailConfig->email);
+        // Config::set('mail.from.name', $emailConfig->name ?? config('app.name'));
+
+        // 清除已缓存的 mailer 实例，强制使用新配置重新创建
+        app('mail.manager')->purge('smtp');
+
+        // 记录邮箱配置日志
+        Log::channel('job')->info('[诽谤类举报邮件发送-邮箱配置]', [
+            'email_config_id' => $emailConfigId,
+            'smtp_host' => $emailConfig->smtp_host,
+            'smtp_port' => $emailConfig->smtp_port,
+            'from_email' => $emailConfig->email,
+        ]);
     }
 
     /**

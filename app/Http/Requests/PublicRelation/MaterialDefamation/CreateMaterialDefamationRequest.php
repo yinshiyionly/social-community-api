@@ -58,10 +58,10 @@ class CreateMaterialDefamationRequest extends FormRequest
             'real_name' => ['required', 'string', 'max:50', Rule::unique('material_defamation', 'real_name')->whereNull('deleted_at')],
 
             // 举报材料数组验证
-            'report_material' => 'required|array',
+            // 'report_material' => 'required|array',
             // required_with: 基于字段存在性的逻辑
-            'report_material.*.name' => 'required_with:report_material|string',
-            'report_material.*.url' => 'required_with:report_material|string',
+            // 'report_material.*.name' => 'required_with:report_material|string',
+            // 'report_material.*.url' => 'required_with:report_material|string',
 
             // 状态验证
             'status' => ['nullable', 'integer', Rule::in([MaterialDefamation::STATUS_ENABLED, MaterialDefamation::STATUS_DISABLED])],

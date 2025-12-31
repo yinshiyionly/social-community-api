@@ -44,7 +44,7 @@ class ComplaintEnterpriseMail extends Mailable
      * @param array $attachmentPaths 附件文件路径列表，每个元素包含 path, name, mime
      * @param string $templateName 邮件模板视图名称，默认使用 ComplaintEmailService::DEFAULT_TEMPLATE
      */
-    public function __construct(array $mailData, array $attachmentPaths = [], string $templateName = ComplaintEmailService::DEFAULT_TEMPLATE)
+    public function __construct(array $mailData, array $attachmentPaths = [], string $templateName = ComplaintEmailService::DEFAULT_ENTERPRISE_TEMPLATE)
     {
         $this->mailData = $mailData;
         $this->attachmentPaths = $attachmentPaths;

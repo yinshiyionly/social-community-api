@@ -137,7 +137,7 @@ class ComplaintEnterpriseSendMailJob implements ShouldQueue, ShouldBeUnique
 
             // 5. 根据收件人邮箱从配置中获取对应的邮件模板名称
             // 通过 ComplaintEmailService::getTemplateByEmail 实现动态模板选择
-            $templateName = ComplaintEmailService::getTemplateByEmail($this->params['recipient_email']);
+            $templateName = ComplaintEmailService::getEnterpriseTemplateByEmail($this->params['recipient_email']);
 
             // 6. 渲染邮件HTML内容（用于保存历史记录，使用获取到的模板名称）
             $renderedHtml = $this->renderMailHtml($mailData, $templateName);

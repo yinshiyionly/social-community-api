@@ -28,12 +28,17 @@ class VolcengineServiceProvider extends ServiceProvider
     public function boot()
     {
         Storage::extend('volcengine', function ($app, $config) {
+            // 优先使用内网端点进行上传操作，如未配置则使用公网端点
+            $uploadEndpoint = !empty($config['internal_endpoint'])
+                ? $config['internal_endpoint']
+                : $config['endpoint'];
+
             // Create TOS client with array configuration
             $client = new TosClient([
                 'region' => $config['region'],
                 'ak' => $config['key'],
                 'sk' => $config['secret'],
-                'endpoint' => $config['endpoint'],
+                'endpoint' => $uploadEndpoint,
             ]);
 
             $adapter = new VolcengineFilesystemAdapter($client, $config['bucket'], $config);

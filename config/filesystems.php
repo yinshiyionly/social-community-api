@@ -60,6 +60,7 @@ return [
             'region' => env('VOLCENGINE_REGION', 'cn-beijing'),
             'bucket' => env('VOLCENGINE_BUCKET'),
             'endpoint' => env('VOLCENGINE_ENDPOINT'),
+            'internal_endpoint' => env('VOLCENGINE_INTERNAL_ENDPOINT'), // 内网端点，用于上传操作
             'url' => env('VOLCENGINE_URL'), // CDN domain (without protocol)
             'schema' => env('VOLCENGINE_SCHEMA', 'https'),
             'visibility' => env('VOLCENGINE_VISIBILITY', 'public'),

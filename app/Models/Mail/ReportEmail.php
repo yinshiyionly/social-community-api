@@ -2,6 +2,7 @@
 
 namespace App\Models\Mail;
 
+use App\Models\Traits\BelongsToCreator;
 use App\Models\Traits\HasAuditFields;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -25,6 +26,7 @@ class ReportEmail extends Model
 {
     use SoftDeletes;
     use HasAuditFields;
+    use BelongsToCreator;
 
     protected $table = 'report_email';
 

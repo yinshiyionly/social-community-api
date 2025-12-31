@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\PublicRelation;
 
+use App\Models\Traits\BelongsToCreator;
 use App\Models\Traits\HasAuditFields;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -32,6 +33,7 @@ class MaterialPolitics extends Model
 {
     use SoftDeletes;
      use HasAuditFields;
+    use BelongsToCreator;
 
     // ==================== 状态常量 ====================
 

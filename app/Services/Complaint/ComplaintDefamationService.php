@@ -613,10 +613,12 @@ class ComplaintDefamationService
      *
      * @param int $complaintId 举报记录ID
      * @param string $recipientEmail 收件人邮箱
+     * @param string|null $templateName 邮件模板名称，如 'emails.complaint_defamation'，
+     *                                  为空时使用 ComplaintEmailService::getDefamationTemplateByEmail 获取
      * @return bool 发送成功返回 true
      * @throws ApiException 记录不存在或邮件发送失败时抛出异常
      */
-    public function sendEmail(int $complaintId, string $recipientEmail): bool
+    public function sendEmail(int $complaintId, string $recipientEmail, ?string $templateName = null): bool
     {
         // 获取举报记录
         $complaint = $this->getById($complaintId);
@@ -631,8 +633,13 @@ class ComplaintDefamationService
             // 调用 collectAttachmentPaths 收集附件（从云存储下载到临时目录）
             $attachmentPaths = $this->collectAttachmentPaths($complaint);
 
-            // 创建邮件实例（使用独立的诽谤类举报邮件模版）
-            $mail = new ComplaintDefamationMail($mailData, $attachmentPaths);
+            // 如果未传入模板名称，则根据收件人邮箱从配置中获取对应的邮件模板
+            if (empty($templateName)) {
+                $templateName = ComplaintEmailService::getDefamationTemplateByEmail($recipientEmail);
+            }
+
+            // 创建邮件实例（使用动态模板名称）
+            $mail = new ComplaintDefamationMail($mailData, $attachmentPaths, $templateName);
 
             // 使用 Mail::to() 发送邮件
             Mail::to($recipientEmail)->send($mail);
@@ -641,6 +648,7 @@ class ComplaintDefamationService
             Log::channel('daily')->info('诽谤类举报邮件发送成功', [
                 'complaint_id' => $complaintId,
                 'recipient_email' => $recipientEmail,
+                'template_name' => $templateName,
                 'attachment_count' => count($attachmentPaths),
             ]);
 
@@ -653,6 +661,7 @@ class ComplaintDefamationService
             Log::channel('daily')->error('诽谤类举报邮件发送失败', [
                 'complaint_id' => $complaintId,
                 'recipient_email' => $recipientEmail,
+                'template_name' => $templateName ?? 'default',
                 'error_message' => $e->getMessage(),
                 'error_trace' => $e->getTraceAsString(),
             ]);

@@ -4,6 +4,7 @@ namespace App\Jobs\Complaint;
 
 use App\Models\Mail\ReportEmail;
 use App\Models\PublicRelation\ComplaintEnterpriseSendHistory;
+use App\Services\Complaint\ComplaintEmailService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -102,9 +103,8 @@ class ComplaintEnterpriseSendMailJob implements ShouldQueue, ShouldBeUnique
      * Execute the job.
      *
      * 执行邮件发送任务，并在发送成功后保存历史记录
-     * 根据 use_douyin_template 参数决定使用哪个邮件模板：
-     * - true: 使用抖音专用模板（针对 @bytedance.com 域名）
-     * - false: 使用默认模板
+     * 通过 ComplaintEmailService::getTemplateByEmail 根据收件人邮箱获取对应的邮件模板，
+     * 实现基于配置数组的动态模板选择机制
      *
      * @throws \Exception
      */
@@ -135,17 +135,18 @@ class ComplaintEnterpriseSendMailJob implements ShouldQueue, ShouldBeUnique
             // 4. 根据 email_config_id 配置发件邮箱
             $this->configureMailer($complaint->email_config_id);
 
-            // 5. 判断是否使用抖音模板（从控制器传递的参数获取）
-            $useDouyinTemplate = $this->params['use_douyin_template'] ?? false;
+            // 5. 根据收件人邮箱从配置中获取对应的邮件模板名称
+            // 通过 ComplaintEmailService::getTemplateByEmail 实现动态模板选择
+            $templateName = ComplaintEmailService::getTemplateByEmail($this->params['recipient_email']);
 
-            // 6. 渲染邮件HTML内容（用于保存历史记录，根据模板类型选择不同视图）
-            $renderedHtml = $this->renderMailHtml($mailData, $useDouyinTemplate);
+            // 6. 渲染邮件HTML内容（用于保存历史记录，使用获取到的模板名称）
+            $renderedHtml = $this->renderMailHtml($mailData, $templateName);
 
-            // 7. 发送邮件（传递模板选择参数）
+            // 7. 发送邮件（传递模板名称参数）
             $service->sendEmail(
                 (int)$this->params['complaint_id'],
                 $this->params['recipient_email'],
-                $useDouyinTemplate
+                $templateName
             );
 
             // 8. 发送成功，保存历史记录（状态为成功）
@@ -279,31 +280,23 @@ class ComplaintEnterpriseSendMailJob implements ShouldQueue, ShouldBeUnique
      *
      * 使用 Laravel 的 View::make()->render() 方法渲染邮件模板，
      * 生成完整的HTML字符串用于保存到历史记录
-     * 根据 useDouyinTemplate 参数选择不同的邮件模板：
-     * - true: 使用抖音专用模板 emails.complaint_enterprise_douyin
-     * - false: 使用默认模板 emails.complaint_enterprise
+     * 直接使用传入的模板名称进行渲染，模板名称由 ComplaintEmailService::getTemplateByEmail 获取
      *
      * @param array $mailData 邮件数据
-     * @param bool $useDouyinTemplate 是否使用抖音模板，默认 false
+     * @param string $templateName 邮件模板视图名称，如 'emails.complaint_enterprise'
      * @return string 渲染后的HTML内容，渲染失败返回空字符串
      */
-    protected function renderMailHtml(array $mailData, bool $useDouyinTemplate = false): string
+    protected function renderMailHtml(array $mailData, string $templateName): string
     {
         try {
-            // 根据参数选择邮件模板视图
-            // 抖音模板: resources/views/emails/complaint_enterprise_douyin.blade.php
-            // 默认模板: resources/views/emails/complaint_enterprise.blade.php
-            $viewName = $useDouyinTemplate
-                ? 'emails.complaint_enterprise_douyin'
-                : 'emails.complaint_enterprise';
-
-            // 使用 View::make() 渲染邮件模板
-            return View::make($viewName, ['data' => $mailData])->render();
+            // 直接使用传入的模板名称渲染邮件视图
+            // 模板名称由 ComplaintEmailService::getTemplateByEmail 根据收件人邮箱获取
+            return View::make($templateName, ['data' => $mailData])->render();
         } catch (\Exception $e) {
             // 渲染失败，记录错误日志并返回空字符串
             Log::channel('job')->warning('[企业类举报邮件HTML渲染失败]', [
                 'complaint_id' => $this->params['complaint_id'] ?? null,
-                'use_douyin_template' => $useDouyinTemplate,
+                'template_name' => $templateName,
                 'error_message' => $e->getMessage(),
             ]);
             return '';

@@ -2,6 +2,7 @@
 
 namespace App\Mail\Complaint;
 
+use App\Services\Complaint\ComplaintEmailService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\Log;
  *
  * 用于发送政治类举报信息的邮件，包含举报详情和相关附件材料
  * 使用独立的Blade模版文件，便于后续维护和扩展
+ * 支持通过模板名称参数指定使用的邮件模板
  */
 class ComplaintPoliticsMail extends Mailable
 {
@@ -30,29 +32,39 @@ class ComplaintPoliticsMail extends Mailable
     protected array $attachmentPaths;
 
     /**
+     * 邮件模板名称
+     * @var string
+     */
+    protected string $templateName;
+
+    /**
      * 构造函数
      *
      * @param array $mailData 邮件数据，包含举报信息和举报人信息
      * @param array $attachmentPaths 附件文件路径列表，每个元素包含 path, name, mime
+     * @param string $templateName 邮件模板视图名称，默认使用 ComplaintEmailService::DEFAULT_POLITICS_TEMPLATE
      */
-    public function __construct(array $mailData, array $attachmentPaths = [])
+    public function __construct(array $mailData, array $attachmentPaths = [], string $templateName = ComplaintEmailService::DEFAULT_POLITICS_TEMPLATE)
     {
         $this->mailData = $mailData;
         $this->attachmentPaths = $attachmentPaths;
+        $this->templateName = $templateName;
     }
 
     /**
      * 构建邮件
      *
      * 设置邮件主题、视图模版和附件
+     * 使用构造函数传入的模板名称渲染邮件内容
      *
      * @return $this
      */
     public function build()
     {
-        // 设置邮件主题和视图
+        // 使用传入的模板名称渲染邮件
+        // 模板文件位于 resources/views/ 目录下
         $mail = $this->subject($this->mailData['subject'] ?? '政治类举报信息')
-            ->view('emails.complaint_politics')
+            ->view($this->templateName)
             ->with('data', $this->mailData);
 
         // 添加附件

@@ -763,12 +763,16 @@ class ComplaintPoliticsService
      * 无论成功或失败，都调用 cleanupTempAttachments 清理临时文件，
      * 处理发送异常
      *
+     * 通过 templateName 参数指定使用的邮件模板视图名称，
+     * 模板名称由 ComplaintEmailService::getPoliticsTemplateByEmail 根据收件人邮箱获取
+     *
      * @param int $complaintId 举报记录ID
      * @param string $recipientEmail 收件人邮箱
+     * @param string $templateName 邮件模板视图名称，如 'emails.complaint_politics'
      * @return bool 发送成功返回 true
      * @throws ApiException 记录不存在或邮件发送失败时抛出异常
      */
-    public function sendEmail(int $complaintId, string $recipientEmail): bool
+    public function sendEmail(int $complaintId, string $recipientEmail, string $templateName): bool
     {
         // 获取举报记录
         $complaint = $this->getById($complaintId);
@@ -783,18 +787,20 @@ class ComplaintPoliticsService
             // 调用 collectAttachmentPaths 收集附件（从云存储下载到临时目录）
             $attachmentPaths = $this->collectAttachmentPaths($complaint);
 
-            // 创建邮件实例（使用政治类举报邮件模版）
-            $mail = new ComplaintPoliticsMail($mailData, $attachmentPaths);
+            // 创建邮件实例，传入模板名称参数
+            // 模板名称由 ComplaintEmailService::getPoliticsTemplateByEmail 根据收件人邮箱获取
+            $mail = new ComplaintPoliticsMail($mailData, $attachmentPaths, $templateName);
 
             // 使用 Mail::to() 发送邮件
             Mail::to($recipientEmail)->send($mail);
 
-            // 记录发送成功日志
+            // 记录发送成功日志（包含使用的模板名称）
             Log::channel('daily')->info('政治类举报邮件发送成功', [
                 'complaint_id' => $complaintId,
                 'recipient_email' => $recipientEmail,
                 'report_platform' => $complaint->report_platform ?? '',
                 'attachment_count' => count($attachmentPaths),
+                'template_name' => $templateName,
             ]);
 
             return true;
@@ -809,6 +815,7 @@ class ComplaintPoliticsService
                 'report_platform' => $complaint->report_platform ?? '',
                 'error_message' => $e->getMessage(),
                 'error_trace' => $e->getTraceAsString(),
+                'template_name' => $templateName,
             ]);
 
             // 抛出邮件发送失败异常

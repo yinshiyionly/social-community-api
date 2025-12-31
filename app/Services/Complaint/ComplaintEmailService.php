@@ -54,10 +54,10 @@ class ComplaintEmailService
             'email' => 'lcz7610@126.com',
             'template' => 'emails.complaint_enterprise_douyin'
         ],
-        [
+        /*[
             'email' => 'yinzhengfan@163.com',
             'template' => 'emails.complaint_enterprise_douyin'
-        ]
+        ]*/
     ];
 
     /**

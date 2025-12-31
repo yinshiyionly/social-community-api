@@ -40,7 +40,7 @@ class UpdateDetectionTaskRequest extends FormRequest
             'task_name' => ['required', 'string', 'max:100', function ($attr, $value, $fail) use ($taskId) {
                 $exists = DetectionTaskMaster::query()
                     ->where('task_name', $value)
-                    ->where('id', '!=', $taskId)
+                    ->where('task_id', '!=', $taskId)
                     ->exists();
                 if ($exists) {
                     $fail('任务名称已存在');
@@ -50,7 +50,7 @@ class UpdateDetectionTaskRequest extends FormRequest
             'text_plain' => ['required', 'string', 'max:100', function ($attr, $value, $fail) use ($taskId) {
                 $exists = DetectionTaskMaster::query()
                     ->where('text_plain', $value)
-                    ->where('id', '!=', $taskId)
+                    ->where('task_id', '!=', $taskId)
                     ->exists();
                 if ($exists) {
                     $fail('文本关键词已存在');

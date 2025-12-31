@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\Complaint\ComplaintDefamationController;
-use App\Http\Controllers\Complaint\ComplaintEmailListController;
+use App\Http\Controllers\Complaint\ComplaintEmailController;
 use App\Http\Controllers\Complaint\ComplaintEnterpriseController;
 use App\Http\Controllers\Complaint\ComplaintPoliticsController;
 use Illuminate\Support\Facades\Route;
@@ -91,5 +91,5 @@ Route::middleware('system.auth')->prefix('complaint')->group(function () {
         Route::put('/audit', [ComplaintDefamationController::class, 'audit']);
     });
     // 获取发送投诉邮件的邮箱地址列表
-    Route::get('/getEmailList', [ComplaintEmailListController::class, 'getEmailList']);
+    Route::get('/getEmailList', [ComplaintEmailController::class, 'getEmailList']);
 });

@@ -6,20 +6,19 @@ namespace App\Http\Controllers\Complaint;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ApiResponse;
+use App\Services\Complaint\ComplaintEmailService;
 use Illuminate\Http\Request;
 
 /**
  *
  */
-class ComplaintEmailListController extends Controller
+class ComplaintEmailController extends Controller
 {
     public function getEmailList(Request $request): \Illuminate\Http\JsonResponse
     {
-        $list = [
-            'jubao@12377.cn',
-            'qinqurn@bytedance.com',
-            'lcz7610@126.com'
-        ];
+        $list = collect(ComplaintEmailService::ENTERPRISE_EMAIL_LIST)->pluck('email')
+            ->values()
+            ->toArray();
         return ApiResponse::success(['data' => $list]);
     }
 }

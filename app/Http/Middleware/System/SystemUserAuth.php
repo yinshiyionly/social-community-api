@@ -16,13 +16,13 @@ class SystemUserAuth
         $token = $request->bearerToken();
 
         if (!$token) {
-            return ApiResponse::error('请登录后操作', 401, 401);
+            return ApiResponse::error('请登录后操作', 401);
         }
 
         $accessToken = PersonalAccessToken::findToken($token);
 
         if (! $accessToken || ! $accessToken->tokenable) {
-            return ApiResponse::error('Token无效', 401, 401);
+            return ApiResponse::error('Token无效', 401);
         }
 
         // todo 实现 token 有效期判断

@@ -142,7 +142,7 @@ class DetectionTaskService
             'external_task_id' => $createTaskResult['data']['task_id'],
             'external_rule' => $rule['rule'],
             // todo 定时crontab任务获取状态
-            'external_enable_status' => 0,
+            'external_enable_status' => 1,
             //
             'external_sync_mode' => 'false',
             'task_name' => $data['task_name'],

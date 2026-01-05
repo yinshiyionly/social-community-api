@@ -119,18 +119,18 @@ class DetectionTaskService
         $insightHelper = new InsightAPI();
 
         try {
-            /*$createTaskResult = $insightHelper->bizSubCreateTask([
+            $createTaskResult = $insightHelper->bizSubCreateTask([
                 'rule' => $rule['rule'],
                 'sync_mode' => false
-            ]);*/
+            ]);
             // todo mock 数据
-            $createTaskResult = [
+            /*$createTaskResult = [
                 'status' => 0,
                 'message' => 'succeed',
                 'data' => [
                     'task_id' => 9999
                 ]
-            ];
+            ];*/
         } catch (\Exception $e) {
             $msg = '创建实时任务失败: ' . $e->getMessage();
             $this->errorLog($msg, ['data' => $data, 'create_task_result' => $createTaskResult ?? []]);
@@ -230,21 +230,21 @@ class DetectionTaskService
         $insightHelper = new InsightAPI();
 
         try {
-            /*$updateTaskResult = $insightHelper->bizSubUpdateTask([
+            $updateTaskResult = $insightHelper->bizSubUpdateTask([
                 'rule' => $rule['rule'],
                 'enable_status' => $originData->external_enable_status,
                 'task_id' => $originData->external_task_id,
                 'sync_mode' => false
-            ]);*/
+            ]);
             // todo mock 数据
-            $updateTaskResult = [
+            /*$updateTaskResult = [
                 'status' => 0,
                 'message' => 'succeed',
                 'data' => [
                     'task_id' => 9999,
                     'enable_status' => 1
                 ]
-            ];
+            ];*/
         } catch (\Exception $e) {
             $msg = '更新实时任务失败: ' . $e->getMessage();
             $this->errorLog($msg, ['data' => $data, 'update_task_result' => $updateTaskResult ?? []]);
@@ -352,24 +352,25 @@ class DetectionTaskService
         $insightHelper = new InsightAPI();
 
         try {
-            /*$updateTaskResult = $insightHelper->bizSubUpdateTask([
-                'rule' => $rule['rule'],
+            $updateData = [
+                'rule' => $originData['external_rule'],
                 'enable_status' => 0, // 1-开启 0-关闭
                 'task_id' => $originData->external_task_id,
                 'sync_mode' => false
-            ]);*/
+            ];
+            $updateTaskResult = $insightHelper->bizSubUpdateTask($updateData);
             // todo mock 数据
-            $updateTaskResult = [
+            /*$updateTaskResult = [
                 'status' => 0,
                 'message' => 'succeed',
                 'data' => [
                     'task_id' => 9999,
                     'enable_status' => 0
                 ]
-            ];
+            ];*/
         } catch (\Exception $e) {
             $msg = '关闭任务-更新实时任务失败: ' . $e->getMessage();
-            $this->errorLog($msg, ['data' => $data, 'update_task_result' => $updateTaskResult ?? []]);
+            $this->errorLog($msg, ['data' => $updateData, 'update_task_result' => $updateTaskResult ?? []]);
             throw new \Exception($msg);
         }
         // 2. 更新数据库中的 external_enable_stats 状态
@@ -378,7 +379,7 @@ class DetectionTaskService
                 // 火山实时任务状态
                 'external_enable_status' => $updateTaskResult['data']['enable_status'],
                 // 内部系统任务状态
-                'status' => 2
+                // 'status' => 2
             ];
             $originData->update($update);
         } catch (\Exception $e) {
@@ -412,24 +413,25 @@ class DetectionTaskService
         $insightHelper = new InsightAPI();
 
         try {
-            /*$updateTaskResult = $insightHelper->bizSubUpdateTask([
-                'rule' => $rule['rule'],
+            $updateData = [
+                'rule' => $originData['external_rule'],
                 'enable_status' => 1, // 1-开启 0-关闭
                 'task_id' => $originData->external_task_id,
                 'sync_mode' => false
-            ]);*/
+            ];
+            $updateTaskResult = $insightHelper->bizSubUpdateTask($updateData);
             // todo mock 数据
-            $updateTaskResult = [
+            /*$updateTaskResult = [
                 'status' => 0,
                 'message' => 'succeed',
                 'data' => [
                     'task_id' => 9999,
                     'enable_status' => 1
                 ]
-            ];
+            ];*/
         } catch (\Exception $e) {
             $msg = '开启任务-更新实时任务失败: ' . $e->getMessage();
-            $this->errorLog($msg, ['data' => $data, 'update_task_result' => $updateTaskResult ?? []]);
+            $this->errorLog($msg, ['data' => $updateData, 'update_task_result' => $updateTaskResult ?? []]);
             throw new \Exception($msg);
         }
         // 2. 更新数据库中的 external_enable_stats 状态
@@ -438,7 +440,7 @@ class DetectionTaskService
                 // 火山实时任务状态
                 'external_enable_status' => $updateTaskResult['data']['enable_status'],
                 // 内部系统任务状态
-                'status' => 1
+                // 'status' => 1
             ];
             $originData->update($update);
         } catch (\Exception $e) {

@@ -208,33 +208,34 @@ def run_forever(topics, bootstrap, group_id):
         except (NoBrokersAvailable, KafkaError) as e:
             logging.error(f"Kafka 连接失败或断开: {e}")
             logging.info("5 秒后重试连接...")
-            time.sleep(5)
-            consumer = None  # 触发重新创建 Consumer
-
-        except StopIteration:
-            # 消费超时（consumer_timeout_ms 触发）
-            logging.warning("10秒内无消息，继续监听...")
-            continue
-
-        except Exception as e:
-            logging.error(f"未知异常: {e}")
-            logging.info("等待 5 秒后重新启动 consumer...")
-            time.sleep(5)
-            consumer = None  # 强制重连
-
-        finally:
-            # 仅当 consumer 对象存在且出现异常时关闭
             if consumer is not None:
                 try:
                     consumer.close()
                 except Exception:
                     pass
-            consumer = None    # 确保下一轮重建 Consumer
+            consumer = None  # 触发重新创建 Consumer
+            time.sleep(5)
+
+        except StopIteration:
+            # 消费超时（consumer_timeout_ms 触发）
+            logging.info("消费超时，继续监听...")
+            # 不关闭 consumer，继续使用现有连接
+
+        except Exception as e:
+            logging.error(f"未知异常: {e}")
+            logging.info("等待 5 秒后重新启动 consumer...")
+            if consumer is not None:
+                try:
+                    consumer.close()
+                except Exception:
+                    pass
+            consumer = None  # 强制重连
+            time.sleep(5)
 
 
 if __name__ == "__main__":
-    topics = ["topic"]
-    bootstrap = ""
-    group_id = ""
+    topics = ["async-topic-0105"]
+    bootstrap = "bmq-31c4bi6zka5a714b80wj.bmq.ivolces.com:9092"
+    group_id = "async-group-0105"
 
     run_forever(topics, bootstrap, group_id)

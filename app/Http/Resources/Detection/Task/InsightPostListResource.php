@@ -48,7 +48,7 @@ class InsightPostListResource extends JsonResource
         return [
             'origin_id' => $this->origin_id,
             'post_id' => $this->post_id,
-            'title' => $this->title,
+            'title' => $this->title  ?? '-',
             'url' => $this->url,
             'main_domain' => $this->main_domain,
             'main_domain_label' => self::MAIN_DOMAIN_LABELS[$this->main_domain] ?? $this->main_domain,

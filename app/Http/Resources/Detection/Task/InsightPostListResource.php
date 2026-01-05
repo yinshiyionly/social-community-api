@@ -20,10 +20,15 @@ class InsightPostListResource extends JsonResource
         'ixigua.com' => '西瓜视频',
     ];
 
+    /**
+     * 1-图文
+     * 2-横版短视频
+     * 10-竖版小视频
+     */
     private const POST_TYPE_LABELS = [
         1 => '图文',
         2 => '横版短视频',
-        3 => '竖版短视频',
+        10 => '竖版短视频',
     ];
 
     private const SENTIMENT_LABELS = [

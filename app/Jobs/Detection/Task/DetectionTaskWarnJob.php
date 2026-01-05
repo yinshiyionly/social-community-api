@@ -162,7 +162,8 @@ class DetectionTaskWarnJob implements ShouldQueue, ShouldBeUnique
                     'title' => $data['title'] ?? '',
                     'url' => $data['url'] ?? '',
                     'publish_time' => !empty($data['publish_time'])
-                        ? Carbon::make($data['publish_time'])->toDateTimeString()
+                        // ? Carbon::make($data['publish_time'])->toDateTimeString()
+                        ? Carbon::parse($data['publish_time'])->setTimezone(config('app.timezone'))->toDateTimeString()
                         : $now->toDateTimeString()
                 ];
                 $mailable = new DetectionTaskWarnMail('template1', $mailData);

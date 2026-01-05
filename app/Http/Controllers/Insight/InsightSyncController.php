@@ -51,18 +51,22 @@ class InsightSyncController extends Controller
 
             // 使用 updateOrCreate 实现 upsert 逻辑
             // 根据 origin_id 查找记录，存在则更新，不存在则创建
-            InsightPost::updateOrCreate(
+            $post = InsightPost::query()->updateOrCreate(
                 ['origin_id' => $data['origin_id']],
                 $data
             );
 
-            // 异步队列处理具体的负向数据并发送预警邮件
-            $jobParams = [
-                'origin_id' => $data['origin_id'],
-                'sentiment' => $data['sentiment']
-            ];
-            // todo 只处理负向情绪的数据
-            if ($jobParams['sentiment'] == 2) {
+            // todo 只处理 create 情况和负向情绪的数据
+            if ($post->wasRecentlyCreated && $data['sentiment'] == 2) {
+                // 异步队列处理具体的负向数据并发送预警邮件
+
+                // 1. 异步队列启动需要的数据
+                $jobParams = [
+                    'origin_id' => $data['origin_id'],
+                    'sentiment' => $data['sentiment']
+                ];
+
+                // 2. 分发到异步队列
                 DetectionTaskWarnJob::dispatch($jobParams);
             }
 

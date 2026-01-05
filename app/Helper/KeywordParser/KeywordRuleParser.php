@@ -311,68 +311,89 @@ class KeywordRuleParser
 
     private function parseAnd(): array
     {
-        $start = $this->pos;
-        $end = strlen($this->input);
+        // 收集所有被 + 分隔的部分
+        $parts = $this->splitByOperator('+');
 
-        // 查找未转义的 + 运算符
-        $opPos = $this->findOperator('+', $start, $end);
-
-        if ($opPos === -1) {
-            return $this->parseOr();
+        if (count($parts) === 1) {
+            return $this->parseOrFromString($parts[0]);
         }
 
-        // 解析左边
-        $leftStr = substr($this->input, $start, $opPos - $start);
-        $leftParser = new KeywordRuleParser();
-        $left = $leftParser->parseSubExpression($leftStr);
+        // 解析每个部分（作为 or 表达式）
+        $result = ["and"];
+        foreach ($parts as $part) {
+            $parser = new KeywordRuleParser();
+            $parser->input = trim($part);
+            $parser->pos = 0;
+            $result[] = $parser->parseOrFromString(trim($part));
+        }
 
-        // 解析右边
-        $rightStr = substr($this->input, $opPos + 1);
-        $rightParser = new KeywordRuleParser();
-        $right = $rightParser->parseSubExpression($rightStr);
+        return $result;
+    }
 
-        return ["and", $left, $right];
+    private function parseOrFromString(string $str): array
+    {
+        $this->input = trim($str);
+        $this->pos = 0;
+
+        // 收集所有被 / 分隔的部分
+        $parts = $this->splitByOperator('/');
+
+        if (count($parts) === 1) {
+            return $this->parsePrimaryFromString($parts[0]);
+        }
+
+        // 解析每个部分（作为 primary 表达式）
+        $result = ["or"];
+        foreach ($parts as $part) {
+            $result[] = $this->parsePrimaryFromString(trim($part));
+        }
+
+        return $result;
     }
 
     private function parseOr(): array
     {
-        $start = $this->pos;
-        $end = strlen($this->input);
+        return $this->parseOrFromString($this->input);
+    }
 
-        // 查找未转义的 / 运算符
-        $opPos = $this->findOperator('/', $start, $end);
+    /**
+     * 按运算符分割表达式（考虑括号层级和转义）
+     */
+    private function splitByOperator(string $op): array
+    {
+        $parts = [];
+        $start = 0;
+        $depth = 0;
+        $len = strlen($this->input);
 
-        if ($opPos === -1) {
-            return $this->parsePrimary();
+        for ($i = 0; $i < $len; $i++) {
+            if ($this->isEscapedAt($i)) {
+                continue;
+            }
+
+            $char = $this->input[$i];
+            if ($char === '(') {
+                $depth++;
+            } elseif ($char === ')') {
+                $depth--;
+            } elseif ($char === $op && $depth === 0) {
+                $parts[] = substr($this->input, $start, $i - $start);
+                $start = $i + 1;
+            }
         }
 
-        // 解析左边
-        $leftStr = substr($this->input, $start, $opPos - $start);
-        $leftParser = new KeywordRuleParser();
-        $left = $leftParser->parseSubExpression($leftStr);
+        // 添加最后一部分
+        $parts[] = substr($this->input, $start);
 
-        // 解析右边
-        $rightStr = substr($this->input, $opPos + 1);
-        $rightParser = new KeywordRuleParser();
-        $right = $rightParser->parseSubExpression($rightStr);
-
-        return ["or", $left, $right];
+        return $parts;
     }
 
-    public function parseSubExpression(string $expr): array
+    private function parsePrimaryFromString(string $str): array
     {
-        $this->input = trim($expr);
-        $this->pos = 0;
-        return $this->parseExpression();
-    }
+        $str = trim($str);
 
-    private function parsePrimary(): array
-    {
-        $str = trim($this->input);
-
-        // 检查是否是括号包裹的表达式（未转义的括号）
-        if (strlen($str) > 0 && $str[0] === '(' && !$this->isEscapedAt(0)) {
-            // 找到匹配的右括号
+        // 检查是否是括号包裹的表达式
+        if (strlen($str) > 0 && $str[0] === '(' && !$this->isEscapedAtStr($str, 0)) {
             $depth = 1;
             $closePos = -1;
             for ($i = 1; $i < strlen($str); $i++) {
@@ -391,14 +412,47 @@ class KeywordRuleParser
             }
 
             if ($closePos === strlen($str) - 1) {
-                // 整个表达式被括号包裹
+                // 整个表达式被括号包裹，递归解析内部
                 $inner = substr($str, 1, $closePos - 1);
                 $innerParser = new KeywordRuleParser();
                 return $innerParser->parseSubExpression($inner);
             }
         }
 
-        return $this->parseKeyword();
+        return $this->parseKeywordFromString($str);
+    }
+
+    private function parseKeywordFromString(string $str): array
+    {
+        $str = trim($str);
+
+        // 移除转义符，保留被转义的字符
+        $keyword = '';
+        for ($i = 0; $i < strlen($str); $i++) {
+            if ($str[$i] === '\\' && $i + 1 < strlen($str)) {
+                $next = $str[$i + 1];
+                if (in_array($next, ['+', '/', '(', ')', '\\'])) {
+                    $keyword .= $next;
+                    $i++;
+                    continue;
+                }
+            }
+            $keyword .= $str[$i];
+        }
+
+        return ["in", trim($keyword), ["fl" => $this->fields]];
+    }
+
+    public function parseSubExpression(string $expr): array
+    {
+        $this->input = trim($expr);
+        $this->pos = 0;
+        return $this->parseExpression();
+    }
+
+    private function parsePrimary(): array
+    {
+        return $this->parsePrimaryFromString($this->input);
     }
 
     private function isEscapedAtStr(string $str, int $i): bool
@@ -416,22 +470,6 @@ class KeywordRuleParser
 
     private function parseKeyword(): array
     {
-        $str = trim($this->input);
-
-        // 移除转义符，保留被转义的字符
-        $keyword = '';
-        for ($i = 0; $i < strlen($str); $i++) {
-            if ($str[$i] === '\\' && $i + 1 < strlen($str)) {
-                $next = $str[$i + 1];
-                if (in_array($next, ['+', '/', '(', ')', '\\'])) {
-                    $keyword .= $next;
-                    $i++; // 跳过下一个字符
-                    continue;
-                }
-            }
-            $keyword .= $str[$i];
-        }
-
-        return ["in", trim($keyword), ["fl" => $this->fields]];
+        return $this->parseKeywordFromString($this->input);
     }
 }

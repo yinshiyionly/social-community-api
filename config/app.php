@@ -123,6 +123,10 @@ return [
 
     'cipher' => 'AES-256-CBC',
 
+    'jwt_app_secret' => env('JWT_APP_SECRET'),
+    'jwt_admin_secret' => env('JWT_ADMIN_SECRET'),
+
+
     /*
     |--------------------------------------------------------------------------
     | Autoloaded Service Providers

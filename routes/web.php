@@ -1,5 +1,6 @@
 <?php
 
+use App\Helper\JwtHelper;
 use App\Helper\KeywordParser\KeywordRuleParser;
 use App\Helper\KeywordParser\Lexer;
 use App\Helper\KeywordParser\Parser;
@@ -28,7 +29,14 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', function () {
+    $token = JwtHelper::encode(
+        ['member_id' => 1],
+        config('app.jwt_app_secret', config('app.key')),
+        86400 * 7  // 7天过期
+    );
+$a = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtZW1iZXJfaWQiOjEsImlhdCI6MTc2ODIxNzE3NiwiZXhwIjoxNzY4ODIxOTc2fQ.KsBrFgQ1CM14X2heNDbNfOY4zIWcNIfmmeoDaxrchZg";
+    $b =JwtHelper::decode($a, config('app.jwt_app_secret'));
     dd(
-        \App\Models\System\SystemMenu::query()->get()->toArray()
+        $b
     );
 });

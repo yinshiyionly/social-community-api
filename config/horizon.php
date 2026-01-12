@@ -185,6 +185,24 @@ return [
 
     'environments' => [
         'development' => [
+            // 短信发送
+            'sms' => [
+                'connection' => 'redis',
+                'queue' => ['sms'],
+                'maxProcesses' => 2,
+                'memory' => 128,
+                'tries' => 3,
+                'timeout' => 60,
+            ],
+            // 视频封面生成
+            'video-cover' => [
+                'connection' => 'redis',
+                'queue' => ['video-cover'],
+                'maxProcesses' => 2,
+                'memory' => 256,
+                'tries' => 3,
+                'timeout' => 120,
+            ],
             // 预警任务
             'detection-task' => [
                 'connection' => 'redis',
@@ -233,6 +251,24 @@ return [
         ],
 
         'production' => [
+            // 短信发送
+            'sms' => [
+                'connection' => 'redis',
+                'queue' => ['sms'],
+                'maxProcesses' => 2,
+                'memory' => 128,
+                'tries' => 3,
+                'timeout' => 60,
+            ],
+            // 视频封面生成
+            'video-cover' => [
+                'connection' => 'redis',
+                'queue' => ['video-cover'],
+                'maxProcesses' => 2,
+                'memory' => 256,
+                'tries' => 3,
+                'timeout' => 120,
+            ],
             // 预警任务
             'detection-task' => [
                 'connection' => 'redis',
@@ -281,6 +317,24 @@ return [
         ],
 
         'local' => [
+            // 短信发送
+            'sms' => [
+                'connection' => 'redis',
+                'queue' => ['sms'],
+                'maxProcesses' => 2,
+                'memory' => 128,
+                'tries' => 3,
+                'timeout' => 60,
+            ],
+            // 视频封面生成
+            'video-cover' => [
+                'connection' => 'redis',
+                'queue' => ['video-cover'],
+                'maxProcesses' => 2,
+                'memory' => 256,
+                'tries' => 3,
+                'timeout' => 120,
+            ],
             // 预警任务
             'detection-task' => [
                 'connection' => 'redis',

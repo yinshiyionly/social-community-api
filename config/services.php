@@ -29,4 +29,18 @@ return [
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | 火山云短信服务配置
+    |--------------------------------------------------------------------------
+    */
+    'volcengine_sms' => [
+        'access_key' => env('VOLCENGINE_SMS_ACCESS_KEY'),
+        'secret_key' => env('VOLCENGINE_SMS_SECRET_KEY'),
+        'region' => env('VOLCENGINE_SMS_REGION', 'cn-north-1'),
+        'endpoint' => env('VOLCENGINE_SMS_ENDPOINT', 'sms.volcengineapi.com'),
+        'sign_name' => env('VOLCENGINE_SMS_SIGN_NAME'),
+        'account' => env('VOLCENGINE_SMS_ACCOUNT'),
+    ],
 ];

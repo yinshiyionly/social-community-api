@@ -64,7 +64,5 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'permission' => \App\Http\Middleware\CheckPermission::class,
         // 'operlog' => \App\Http\Middleware\OperationLog::class,
-        // Insight 舆情数据同步认证中间件
-        'insight.sync.auth' => \App\Http\Middleware\InsightSyncAuth::class,
     ];
 }

@@ -29,17 +29,4 @@ return [
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Insight 舆情数据同步配置
-    |--------------------------------------------------------------------------
-    |
-    | 用于 Python Consumer 与 Laravel API 之间的数据同步认证
-    |
-    */
-    'insight_sync' => [
-        'token' => env('INSIGHT_SYNC_TOKEN'),
-    ],
-
 ];

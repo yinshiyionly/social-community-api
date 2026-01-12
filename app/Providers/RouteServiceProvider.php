@@ -39,11 +39,17 @@ class RouteServiceProvider extends ServiceProvider
         $this->routes(function () {
             Route::prefix('test')
                 ->group(base_path('routes/web.php'));
-            // 后台系统统一路由
+
+            // Admin 后台管理系统路由 (api/*)
             Route::prefix('api')
                 ->group(base_path('routes/admin.php'));
 
-            // 后台系统文件上传模块路由
+            // App 端路由 (app/*)
+            Route::prefix('app')
+                ->middleware('api')
+                ->group(base_path('routes/app.php'));
+
+            // 文件上传模块路由
             Route::prefix('api')
                 ->group(base_path('routes/file.php'));
         });

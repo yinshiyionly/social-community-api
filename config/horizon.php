@@ -41,7 +41,7 @@ return [
     |
     */
 
-    'use' => 'default',
+    'use' => 'cache',
 
     /*
     |--------------------------------------------------------------------------
@@ -202,51 +202,6 @@ return [
                 'memory' => 256,
                 'tries' => 3,
                 'timeout' => 120,
-            ],
-            // 预警任务
-            'detection-task' => [
-                'connection' => 'redis',
-                'queue' => ['detection-task'],
-                'maxProcesses' => 2,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600
-            ],
-            // 预警邮箱
-            'detection-email' => [
-                'connection' => 'redis',
-                'queue' => ['detection-email'],
-                'maxProcesses' => 2,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600,
-            ],
-            // 企业类投诉-发送邮件
-            'complaint-enterprise' => [
-                'connection' => 'redis',
-                'queue' => ['complaint-enterprise'],
-                'maxProcesses' => 2,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600
-            ],
-            // 政治类投诉-发送邮件
-            'complaint-politics' => [
-                'connection' => 'redis',
-                'queue' => ['complaint-politics'],
-                'maxProcesses' => 2,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600
-            ],
-            // 诽谤类投诉-发送邮件
-            'complaint-defamation' => [
-                'connection' => 'redis',
-                'queue' => ['complaint-defamation'],
-                'maxProcesses' => 2,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600
             ]
         ],
 
@@ -268,51 +223,6 @@ return [
                 'memory' => 256,
                 'tries' => 3,
                 'timeout' => 120,
-            ],
-            // 预警任务
-            'detection-task' => [
-                'connection' => 'redis',
-                'queue' => ['detection-task'],
-                'maxProcesses' => 2,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600
-            ],
-            // 预警邮箱
-            'detection-email' => [
-                'connection' => 'redis',
-                'queue' => ['detection-email'],
-                'maxProcesses' => 2,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600,
-            ],
-            // 企业类投诉-发送邮件
-            'complaint-enterprise' => [
-                'connection' => 'redis',
-                'queue' => ['complaint-enterprise'],
-                'maxProcesses' => 2,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600
-            ],
-            // 政治类投诉-发送邮件
-            'complaint-politics' => [
-                'connection' => 'redis',
-                'queue' => ['complaint-politics'],
-                'maxProcesses' => 2,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600
-            ],
-            // 诽谤类投诉-发送邮件
-            'complaint-defamation' => [
-                'connection' => 'redis',
-                'queue' => ['complaint-defamation'],
-                'maxProcesses' => 2,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600
             ]
         ],
 
@@ -334,51 +244,6 @@ return [
                 'memory' => 256,
                 'tries' => 3,
                 'timeout' => 120,
-            ],
-            // 预警任务
-            'detection-task' => [
-                'connection' => 'redis',
-                'queue' => ['detection-task'],
-                'maxProcesses' => 2,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600
-            ],
-            // 预警邮箱
-            'detection-email' => [
-                'connection' => 'redis',
-                'queue' => ['detection-email'],
-                'maxProcesses' => 2,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600,
-            ],
-            // 企业类投诉-发送邮件
-            'complaint-enterprise' => [
-                'connection' => 'redis',
-                'queue' => ['complaint-enterprise'],
-                'maxProcesses' => 2,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600
-            ],
-            // 政治类投诉-发送邮件
-            'complaint-politics' => [
-                'connection' => 'redis',
-                'queue' => ['complaint-politics'],
-                'maxProcesses' => 2,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600
-            ],
-            // 诽谤类投诉-发送邮件
-            'complaint-defamation' => [
-                'connection' => 'redis',
-                'queue' => ['complaint-defamation'],
-                'maxProcesses' => 2,
-                'memory' => 256,
-                'tries' => 3,
-                'timeout' => 600
             ]
         ],
     ],

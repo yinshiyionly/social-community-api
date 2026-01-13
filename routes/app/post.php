@@ -9,7 +9,6 @@ use App\Http\Controllers\App\PostController;
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('post')->group(function () {
-    // 动态列表（游标分页）
-    Route::get('list', [PostController::class, 'list']);
+Route::prefix('v1/post/list')->group(function () {
+    // 动态列表
 });

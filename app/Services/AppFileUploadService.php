@@ -70,7 +70,7 @@ class AppFileUploadService
                     'member_id' => $memberId,
                 ]);
 
-                return $this->buildFileResponse($existingRecord, $file);
+                return $this->buildFileResponse($existingRecord, $file, true);
             }
 
             // 生成存储路径
@@ -102,7 +102,7 @@ class AppFileUploadService
                 'duration_ms' => $duration,
             ]);
 
-            return $this->buildFileResponse($fileRecord, $file);
+            return $this->buildFileResponse($fileRecord, $file, false);
 
         } catch (FileValidationException $e) {
             Log::warning('App file validation failed', [
@@ -321,7 +321,8 @@ class AppFileUploadService
         $mediaType = $this->getMediaType($file->getMimeType());
         $dateFolder = Carbon::now()->format('Ymd');
 
-        return sprintf('%d/%s/%s/%s',
+        return sprintf(
+            '%d/%s/%s/%s',
             $memberId,
             $mediaType,
             $dateFolder,
@@ -334,13 +335,13 @@ class AppFileUploadService
      */
     protected function getMediaType(string $mimeType): string
     {
-        if (str_starts_with($mimeType, 'image/')) {
+        if (substr($mimeType, 0, 6) === 'image/') {
             return 'image';
         }
-        if (str_starts_with($mimeType, 'video/')) {
+        if (substr($mimeType, 0, 6) === 'video/') {
             return 'video';
         }
-        if (str_starts_with($mimeType, 'audio/')) {
+        if (substr($mimeType, 0, 6) === 'audio/') {
             return 'audio';
         }
         return 'file';
@@ -361,7 +362,7 @@ class AppFileUploadService
         $mimeType = $file->getMimeType();
 
         // 图片尺寸
-        if (str_starts_with($mimeType, 'image/')) {
+        if (substr($mimeType, 0, 6) === 'image/') {
             $imageInfo = @getimagesize($file->getRealPath());
             if ($imageInfo) {
                 $info['width'] = $imageInfo[0];
@@ -370,7 +371,7 @@ class AppFileUploadService
         }
 
         // 视频/音频时长（需要ffprobe，可选）
-        if (str_starts_with($mimeType, 'video/') || str_starts_with($mimeType, 'audio/')) {
+        if (substr($mimeType, 0, 6) === 'video/' || substr($mimeType, 0, 6) === 'audio/') {
             $duration = $this->getMediaDuration($file->getRealPath());
             if ($duration !== null) {
                 $info['duration'] = $duration;
@@ -398,7 +399,7 @@ class AppFileUploadService
 
         $output = shell_exec($command);
         if ($output !== null && is_numeric(trim($output))) {
-            return (int)round((float)trim($output));
+            return (int) round((float) trim($output));
         }
 
         return null;
@@ -409,13 +410,12 @@ class AppFileUploadService
      */
     protected function createFileRecord(
         UploadedFile $file,
-        string       $storagePath,
-        string       $fileHash,
-        string       $disk,
-        int          $memberId,
-        array        $mediaInfo
-    ): AppFileRecord
-    {
+        string $storagePath,
+        string $fileHash,
+        string $disk,
+        int $memberId,
+        array $mediaInfo
+    ): AppFileRecord {
         return AppFileRecord::create([
             'file_name' => $this->sanitizeFileName($file->getClientOriginalName()),
             'file_path' => $storagePath,
@@ -470,7 +470,7 @@ class AppFileUploadService
     /**
      * 构建文件响应数据
      */
-    protected function buildFileResponse(AppFileRecord $record, UploadedFile $file): array
+    protected function buildFileResponse(AppFileRecord $record, UploadedFile $file, bool $reused = false): array
     {
         return [
             'file_id' => $record->file_id,
@@ -485,6 +485,7 @@ class AppFileUploadService
             'width' => $record->width,
             'height' => $record->height,
             'duration' => $record->duration,
+            'reused' => $reused,
             'created_at' => $record->created_at->toIso8601String(),
         ];
     }

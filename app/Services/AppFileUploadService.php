@@ -528,6 +528,78 @@ class AppFileUploadService
     }
 
     /**
+     * 批量上传文件
+     *
+     * @param array $files 上传的文件数组 (UploadedFile[])
+     * @param int $memberId 用户ID
+     * @param array $options 上传选项
+     * @return array 上传结果数组
+     */
+    public function uploadMultiple(array $files, int $memberId, array $options = []): array
+    {
+        $maxFiles = $options['max_files'] ?? 9;
+        
+        if (count($files) > $maxFiles) {
+            throw new FileValidationException(
+                sprintf('Maximum %d files allowed, %d provided', $maxFiles, count($files))
+            );
+        }
+
+        $results = [
+            'success' => [],
+            'failed' => [],
+        ];
+
+        foreach ($files as $index => $file) {
+            if (!$file instanceof UploadedFile) {
+                $results['failed'][] = [
+                    'index' => $index,
+                    'error' => 'Invalid file object',
+                ];
+                continue;
+            }
+
+            try {
+                $uploadResult = $this->upload($file, $memberId, $options);
+                $results['success'][] = $uploadResult;
+            } catch (FileValidationException $e) {
+                $results['failed'][] = [
+                    'index' => $index,
+                    'original_name' => $file->getClientOriginalName(),
+                    'error' => $e->getMessage(),
+                ];
+            } catch (FileUploadException $e) {
+                $results['failed'][] = [
+                    'index' => $index,
+                    'original_name' => $file->getClientOriginalName(),
+                    'error' => $e->getMessage(),
+                ];
+            } catch (\Exception $e) {
+                Log::error('Batch upload file failed', [
+                    'index' => $index,
+                    'original_name' => $file->getClientOriginalName(),
+                    'error' => $e->getMessage(),
+                    'member_id' => $memberId,
+                ]);
+                $results['failed'][] = [
+                    'index' => $index,
+                    'original_name' => $file->getClientOriginalName(),
+                    'error' => 'Upload failed',
+                ];
+            }
+        }
+
+        Log::info('Batch upload completed', [
+            'member_id' => $memberId,
+            'total' => count($files),
+            'success_count' => count($results['success']),
+            'failed_count' => count($results['failed']),
+        ]);
+
+        return $results;
+    }
+
+    /**
      * 根据文件ID获取文件信息
      */
     public function getFileById(int $fileId): ?array

@@ -29,6 +29,9 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', function () {
+    dd(
+        \App\Models\System\SystemUser::query()->get()->toArray()
+    );
     $token = JwtHelper::encode(
         ['member_id' => 1],
         config('app.jwt_app_secret', config('app.key')),

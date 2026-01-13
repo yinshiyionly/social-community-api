@@ -17,16 +17,6 @@ class RouteServiceProvider extends ServiceProvider
     public const HOME = '/home';
 
     /**
-     * The controller namespace for the application.
-     *
-     * When present, controller route declarations will automatically be prefixed with this namespace.
-     *
-     * @var string|null
-     */
-    // protected $namespace = 'App\\Http\\Controllers';
-    protected $systemNamespace = 'App\\Http\\Controllers\\System';
-
-    /**
      * Define your route model bindings, pattern filters, etc.
      *
      * @return void
@@ -37,17 +27,18 @@ class RouteServiceProvider extends ServiceProvider
         // $this->configureModelBindings();
 
         $this->routes(function () {
+            // 测试路由
             Route::prefix('test')
                 ->group(base_path('routes/web.php'));
 
-            // Admin 后台管理系统路由 (api/*)
-            Route::prefix('api')
-                ->group(base_path('routes/admin.php'));
-
-            // App 端路由 (app/*)
-            Route::prefix('app')
+            // App 端路由 api/app/v1/*
+            Route::prefix('api/app/v1')
                 ->middleware('api')
                 ->group(base_path('routes/app.php'));
+
+            // Admin 后台管理系统路由 api/admin/*
+            Route::prefix('api/admin')
+                ->group(base_path('routes/admin.php'));
 
             // 文件上传模块路由
             Route::prefix('api')

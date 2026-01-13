@@ -2,6 +2,7 @@
 
 namespace App\Exceptions;
 
+use App\Constant\AppResponseCode;
 use App\Constant\ResponseCode;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -49,11 +50,15 @@ class Handler extends ExceptionHandler
             $this->logExceptionWithContext($e);
         });
 
-        // 自定义 API 异常渲染
+        // Admin/System 端自定义业务异常
         $this->renderable(function (ApiException $e, $request) {
             return $e->render();
         });
 
+        // App 端自定义业务异常
+        $this->renderable(function (AppApiException $e, $request) {
+            return $e->render();
+        });
     }
 
     /**
@@ -70,9 +75,31 @@ class Handler extends ExceptionHandler
     }
 
     /**
+     * 判断是否为 App 端请求
+     */
+    protected function isAppRequest($request): bool
+    {
+        return $request->is('api/app/*') || $request->is('api/app');
+    }
+
+    /**
      * 处理 API 异常
      */
     protected function handleApiException($request, Throwable $e)
+    {
+        // 根据路由前缀分发到不同的处理器
+        if ($this->isAppRequest($request)) {
+            return $this->handleAppApiException($request, $e);
+        }
+
+        return $this->handleAdminApiException($request, $e);
+    }
+
+    /**
+     * 处理 Admin/System 端 API 异常
+     * 可以暴露详细错误信息便于调试
+     */
+    protected function handleAdminApiException($request, Throwable $e)
     {
         // 自定义业务异常
         if ($e instanceof ApiException) {
@@ -130,7 +157,7 @@ class Handler extends ExceptionHandler
 
         // 方法不允许异常
         if ($e instanceof MethodNotAllowedHttpException) {
-            app()->log->error('方法不允许异常', ['content' => $e->getMessage()]);
+            Log::error('方法不允许异常', ['content' => $e->getMessage()]);
             return response()->json([
                 'code' => ResponseCode::METHOD_NOT_ALLOWED,
                 'msg' => ResponseCode::getMessage(ResponseCode::METHOD_NOT_ALLOWED),
@@ -149,7 +176,6 @@ class Handler extends ExceptionHandler
 
         // 数据库异常
         if ($e instanceof QueryException) {
-            // 生产环境不暴露具体错误信息
             $message = config('app.debug')
                 ? $e->getMessage()
                 : ResponseCode::getMessage(ResponseCode::DATABASE_ERROR);
@@ -171,11 +197,112 @@ class Handler extends ExceptionHandler
             'code' => $code,
             'msg' => $message,
             'data' => []
-//            'data' => config('app.debug') ? [
-//                'file' => $e->getFile(),
-//                'line' => $e->getLine(),
-//                'trace' => collect($e->getTrace())->take(5)->toArray(),
-//            ] : [],
+        ]);
+    }
+
+    /**
+     * 处理 App 端 API 异常
+     * 禁止暴露业务细节，使用通用错误提示
+     */
+    protected function handleAppApiException($request, Throwable $e)
+    {
+        // App 端自定义业务异常
+        if ($e instanceof AppApiException) {
+            return response()->json([
+                'code' => $e->getCode(),
+                'msg' => $e->getMessage(),
+                'data' => $e->getData(),
+            ]);
+        }
+
+        // 验证异常
+        if ($e instanceof ValidationException) {
+            return response()->json([
+                'code' => AppResponseCode::INVALID_PARAMS,
+                'msg' => $e->validator->errors()->first(),
+                'data' => []
+            ]);
+        }
+
+        // 认证异常
+        if ($e instanceof AuthenticationException) {
+            return response()->json([
+                'code' => AppResponseCode::UNAUTHORIZED,
+                'msg' => AppResponseCode::getMessage(AppResponseCode::UNAUTHORIZED),
+                'data' => []
+            ]);
+        }
+
+        // 授权异常
+        if ($e instanceof AuthorizationException) {
+            return response()->json([
+                'code' => AppResponseCode::FORBIDDEN,
+                'msg' => AppResponseCode::getMessage(AppResponseCode::FORBIDDEN),
+                'data' => []
+            ]);
+        }
+
+        // 模型未找到异常 - 不暴露具体信息
+        if ($e instanceof ModelNotFoundException) {
+            return response()->json([
+                'code' => AppResponseCode::DATA_NOT_FOUND,
+                'msg' => AppResponseCode::getMessage(AppResponseCode::DATA_NOT_FOUND),
+                'data' => [],
+            ]);
+        }
+
+        // 404 异常
+        if ($e instanceof NotFoundHttpException) {
+            return response()->json([
+                'code' => AppResponseCode::NOT_FOUND,
+                'msg' => AppResponseCode::getMessage(AppResponseCode::NOT_FOUND),
+                'data' => []
+            ]);
+        }
+
+        // 方法不允许异常 - 记录日志但返回通用错误
+        if ($e instanceof MethodNotAllowedHttpException) {
+            Log::error('App端方法不允许异常', ['content' => $e->getMessage()]);
+            return response()->json([
+                'code' => AppResponseCode::NOT_FOUND,
+                'msg' => AppResponseCode::getMessage(AppResponseCode::NOT_FOUND),
+                'data' => []
+            ]);
+        }
+
+        // 限流异常
+        if ($e instanceof ThrottleRequestsException) {
+            return response()->json([
+                'code' => AppResponseCode::TOO_MANY_REQUESTS,
+                'msg' => AppResponseCode::getMessage(AppResponseCode::TOO_MANY_REQUESTS),
+                'data' => []
+            ]);
+        }
+
+        // 数据库异常 - 记录详细日志，返回通用错误
+        if ($e instanceof QueryException) {
+            Log::error('App端数据库异常', [
+                'error' => $e->getMessage(),
+                'url' => $request->fullUrl(),
+            ]);
+            return response()->json([
+                'code' => AppResponseCode::SERVER_ERROR,
+                'msg' => AppResponseCode::getMessage(AppResponseCode::SERVER_ERROR),
+                'data' => []
+            ]);
+        }
+
+        // 其他异常 - 记录详细日志，返回通用错误
+        Log::error('App端未知异常', [
+            'exception' => get_class($e),
+            'error' => $e->getMessage(),
+            'url' => $request->fullUrl(),
+        ]);
+
+        return response()->json([
+            'code' => AppResponseCode::SERVER_ERROR,
+            'msg' => AppResponseCode::getMessage(AppResponseCode::SERVER_ERROR),
+            'data' => []
         ]);
     }
 
@@ -185,6 +312,16 @@ class Handler extends ExceptionHandler
     protected function unauthenticated($request, AuthenticationException $exception)
     {
         if ($request->expectsJson() || $request->is('api/*')) {
+            // App 端使用 AppResponseCode
+            if ($this->isAppRequest($request)) {
+                return response()->json([
+                    'code' => AppResponseCode::UNAUTHORIZED,
+                    'msg' => AppResponseCode::getMessage(AppResponseCode::UNAUTHORIZED),
+                    'data' => [],
+                ]);
+            }
+
+            // Admin/System 端使用 ResponseCode
             return response()->json([
                 'code' => ResponseCode::UNAUTHORIZED,
                 'msg' => ResponseCode::getMessage(ResponseCode::UNAUTHORIZED),
@@ -203,7 +340,9 @@ class Handler extends ExceptionHandler
         // Skip logging for certain exception types
         if ($e instanceof ValidationException ||
             $e instanceof AuthenticationException ||
-            $e instanceof AuthorizationException) {
+            $e instanceof AuthorizationException ||
+            $e instanceof ApiException ||
+            $e instanceof AppApiException) {
             return;
         }
 
@@ -215,8 +354,9 @@ class Handler extends ExceptionHandler
             'url' => request()->fullUrl(),
             'method' => request()->method(),
             'ip' => request()->ip(),
-            'user_id' => request()->user()->user_id ?? 0,
-            'user_name' => request()->user()->nick_name ?? 'unknown',
+            'user_id' => request()->user() ? request()->user()->user_id : 0,
+            'user_name' => request()->user() ? request()->user()->nick_name : 'unknown',
+            'is_app_request' => $this->isAppRequest(request()),
         ];
 
         // Add request data for non-GET requests

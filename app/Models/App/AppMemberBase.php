@@ -1,0 +1,127 @@
+<?php
+
+namespace App\Models\App;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+/**
+ * 会员基础信息表
+ */
+class AppMemberBase extends Model
+{
+    use HasFactory, SoftDeletes;
+
+    protected $table = 'app_member_base';
+
+    protected $primaryKey = 'member_id';
+
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
+
+    protected $fillable = [
+        'phone',
+        'email',
+        'password',
+        'nickname',
+        'avatar',
+        'gender',
+        'birthday',
+        'bio',
+        'level',
+        'points',
+        'coin',
+        'invite_code',
+        'inviter_id',
+        'status',
+    ];
+
+    protected $casts = [
+        'member_id' => 'integer',
+        'gender' => 'integer',
+        'birthday' => 'date',
+        'level' => 'integer',
+        'points' => 'integer',
+        'coin' => 'integer',
+        'inviter_id' => 'integer',
+        'status' => 'integer',
+    ];
+
+    protected $hidden = [
+        'password',
+    ];
+
+    // 性别常量
+    const GENDER_UNKNOWN = 0;
+    const GENDER_MALE = 1;
+    const GENDER_FEMALE = 2;
+
+    // 状态常量
+    const STATUS_NORMAL = 1;
+    const STATUS_DISABLED = 2;
+
+    /**
+     * 关联第三方账号
+     */
+    public function oauthAccounts()
+    {
+        return $this->hasMany(AppMemberOauth::class, 'member_id', 'member_id');
+    }
+
+    /**
+     * 关联邀请人
+     */
+    public function inviter()
+    {
+        return $this->belongsTo(self::class, 'inviter_id', 'member_id');
+    }
+
+    /**
+     * 关联被邀请的会员
+     */
+    public function invitees()
+    {
+        return $this->hasMany(self::class, 'inviter_id', 'member_id');
+    }
+
+    /**
+     * 查询作用域 - 正常状态
+     */
+    public function scopeNormal($query)
+    {
+        return $query->where('status', self::STATUS_NORMAL);
+    }
+
+    /**
+     * 查询作用域 - 按手机号查询
+     */
+    public function scopeByPhone($query, string $phone)
+    {
+        return $query->where('phone', $phone);
+    }
+
+    /**
+     * 查询作用域 - 按邀请码查询
+     */
+    public function scopeByInviteCode($query, string $code)
+    {
+        return $query->where('invite_code', $code);
+    }
+
+    /**
+     * 判断账号是否正常
+     */
+    public function isNormal(): bool
+    {
+        return $this->status === self::STATUS_NORMAL;
+    }
+
+    /**
+     * 判断账号是否被禁用
+     */
+    public function isDisabled(): bool
+    {
+        return $this->status === self::STATUS_DISABLED;
+    }
+}

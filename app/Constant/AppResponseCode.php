@@ -63,6 +63,9 @@ class AppResponseCode
     const NEED_UPDATE = 6003;
     const NEED_UPDATE_MSG = '当前版本过低，请更新后使用';
 
+    const OPERATION_FAILED = 6004;
+    const OPERATION_FAILED_MSG = '操作失败';
+
     /**
      * 获取状态码对应的消息
      */

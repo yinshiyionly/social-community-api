@@ -438,11 +438,12 @@ class AppFileUploadService
      */
     protected function mapDiskToDriver(string $disk): string
     {
-        return match ($disk) {
+        $mapping = [
             'volcengine' => AppFileRecord::DRIVER_TOS,
             's3' => AppFileRecord::DRIVER_S3,
-            default => $disk,
-        };
+        ];
+
+        return $mapping[$disk] ?? $disk;
     }
 
     /**
@@ -492,7 +493,7 @@ class AppFileUploadService
     /**
      * 生成文件URL
      */
-    public function generateFileUrl(string $storagePath, string $driver): string
+    public function generateFileUrl(string $storagePath, string $driver = 'volcengine'): string
     {
         $disk = $this->mapDriverToDisk($driver);
 
@@ -519,12 +520,13 @@ class AppFileUploadService
      */
     protected function mapDriverToDisk(string $driver): string
     {
-        return match ($driver) {
+        $mapping = [
             AppFileRecord::DRIVER_TOS => 'volcengine',
             AppFileRecord::DRIVER_S3 => 's3',
             AppFileRecord::DRIVER_OSS => 'oss',
-            default => $driver,
-        };
+        ];
+
+        return $mapping[$driver] ?? $driver;
     }
 
     /**
@@ -538,7 +540,7 @@ class AppFileUploadService
     public function uploadMultiple(array $files, int $memberId, array $options = []): array
     {
         $maxFiles = $options['max_files'] ?? 9;
-        
+
         if (count($files) > $maxFiles) {
             throw new FileValidationException(
                 sprintf('Maximum %d files allowed, %d provided', $maxFiles, count($files))

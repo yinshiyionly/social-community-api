@@ -50,7 +50,7 @@ class AppApiResponse
     /**
      * 分页响应
      */
-    public static function paginate($paginator, $resourceClass = null, $message = '查询成功')
+    public static function paginate($paginator, $resourceClass = null, $message = 'success')
     {
         $items = $paginator->items();
 
@@ -69,7 +69,7 @@ class AppApiResponse
     /**
      * 游标分页响应
      */
-    public static function cursorPaginate($paginator, $resourceClass = null, $message = '查询成功')
+    public static function cursorPaginate($paginator, $resourceClass = null, $message = 'success')
     {
         $items = $paginator->items();
 
@@ -77,13 +77,16 @@ class AppApiResponse
             $items = $resourceClass::collection(collect($items))->resolve();
         }
 
+        $nextCursor = $paginator->nextCursor();
+        $prevCursor = $paginator->previousCursor();
+
         return response()->json([
             'code' => AppResponseCode::SUCCESS,
             'msg' => $message,
             'data' => [
                 'list' => $items,
-                'next_cursor' => $paginator->nextCursor()?->encode(),
-                'prev_cursor' => $paginator->previousCursor()?->encode(),
+                'next_cursor' => $nextCursor ? $nextCursor->encode() : null,
+                'prev_cursor' => $prevCursor ? $prevCursor->encode() : null,
                 'has_more' => $paginator->hasMorePages(),
             ],
         ]);
@@ -92,7 +95,7 @@ class AppApiResponse
     /**
      * 列表响应（非分页）
      */
-    public static function collection($data, $resourceClass = null, $message = '查询成功')
+    public static function collection($data, $resourceClass = null, $message = 'success')
     {
         if ($resourceClass && class_exists($resourceClass)) {
             $data = $resourceClass::collection(collect($data))->resolve();
@@ -108,7 +111,7 @@ class AppApiResponse
     /**
      * 单个资源响应
      */
-    public static function resource($data, $resourceClass = null, $message = '查询成功')
+    public static function resource($data, $resourceClass = null, $message = 'success')
     {
         if ($resourceClass && class_exists($resourceClass)) {
             $data = (new $resourceClass($data))->resolve();

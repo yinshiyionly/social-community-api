@@ -3,52 +3,45 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\ApiResponse;
-use App\Models\App\AppAdItem;
+use App\Http\Requests\App\AdListRequest;
+use App\Http\Resources\App\AdItemResource;
+use App\Http\Resources\App\AppApiResponse;
 use App\Models\App\AppAdSpace;
-use Illuminate\Http\Request;
+use App\Services\App\AdService;
+use Illuminate\Support\Facades\Log;
 
 class AdController extends Controller
 {
     /**
+     * @var AdService
+     */
+    protected $adService;
+
+    public function __construct(AdService $adService)
+    {
+        $this->adService = $adService;
+    }
+
+    /**
      * 获取广告列表
      */
-    public function list(Request $request)
+    public function list(AdListRequest $request)
     {
         $spaceCode = $request->input('spaceCode');
+        $platform = $request->input('platform', AppAdSpace::PLATFORM_ALL);
 
-        if (empty($spaceCode)) {
-            return ApiResponse::error('广告位编码不能为空');
+        try {
+            $adItems = $this->adService->getAdList($spaceCode, $platform);
+
+            return AppApiResponse::collection($adItems, AdItemResource::class);
+        } catch (\Exception $e) {
+            Log::error('获取广告列表失败', [
+                'space_code' => $spaceCode,
+                'platform' => $platform,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
         }
-
-        // 查找广告位
-        $adSpace = AppAdSpace::byCode($spaceCode)->enabled()->first();
-
-        if (!$adSpace) {
-            return ApiResponse::success([]);
-        }
-
-        // 获取有效的广告内容
-        $adItems = AppAdItem::bySpace($adSpace->space_id)
-            ->online()
-            ->inEffect()
-            ->orderByPriority()
-            ->limit($adSpace->max_ads)
-            ->get();
-
-        $data = $adItems->map(function ($item) {
-            return [
-                'adId' => $item->ad_id,
-                'imageUrl' => $item->content_url,
-                'linkUrl' => $item->target_url,
-                'spaceId' => $item->space_id,
-                'targetType' => $item->target_type,
-            ];
-        });
-        dd(
-            $data
-        );
-
-        return ApiResponse::success($data);
     }
 }

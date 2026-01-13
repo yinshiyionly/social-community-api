@@ -154,7 +154,6 @@ class AppFileUploadService
         }
     }
 
-
     /**
      * 普通上传（小文件）
      */
@@ -347,7 +346,6 @@ class AppFileUploadService
         return 'file';
     }
 
-
     /**
      * 提取媒体文件信息（图片尺寸、视频/音频时长等）
      */
@@ -400,7 +398,7 @@ class AppFileUploadService
 
         $output = shell_exec($command);
         if ($output !== null && is_numeric(trim($output))) {
-            return (int) round((float) trim($output));
+            return (int)round((float)trim($output));
         }
 
         return null;
@@ -411,12 +409,13 @@ class AppFileUploadService
      */
     protected function createFileRecord(
         UploadedFile $file,
-        string $storagePath,
-        string $fileHash,
-        string $disk,
-        int $memberId,
-        array $mediaInfo
-    ): AppFileRecord {
+        string       $storagePath,
+        string       $fileHash,
+        string       $disk,
+        int          $memberId,
+        array        $mediaInfo
+    ): AppFileRecord
+    {
         return AppFileRecord::create([
             'file_name' => $this->sanitizeFileName($file->getClientOriginalName()),
             'file_path' => $storagePath,
@@ -427,8 +426,8 @@ class AppFileUploadService
             'extension' => strtolower($file->getClientOriginalExtension()),
             'width' => $mediaInfo['width'],
             'height' => $mediaInfo['height'],
-            'duration' => $mediaInfo['duration'],
-            'extra' => $mediaInfo['extra'] ?: null,
+            'duration' => $mediaInfo['duration'] ?? 0,
+            'extra' => !empty($mediaInfo['extra']) ? $mediaInfo['extra'] : new \stdClass(),
             'member_id' => $memberId,
         ]);
     }
@@ -475,7 +474,7 @@ class AppFileUploadService
     {
         return [
             'file_id' => $record->file_id,
-            'url' => $this->generateFileUrl($record->file_path, $record->file_driver),
+            'url' => $this->generateFileUrl($record->file_path),
             'path' => $record->file_path,
             'original_name' => $file->getClientOriginalName(),
             'file_name' => $record->file_name,
@@ -493,15 +492,9 @@ class AppFileUploadService
     /**
      * 生成文件URL
      */
-    public function generateFileUrl(string $storagePath, string $driver = 'volcengine'): string
+    public function generateFileUrl(string $storagePath): string
     {
-        $disk = $this->mapDriverToDisk($driver);
-
-        if ($disk !== 'volcengine') {
-            return Storage::disk($disk)->url($storagePath);
-        }
-
-        $config = config("filesystems.disks.{$disk}");
+        $config = config("filesystems.disks.volcengine");
         $schema = $config['schema'] ?? 'https';
         $cleanPath = ltrim($storagePath, '/');
 
@@ -516,26 +509,13 @@ class AppFileUploadService
     }
 
     /**
-     * 映射driver常量到disk名称
-     */
-    protected function mapDriverToDisk(string $driver): string
-    {
-        $mapping = [
-            AppFileRecord::DRIVER_TOS => 'volcengine',
-            AppFileRecord::DRIVER_S3 => 's3',
-            AppFileRecord::DRIVER_OSS => 'oss',
-        ];
-
-        return $mapping[$driver] ?? $driver;
-    }
-
-    /**
      * 批量上传文件
      *
      * @param array $files 上传的文件数组 (UploadedFile[])
      * @param int $memberId 用户ID
      * @param array $options 上传选项
      * @return array 上传结果数组
+     * @throws FileValidationException
      */
     public function uploadMultiple(array $files, int $memberId, array $options = []): array
     {
@@ -599,62 +579,5 @@ class AppFileUploadService
         ]);
 
         return $results;
-    }
-
-    /**
-     * 根据文件ID获取文件信息
-     */
-    public function getFileById(int $fileId): ?array
-    {
-        $record = AppFileRecord::find($fileId);
-        if (!$record) {
-            return null;
-        }
-
-        return [
-            'file_id' => $record->file_id,
-            'url' => $this->generateFileUrl($record->file_path, $record->file_driver),
-            'path' => $record->file_path,
-            'file_name' => $record->file_name,
-            'file_size' => $record->file_size,
-            'mime_type' => $record->mime_type,
-            'extension' => $record->extension,
-            'width' => $record->width,
-            'height' => $record->height,
-            'duration' => $record->duration,
-            'created_at' => $record->created_at->toIso8601String(),
-        ];
-    }
-
-    /**
-     * 根据文件哈希查找文件（跨用户去重查询）
-     */
-    public function findByHash(string $fileHash): ?AppFileRecord
-    {
-        return AppFileRecord::byHash($fileHash)->first();
-    }
-
-    /**
-     * 删除文件
-     */
-    public function delete(int $fileId): bool
-    {
-        $record = AppFileRecord::find($fileId);
-        if (!$record) {
-            return false;
-        }
-
-        try {
-            $disk = $this->mapDriverToDisk($record->file_driver);
-            Storage::disk($disk)->delete($record->file_path);
-            $record->delete();
-            return true;
-        } catch (\Exception $e) {
-            Log::error('Failed to delete file', [
-                'file_id' => $fileId,
-                'error' => $e->getMessage(),
-            ]);
-            return false;
-        }
     }
 }

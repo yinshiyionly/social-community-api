@@ -27,7 +27,7 @@ class VolcengineSmsService
      * @return array
      */
     public function send(
-        string|array $phoneNumbers,
+        $phoneNumbers,
         string $templateId,
         array $templateParams = [],
         ?string $signName = null

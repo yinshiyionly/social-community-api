@@ -4,8 +4,10 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\App\Member\LoginRequest;
+use App\Http\Requests\App\Member\SendSmsRequest;
 use App\Http\Resources\App\AppApiResponse;
 use App\Services\App\MemberAuthService;
+use App\Services\App\SmsService;
 
 class MemberAuthController extends Controller
 {
@@ -14,9 +16,15 @@ class MemberAuthController extends Controller
      */
     protected $authService;
 
-    public function __construct(MemberAuthService $authService)
+    /**
+     * @var SmsService
+     */
+    protected $smsService;
+
+    public function __construct(MemberAuthService $authService, SmsService $smsService)
     {
         $this->authService = $authService;
+        $this->smsService = $smsService;
     }
 
     /**
@@ -36,6 +44,26 @@ class MemberAuthController extends Controller
         return AppApiResponse::success([
             'data' => [
                 'token' => $result['token'],
+            ],
+        ]);
+    }
+
+    /**
+     * 发送登录验证码
+     */
+    public function sendSms(SendSmsRequest $request)
+    {
+        $phone = $request->input('phone');
+
+        $result = $this->smsService->sendLoginCode($phone);
+
+        if (!$result['success']) {
+            return AppApiResponse::error($result['message']);
+        }
+
+        return AppApiResponse::success([
+            'data' => [
+                'expireSeconds' => $result['expire_seconds'],
             ],
         ]);
     }

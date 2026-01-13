@@ -10,8 +10,11 @@ use App\Http\Controllers\App\MemberAuthController;
 */
 
 Route::prefix('v1/member')->group(function () {
-    // 登录（无需认证）
+    // 手机号密码登录
     Route::post('login', [MemberAuthController::class, 'login']);
+
+    // 手机号验证码登录
+    Route::post('login/sms', [MemberAuthController::class, 'smsLogin']);
 
     // 发送登录验证码
     Route::post('sms/send', [MemberAuthController::class, 'sendSms']);

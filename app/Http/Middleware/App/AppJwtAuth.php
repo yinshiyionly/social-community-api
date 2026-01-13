@@ -2,11 +2,11 @@
 
 namespace App\Http\Middleware\App;
 
+use App\Http\Resources\App\AppApiResponse;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use App\Helper\JwtHelper;
-use App\Http\Resources\ApiResponse;
 
 /**
  * App 端 JWT 认证中间件
@@ -24,22 +24,22 @@ class AppJwtAuth
         $token = $request->bearerToken();
 
         if (!$token) {
-            return ApiResponse::unauthorized('请登录后操作');
+            return AppApiResponse::unauthorized();
         }
 
         $secret = config('app.jwt_app_secret', config('app.key'));
         $payload = JwtHelper::decode($token, $secret);
 
         if (!$payload) {
-            return ApiResponse::tokenInvalid('Token无效');
+            return AppApiResponse::tokenInvalid();
         }
 
         if (JwtHelper::isExpired($payload)) {
-            return ApiResponse::tokenExpired('Token已过期');
+            return AppApiResponse::tokenExpired();
         }
 
         if (!isset($payload['member_id'])) {
-            return ApiResponse::tokenInvalid('Token无效');
+            return AppApiResponse::tokenInvalid();
         }
 
         // 将 member_id 注入到 request 中

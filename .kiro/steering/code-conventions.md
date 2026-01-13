@@ -6,12 +6,56 @@ inclusion: always
 
 ## 技术栈
 
-- PHP 7.4.33
+- PHP 7.4.33（严格限制，禁止使用 8.0+ 语法）
 - PostgreSQL 17.6
 - Redis 7.2
 - Laravel 8.x (Web 框架)
 - Eloquent (ORM)
 - Monolog (日志)
+
+## PHP 版本限制（重要）
+
+项目固定使用 PHP 7.4.33，**严禁使用 PHP 8.0+ 的语法特性**：
+
+```php
+// ❌ 禁止使用 - PHP 8.0+ 语法
+$value = $obj?->property;           // Nullsafe operator
+$result = match($x) { ... };        // Match expression
+fn($x) => $x * 2;                   // 箭头函数（7.4可用但建议谨慎）
+#[Attribute]                        // Attributes
+public function foo(): mixed {}     // mixed 类型
+$arr = [...$arr1, ...$arr2];        // Array spread (部分场景)
+throw new Exception() ?: null;      // throw 表达式
+
+// ✅ 正确写法 - PHP 7.4 兼容
+$value = $obj ? $obj->property : null;
+$value = isset($obj) ? $obj->property : null;
+$value = optional($obj)->property;  // Laravel helper
+```
+
+### 常见替代写法
+
+```php
+// Nullsafe 替代
+// ❌ $this->create_time?->format('Y-m-d')
+// ✅ 
+$this->create_time ? $this->create_time->format('Y-m-d') : null
+
+// 箭头函数替代（复杂逻辑时）
+// ❌ fn() => new DeptResource($this->dept)
+// ✅ 
+function () {
+    return new DeptResource($this->dept);
+}
+
+// Constructor property promotion 不可用
+// ❌ public function __construct(private string $name) {}
+// ✅ 
+private string $name;
+public function __construct(string $name) {
+    $this->name = $name;
+}
+```
 
 ## 核心设计原则
 
@@ -185,7 +229,17 @@ class LoginRequest extends FormRequest
 
 ## API 响应规范
 
-### System/Admin 端响应 (ApiResponse)
+**重要：不同模块使用不同的响应类**
+
+| 模块 | 响应类 | 用途 | 错误信息策略 |
+|-----|-------|-----|------------|
+| Admin | `ApiResponse` | 后台管理 | 可暴露详细错误 |
+| System | `ApiResponse` | 系统管理 | 可暴露详细错误 |
+| App | `AppApiResponse` | C端用户 | **禁止暴露业务细节** |
+
+### Admin/System 端响应 (ApiResponse)
+
+用于后台管理，可以返回详细的错误信息便于调试：
 
 ```php
 use App\Http\Resources\ApiResponse;
@@ -194,23 +248,26 @@ use App\Http\Resources\ApiResponse;
 return ApiResponse::success(['token' => $token], '操作成功');
 
 // 分页响应
-return ApiResponse::paginate($paginator, UserResource::class);
+return ApiResponse::paginate($paginator, UserListResource::class);
 
 // 列表响应
-return ApiResponse::collection($data, UserResource::class);
+return ApiResponse::collection($data, UserListResource::class);
 
 // 单个资源
 return ApiResponse::resource($user, UserResource::class);
 
-// 错误响应
-return ApiResponse::error('错误信息');
+// 错误响应 - 可以包含详细信息
+return ApiResponse::error('用户名已被占用');
+return ApiResponse::error('部门下存在子部门，无法删除');
 return ApiResponse::unauthorized('请登录后操作');
 return ApiResponse::tokenExpired('Token已过期');
-return ApiResponse::forbidden('无权访问');
-return ApiResponse::notFound('资源不存在');
+return ApiResponse::forbidden('无权访问该资源');
+return ApiResponse::notFound('用户不存在');
 ```
 
 ### App 端响应 (AppApiResponse)
+
+用于 C 端用户，**严禁暴露业务错误细节**，使用通用错误提示：
 
 ```php
 use App\Http\Resources\App\AppApiResponse;
@@ -219,16 +276,53 @@ use App\Http\Resources\App\AppApiResponse;
 return AppApiResponse::success(['data' => $data]);
 
 // 分页响应
-return AppApiResponse::paginate($paginator, ItemResource::class);
+return AppApiResponse::paginate($paginator, ItemListResource::class);
 
-// 游标分页
-return AppApiResponse::cursorPaginate($paginator, ItemResource::class);
+// 游标分页（无限滚动）
+return AppApiResponse::cursorPaginate($paginator, ItemListResource::class);
 
-// 错误响应
-return AppApiResponse::error('操作失败');
+// 错误响应 - 使用通用提示，不暴露细节
+// ❌ 错误示范
+return AppApiResponse::error('用户ID:12345不存在');
+return AppApiResponse::error('数据库连接失败');
+return AppApiResponse::error('Redis缓存异常');
+
+// ✅ 正确示范
+return AppApiResponse::error('操作失败，请稍后重试');
 return AppApiResponse::unauthorized('请先登录');
-return AppApiResponse::tokenExpired('登录已过期');
+return AppApiResponse::tokenExpired('登录已过期，请重新登录');
 return AppApiResponse::accountDisabled('账号已被禁用');
+return AppApiResponse::dataNotFound('内容不存在');
+return AppApiResponse::serverError('服务器繁忙，请稍后重试');
+```
+
+### App 端错误处理原则
+
+```php
+// 在 App 控制器中
+class ArticleController extends Controller
+{
+    public function show($id)
+    {
+        try {
+            $article = Article::findOrFail($id);
+            return AppApiResponse::resource($article, ArticleResource::class);
+        } catch (ModelNotFoundException $e) {
+            // ❌ 不要暴露具体信息
+            // return AppApiResponse::error('文章ID:' . $id . '不存在');
+            
+            // ✅ 使用通用提示
+            return AppApiResponse::dataNotFound('内容不存在');
+        } catch (\Exception $e) {
+            // 记录详细日志，但返回通用错误
+            Log::error('获取文章失败', [
+                'article_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+            return AppApiResponse::serverError();
+        }
+    }
+}
 ```
 
 ### 响应格式
@@ -247,6 +341,17 @@ return AppApiResponse::accountDisabled('账号已被禁用');
     "msg": "查询成功",
     "total": 100,
     "rows": []
+}
+
+// 游标分页（App端）
+{
+    "code": 200,
+    "msg": "查询成功",
+    "data": {
+        "list": [],
+        "next_cursor": "xxx",
+        "has_more": true
+    }
 }
 
 // 错误
@@ -295,8 +400,8 @@ class UserListResource extends JsonResource
             'userName' => $this->user_name,
             'nickName' => $this->nick_name,
             'status' => $this->status,
-            'deptName' => $this->dept?->dept_name,
-            'createTime' => $this->create_time?->format('Y-m-d H:i:s'),
+            'deptName' => $this->dept ? $this->dept->dept_name : null,
+            'createTime' => $this->create_time ? $this->create_time->format('Y-m-d H:i:s') : null,
         ];
     }
 }
@@ -331,15 +436,21 @@ class UserResource extends JsonResource
             'status' => $this->status,
             'remark' => $this->remark,
             
-            // 日期字段
-            'createTime' => $this->create_time?->format('Y-m-d H:i:s'),
-            'updateTime' => $this->update_time?->format('Y-m-d H:i:s'),
-            'loginDate' => $this->login_date?->toISOString(),
+            // 日期字段（PHP 7.4 兼容写法）
+            'createTime' => $this->create_time ? $this->create_time->format('Y-m-d H:i:s') : null,
+            'updateTime' => $this->update_time ? $this->update_time->format('Y-m-d H:i:s') : null,
+            'loginDate' => $this->login_date ? $this->login_date->toISOString() : null,
             
             // 关联数据（详情才加载）
-            'dept' => $this->whenLoaded('dept', fn() => new DeptSimpleResource($this->dept)),
-            'roles' => $this->whenLoaded('roles', fn() => RoleSimpleResource::collection($this->roles)),
-            'posts' => $this->whenLoaded('posts', fn() => PostSimpleResource::collection($this->posts)),
+            'dept' => $this->whenLoaded('dept', function () {
+                return new DeptSimpleResource($this->dept);
+            }),
+            'roles' => $this->whenLoaded('roles', function () {
+                return RoleSimpleResource::collection($this->roles);
+            }),
+            'posts' => $this->whenLoaded('posts', function () {
+                return PostSimpleResource::collection($this->posts);
+            }),
             
             // 编辑表单需要的 ID 数组
             'roleIds' => $this->when(isset($this->roleIds), $this->roleIds),
@@ -601,4 +712,91 @@ Log::error('Error message', [
     'exception' => $e->getMessage(),
     'trace' => $e->getTraceAsString(),
 ]);
+```
+
+### Job 队列日志规范
+
+**Job 中的日志必须指定 `job` channel**，便于独立查看和排查队列问题：
+
+```php
+<?php
+
+namespace App\Jobs;
+
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
+
+class SendNotificationJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    private $userId;
+    private $message;
+
+    public function __construct(int $userId, string $message)
+    {
+        $this->userId = $userId;
+        $this->message = $message;
+    }
+
+    public function handle()
+    {
+        // ✅ 正确：使用 job channel
+        Log::channel('job')->info('开始发送通知', [
+            'job' => self::class,
+            'user_id' => $this->userId,
+        ]);
+
+        try {
+            // 业务逻辑...
+            
+            Log::channel('job')->info('通知发送成功', [
+                'job' => self::class,
+                'user_id' => $this->userId,
+            ]);
+        } catch (\Exception $e) {
+            Log::channel('job')->error('通知发送失败', [
+                'job' => self::class,
+                'user_id' => $this->userId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            throw $e; // 重新抛出以触发重试
+        }
+    }
+
+    /**
+     * 任务失败处理
+     */
+    public function failed(\Throwable $exception)
+    {
+        Log::channel('job')->error('任务最终失败', [
+            'job' => self::class,
+            'user_id' => $this->userId,
+            'error' => $exception->getMessage(),
+        ]);
+    }
+}
+```
+
+### Job 日志上下文规范
+
+```php
+// Job 日志必须包含以下上下文
+Log::channel('job')->info('日志消息', [
+    'job' => self::class,           // 必须：Job 类名
+    'attempt' => $this->attempts(), // 可选：当前重试次数
+    // 业务相关字段...
+]);
+
+// ❌ 错误：不指定 channel
+Log::info('Job执行中...');
+
+// ✅ 正确：指定 job channel
+Log::channel('job')->info('Job执行中...');
 ```

@@ -14,7 +14,7 @@ class AppApiResponse
     /**
      * 成功响应
      */
-    public static function success($data = [], $message = '操作成功')
+    public static function success($data = [], $message = 'success')
     {
         $response = [
             'code' => AppResponseCode::SUCCESS,
@@ -38,7 +38,7 @@ class AppApiResponse
     /**
      * 错误响应
      */
-    public static function error($message = '操作失败', $code = AppResponseCode::BUSINESS_ERROR, $data = [])
+    public static function error($message = 'error', $code = AppResponseCode::BUSINESS_ERROR, $data = [])
     {
         return response()->json([
             'code' => $code,

@@ -32,7 +32,7 @@ class RouteServiceProvider extends ServiceProvider
                 ->group(base_path('routes/web.php'));
 
             // App 端路由 api/app/v1/*
-            Route::prefix('api/app/v1')
+            Route::prefix('api/app')
                 ->middleware('api')
                 ->group(base_path('routes/app.php'));
 

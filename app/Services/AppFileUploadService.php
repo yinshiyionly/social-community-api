@@ -10,6 +10,7 @@ use App\Exceptions\FileUpload\InvalidFileTypeException;
 use App\Exceptions\FileUpload\UploadFailedException;
 use App\Exceptions\FileUpload\InvalidCredentialsException;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -76,8 +77,8 @@ class AppFileUploadService
             // 生成存储路径
             $storagePath = $this->generateStoragePath($file, $memberId, $options['path'] ?? null);
 
-            // 获取图片/视频/音频的额外信息
-            $mediaInfo = $this->extractMediaInfo($file);
+            /*// 获取图片/视频/音频的额外信息
+            $mediaInfo = $this->extractMediaInfo($file);*/
 
             // 根据文件大小选择上传方式
             if ($file->getSize() > self::LARGE_FILE_THRESHOLD && $disk === 'volcengine') {
@@ -87,6 +88,9 @@ class AppFileUploadService
                 // 小文件使用普通上传
                 $this->simpleUpload($file, $storagePath, $disk);
             }
+
+            // 获取图片/视频/音频的额外信息
+            $mediaInfo = $this->extractMediaInfo($file, $storagePath);
 
             // 创建文件记录
             $fileRecord = $this->createFileRecord($file, $storagePath, $fileHash, $disk, $memberId, $mediaInfo);
@@ -160,7 +164,7 @@ class AppFileUploadService
     protected function simpleUpload(UploadedFile $file, string $storagePath, string $disk): void
     {
         $storageDisk = Storage::disk($disk);
-        $uploaded = $storageDisk->put($storagePath, file_get_contents($file->getRealPath(), 'rb'));
+        $uploaded = $storageDisk->put($storagePath, file_get_contents($file->getRealPath()));
 
         if (!$uploaded) {
             throw new UploadFailedException($file->getClientOriginalName(), $disk, 'Storage put operation returned false');
@@ -350,12 +354,12 @@ class AppFileUploadService
     /**
      * 提取媒体文件信息（图片尺寸、视频/音频时长等）
      */
-    protected function extractMediaInfo(UploadedFile $file): array
+    protected function extractMediaInfo(UploadedFile $file, string $storagePath): array
     {
         $info = [
-            'width' => null,
-            'height' => null,
-            'duration' => null,
+            'width' => 0,
+            'height' => 0,
+            'duration' => 0,
             'extra' => [],
         ];
 
@@ -370,26 +374,64 @@ class AppFileUploadService
             }
         }
 
+        // 需要外部依赖 - 暂时不使用
         // 视频/音频时长（需要ffprobe，可选）
-        if (substr($mimeType, 0, 6) === 'video/' || substr($mimeType, 0, 6) === 'audio/') {
+        /*if (substr($mimeType, 0, 6) === 'video/' || substr($mimeType, 0, 6) === 'audio/') {
             $duration = $this->getMediaDuration($file->getRealPath());
             if ($duration !== null) {
                 $info['duration'] = $duration;
             }
+        }*/
+
+        // 使用 TOS 提供的媒体处理来解决这个问题
+        // @doc https://www.volcengine.com/docs/6349/336156?lang=zh
+        if (substr($mimeType, 0, 6) === 'video/' || substr($mimeType, 0, 6) === 'audio/') {
+            list($width, $height, $duration) = $this->getMediaInfoWithTOS($storagePath);
+            $info['width'] = $width;
+            $info['height'] = $height;
+            $info['duration'] = $duration;
         }
 
         return $info;
     }
 
     /**
+     * 使用TOS获取媒体信息
+     *
+     * @param string $storagePath
+     * @return int[]
+     */
+    protected function getMediaInfoWithTOS(string $storagePath): array
+    {
+        try {
+            $mediaInfoURL = sprintf('%s?x-tos-process=video/info', $this->getBucketEndpoint($storagePath));
+            $mediaInfoResponse = Http::get($mediaInfoURL);
+            $mediaInfoResult = $mediaInfoResponse->json();
+
+            $videoStream = collect($mediaInfoResult['streams'])->firstWhere('codec_type', 'video');
+
+            $width = (int)($videoStream['width'] ?? 0);
+            $height = (int)($videoStream['height'] ?? 0);
+            $duration = (int)($mediaInfoResult['format']['duration'] ?? 0);
+
+            return [$width, $height, $duration];
+        } catch (\Exception $e) {
+            Log::channel('daily')->error('使用TOS获取媒体信息失败: ' . $e->getMessage(), [
+                'storage_path' => $storagePath
+            ]);
+            return [0, 0, 0];
+        }
+    }
+
+    /**
      * 获取媒体文件时长（秒）
      */
-    protected function getMediaDuration(string $filePath): ?int
+    protected function getMediaDuration(string $filePath): int
     {
         // 检查ffprobe是否可用
         $ffprobe = trim(shell_exec('which ffprobe 2>/dev/null') ?? '');
         if (empty($ffprobe)) {
-            return null;
+            return 0;
         }
 
         $command = sprintf(
@@ -402,7 +444,7 @@ class AppFileUploadService
             return (int)round((float)trim($output));
         }
 
-        return null;
+        return 0;
     }
 
     /**
@@ -412,7 +454,6 @@ class AppFileUploadService
         UploadedFile $file,
         string       $storagePath,
         string       $fileHash,
-        string       $disk,
         int          $memberId,
         array        $mediaInfo
     ): AppFileRecord
@@ -420,7 +461,7 @@ class AppFileUploadService
         return AppFileRecord::create([
             'file_name' => $this->sanitizeFileName($file->getClientOriginalName()),
             'file_path' => $storagePath,
-            'file_driver' => $this->mapDiskToDriver($disk),
+            'file_driver' => 'volcengine',
             'file_hash' => $fileHash,
             'file_size' => $file->getSize(),
             'mime_type' => $file->getMimeType(),
@@ -431,19 +472,6 @@ class AppFileUploadService
             'extra' => !empty($mediaInfo['extra']) ? $mediaInfo['extra'] : new \stdClass(),
             'member_id' => $memberId,
         ]);
-    }
-
-    /**
-     * 映射disk名称到driver常量
-     */
-    protected function mapDiskToDriver(string $disk): string
-    {
-        $mapping = [
-            'volcengine' => AppFileRecord::DRIVER_TOS,
-            's3' => AppFileRecord::DRIVER_S3,
-        ];
-
-        return $mapping[$disk] ?? $disk;
     }
 
     /**
@@ -492,11 +520,29 @@ class AppFileUploadService
     }
 
     /**
+     * 获取 bucket 域名
+     *
+     * @param string $storagePath
+     * @return string
+     */
+    protected function getBucketEndpoint(string $storagePath): string
+    {
+        $config = config('filesystems.disks.volcengine');
+        $schema = $config['schema'] ?? 'https';
+        $cleanPath = ltrim($storagePath, '/');
+
+        $endpoint = preg_replace('/^https?:\/\//', '', $config['endpoint'] ?? '');
+        $bucket = $config['bucket'] ?? '';
+
+        return $schema . '://' . $bucket . '.' . $endpoint . '/' . $cleanPath;
+    }
+
+    /**
      * 生成文件URL
      */
     public function generateFileUrl(string $storagePath): string
     {
-        $config = config("filesystems.disks.volcengine");
+        $config = config('filesystems.disks.volcengine');
         $schema = $config['schema'] ?? 'https';
         $cleanPath = ltrim($storagePath, '/');
 

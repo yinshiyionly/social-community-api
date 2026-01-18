@@ -14,4 +14,6 @@ Route::prefix('v1/common')->middleware(['app.auth'])->group(function () {
     Route::post('uploadImage', [CommonController::class, 'uploadImage']);
     // 上传多张图片
     Route::post('uploadImages', [CommonController::class, 'uploadImages']);
+    // 上传视频
+    Route::post('uploadVideo', [CommonController::class, 'uploadVideo']);
 });

@@ -9,6 +9,7 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -174,6 +175,15 @@ class Handler extends ExceptionHandler
             ]);
         }
 
+        // 文件过大异常
+        if ($e instanceof PostTooLargeException) {
+            return response()->json([
+                'code' => ResponseCode::INVALID_PARAMS,
+                'msg' => '上传文件过大，请检查文件大小限制',
+                'data' => []
+            ]);
+        }
+
         // 数据库异常
         if ($e instanceof QueryException) {
             $message = config('app.debug')
@@ -275,6 +285,15 @@ class Handler extends ExceptionHandler
             return response()->json([
                 'code' => AppResponseCode::TOO_MANY_REQUESTS,
                 'msg' => AppResponseCode::getMessage(AppResponseCode::TOO_MANY_REQUESTS),
+                'data' => []
+            ]);
+        }
+
+        // 文件过大异常
+        if ($e instanceof PostTooLargeException) {
+            return response()->json([
+                'code' => AppResponseCode::INVALID_PARAMS,
+                'msg' => '上传文件过大',
                 'data' => []
             ]);
         }

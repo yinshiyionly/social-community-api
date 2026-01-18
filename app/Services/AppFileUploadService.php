@@ -160,7 +160,7 @@ class AppFileUploadService
     protected function simpleUpload(UploadedFile $file, string $storagePath, string $disk): void
     {
         $storageDisk = Storage::disk($disk);
-        $uploaded = $storageDisk->put($storagePath, file_get_contents($file->getRealPath()));
+        $uploaded = $storageDisk->put($storagePath, file_get_contents($file->getRealPath(), 'rb'));
 
         if (!$uploaded) {
             throw new UploadFailedException($file->getClientOriginalName(), $disk, 'Storage put operation returned false');
@@ -399,7 +399,7 @@ class AppFileUploadService
 
         $output = shell_exec($command);
         if ($output !== null && is_numeric(trim($output))) {
-            return (int) round((float) trim($output));
+            return (int)round((float)trim($output));
         }
 
         return null;
@@ -410,12 +410,13 @@ class AppFileUploadService
      */
     protected function createFileRecord(
         UploadedFile $file,
-        string $storagePath,
-        string $fileHash,
-        string $disk,
-        int $memberId,
-        array $mediaInfo
-    ): AppFileRecord {
+        string       $storagePath,
+        string       $fileHash,
+        string       $disk,
+        int          $memberId,
+        array        $mediaInfo
+    ): AppFileRecord
+    {
         return AppFileRecord::create([
             'file_name' => $this->sanitizeFileName($file->getClientOriginalName()),
             'file_path' => $storagePath,
@@ -424,8 +425,8 @@ class AppFileUploadService
             'file_size' => $file->getSize(),
             'mime_type' => $file->getMimeType(),
             'extension' => strtolower($file->getClientOriginalExtension()),
-            'width' => $mediaInfo['width'],
-            'height' => $mediaInfo['height'],
+            'width' => $mediaInfo['width'] ?? 0,
+            'height' => $mediaInfo['height'] ?? 0,
             'duration' => $mediaInfo['duration'] ?? 0,
             'extra' => !empty($mediaInfo['extra']) ? $mediaInfo['extra'] : new \stdClass(),
             'member_id' => $memberId,

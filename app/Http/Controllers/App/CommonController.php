@@ -74,6 +74,56 @@ class CommonController extends Controller
     }
 
     /**
+     * 上传视频
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function uploadVideo(Request $request)
+    {
+        $memberId = $request->attributes->get('member_id');
+        if (!$request->hasFile('file')) {
+            return AppApiResponse::error('请选择要上传的视频');
+        }
+
+        $file = $request->file('file');
+
+        // 验证是否为视频
+        $allowedMimes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv', 'video/webm', 'video/mpeg'];
+        if (!in_array($file->getMimeType(), $allowedMimes)) {
+            return AppApiResponse::error('仅支持上传视频文件');
+        }
+
+        try {
+            $result = $this->fileUploadService->upload($file, $memberId);
+
+            return AppApiResponse::success([
+                'data' => [
+                    'fileName' => $result['original_name'],
+                    'key' => $result['path'],
+                    'reused' => $result['reused'],
+                    'size' => $result['file_size'],
+                    'url' => $result['url'],
+                ]
+            ]);
+        } catch (FileValidationException $e) {
+            return AppApiResponse::error('文件验证失败,请重试');
+        } catch (FileUploadException $e) {
+            Log::error('Video upload failed', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+            return AppApiResponse::serverError();
+        } catch (\Exception $e) {
+            Log::error('Video upload unexpected error', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
      * 上传多张图片
      *
      * @param Request $request

@@ -45,11 +45,6 @@ class AppFileRecord extends Model
         'deleted_at' => 'datetime',
     ];
 
-    // 存储驱动类型
-    const DRIVER_TOS = 'tos';
-    const DRIVER_OSS = 'oss';
-    const DRIVER_S3 = 's3';
-
     /**
      * 根据文件哈希查找记录（用于去重）
      */

@@ -10,6 +10,7 @@ use App\Exceptions\FileUpload\InvalidFileTypeException;
 use App\Exceptions\FileUpload\UploadFailedException;
 use App\Exceptions\FileUpload\InvalidCredentialsException;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -67,14 +68,14 @@ class AdminFileUploadService
                     'file_hash' => $fileHash,
                 ]);
 
-                return $this->buildFileResponse($existingRecord, $file);
+                return $this->buildFileResponse($existingRecord, $file, true);
             }
 
             // 生成存储路径
             $storagePath = $this->generateStoragePath($file, $options['path'] ?? null);
 
-            // 获取图片/视频/音频的额外信息
-            $mediaInfo = $this->extractMediaInfo($file);
+            /*// 获取图片/视频/音频的额外信息
+            $mediaInfo = $this->extractMediaInfo($file);*/
 
             // 根据文件大小选择上传方式
             if ($file->getSize() > self::LARGE_FILE_THRESHOLD && $disk === 'volcengine') {
@@ -84,6 +85,9 @@ class AdminFileUploadService
                 // 小文件使用普通上传
                 $this->simpleUpload($file, $storagePath, $disk);
             }
+
+            // 获取图片/视频/音频的额外信息
+            $mediaInfo = $this->extractMediaInfo($file, $storagePath);
 
             // 创建文件记录
             $fileRecord = $this->createFileRecord($file, $storagePath, $fileHash, $disk, $mediaInfo);
@@ -98,7 +102,7 @@ class AdminFileUploadService
                 'duration_ms' => $duration,
             ]);
 
-            return $this->buildFileResponse($fileRecord, $file);
+            return $this->buildFileResponse($fileRecord, $file, false);
 
         } catch (FileValidationException $e) {
             Log::warning('Admin file validation failed', [
@@ -244,6 +248,7 @@ class AdminFileUploadService
      */
     protected function createTosClient(array $config): TosClient
     {
+        // 优先使用内网端点进行上传
         $endpoint = $config['internal_endpoint'] ?? $config['endpoint'];
 
         return new TosClient([
@@ -320,13 +325,13 @@ class AdminFileUploadService
      */
     protected function getMediaType(string $mimeType): string
     {
-        if (str_starts_with($mimeType, 'image/')) {
+        if (substr($mimeType, 0, 6) === 'image/') {
             return 'image';
         }
-        if (str_starts_with($mimeType, 'video/')) {
+        if (substr($mimeType, 0, 6) === 'video/') {
             return 'video';
         }
-        if (str_starts_with($mimeType, 'audio/')) {
+        if (substr($mimeType, 0, 6) === 'audio/') {
             return 'audio';
         }
         return 'file';
@@ -338,15 +343,16 @@ class AdminFileUploadService
     protected function extractMediaInfo(UploadedFile $file): array
     {
         $info = [
-            'width' => null,
-            'height' => null,
-            'duration' => null,
+            'width' => 0,
+            'height' => 0,
+            'duration' => 0,
             'extra' => [],
         ];
 
         $mimeType = $file->getMimeType();
 
-        if (str_starts_with($mimeType, 'image/')) {
+        // 图片尺寸
+        if (substr($mimeType, 0, 6) === 'image/') {
             $imageInfo = @getimagesize($file->getRealPath());
             if ($imageInfo) {
                 $info['width'] = $imageInfo[0];
@@ -354,24 +360,64 @@ class AdminFileUploadService
             }
         }
 
-        if (str_starts_with($mimeType, 'video/') || str_starts_with($mimeType, 'audio/')) {
+        // 需要外部依赖 - 暂时不使用
+        // 视频/音频时长（需要ffprobe，可选）
+        /*if (substr($mimeType, 0, 6) === 'video/' || substr($mimeType, 0, 6) === 'audio/') {
             $duration = $this->getMediaDuration($file->getRealPath());
             if ($duration !== null) {
                 $info['duration'] = $duration;
             }
+        }*/
+
+        // 使用 TOS 提供的媒体处理来解决这个问题
+        // @doc https://www.volcengine.com/docs/6349/336156?lang=zh
+        if (substr($mimeType, 0, 6) === 'video/' || substr($mimeType, 0, 6) === 'audio/') {
+            list($width, $height, $duration) = $this->getMediaInfoWithTOS($storagePath);
+            $info['width'] = $width;
+            $info['height'] = $height;
+            $info['duration'] = $duration;
         }
 
         return $info;
     }
 
     /**
+     * 使用TOS获取媒体信息
+     *
+     * @param string $storagePath
+     * @return int[]
+     */
+    protected function getMediaInfoWithTOS(string $storagePath): array
+    {
+        try {
+            $mediaInfoURL = sprintf('%s?x-tos-process=video/info', $this->getBucketEndpoint($storagePath));
+            $mediaInfoResponse = Http::get($mediaInfoURL);
+            $mediaInfoResult = $mediaInfoResponse->json();
+
+            $videoStream = collect($mediaInfoResult['streams'])->firstWhere('codec_type', 'video');
+
+            $width = (int)($videoStream['width'] ?? 0);
+            $height = (int)($videoStream['height'] ?? 0);
+            $duration = (int)($mediaInfoResult['format']['duration'] ?? 0);
+
+            return [$width, $height, $duration];
+        } catch (\Exception $e) {
+            Log::channel('daily')->error('使用TOS获取媒体信息失败: ' . $e->getMessage(), [
+                'storage_path' => $storagePath
+            ]);
+            return [0, 0, 0];
+        }
+    }
+
+    /**
      * 获取媒体文件时长（秒）
      */
-    protected function getMediaDuration(string $filePath): ?int
+    protected function getMediaDuration(string $filePath): int
     {
+        // 检查ffprobe是否可用
         $ffprobe = trim(shell_exec('which ffprobe 2>/dev/null') ?? '');
         if (empty($ffprobe)) {
-            return null;
+            return 0;
         }
 
         $command = sprintf(
@@ -381,10 +427,10 @@ class AdminFileUploadService
 
         $output = shell_exec($command);
         if ($output !== null && is_numeric(trim($output))) {
-            return (int) round((float) trim($output));
+            return (int)round((float)trim($output));
         }
 
-        return null;
+        return 0;
     }
 
     /**
@@ -392,36 +438,24 @@ class AdminFileUploadService
      */
     protected function createFileRecord(
         UploadedFile $file,
-        string $storagePath,
-        string $fileHash,
-        string $disk,
-        array $mediaInfo
-    ): AdminFileRecord {
+        string       $storagePath,
+        string       $fileHash,
+        array        $mediaInfo
+    ): AdminFileRecord
+    {
         return AdminFileRecord::create([
             'file_name' => $this->sanitizeFileName($file->getClientOriginalName()),
             'file_path' => $storagePath,
-            'file_driver' => $this->mapDiskToDriver($disk),
+            'file_driver' => 'volcengine',
             'file_hash' => $fileHash,
             'file_size' => $file->getSize(),
             'mime_type' => $file->getMimeType(),
             'extension' => strtolower($file->getClientOriginalExtension()),
-            'width' => $mediaInfo['width'],
-            'height' => $mediaInfo['height'],
-            'duration' => $mediaInfo['duration'],
-            'extra' => $mediaInfo['extra'] ?: null,
+            'width' => $mediaInfo['width'] ?? 0,
+            'height' => $mediaInfo['height'] ?? 0,
+            'duration' => $mediaInfo['duration'] ?? 0,
+            'extra' => !empty($mediaInfo['extra']) ? $mediaInfo['extra'] : new \stdClass(),
         ]);
-    }
-
-    /**
-     * 映射disk名称到driver常量
-     */
-    protected function mapDiskToDriver(string $disk): string
-    {
-        return match ($disk) {
-            'volcengine' => AdminFileRecord::DRIVER_TOS,
-            's3' => AdminFileRecord::DRIVER_S3,
-            default => $disk,
-        };
     }
 
     /**
@@ -449,11 +483,11 @@ class AdminFileUploadService
     /**
      * 构建文件响应数据
      */
-    protected function buildFileResponse(AdminFileRecord $record, UploadedFile $file): array
+    protected function buildFileResponse(AdminFileRecord $record, UploadedFile $file, bool $reused = false): array
     {
         return [
             'file_id' => $record->file_id,
-            'url' => $this->generateFileUrl($record->file_path, $record->file_driver),
+            'url' => $this->generateFileUrl($record->file_path),
             'path' => $record->file_path,
             'original_name' => $file->getClientOriginalName(),
             'file_name' => $record->file_name,
@@ -464,22 +498,35 @@ class AdminFileUploadService
             'width' => $record->width,
             'height' => $record->height,
             'duration' => $record->duration,
+            'reused' => $reused,
             'created_at' => $record->created_at->toIso8601String(),
         ];
     }
 
     /**
+     * 获取 bucket 域名
+     *
+     * @param string $storagePath
+     * @return string
+     */
+    protected function getBucketEndpoint(string $storagePath): string
+    {
+        $config = config('filesystems.disks.volcengine');
+        $schema = $config['schema'] ?? 'https';
+        $cleanPath = ltrim($storagePath, '/');
+
+        $endpoint = preg_replace('/^https?:\/\//', '', $config['endpoint'] ?? '');
+        $bucket = $config['bucket'] ?? '';
+
+        return $schema . '://' . $bucket . '.' . $endpoint . '/' . $cleanPath;
+    }
+
+    /**
      * 生成文件URL
      */
-    public function generateFileUrl(string $storagePath, string $driver): string
+    public function generateFileUrl(string $storagePath): string
     {
-        $disk = $this->mapDriverToDisk($driver);
-
-        if ($disk !== 'volcengine') {
-            return Storage::disk($disk)->url($storagePath);
-        }
-
-        $config = config("filesystems.disks.{$disk}");
+        $config = config('filesystems.disks.volcengine');
         $schema = $config['schema'] ?? 'https';
         $cleanPath = ltrim($storagePath, '/');
 
@@ -491,75 +538,5 @@ class AdminFileUploadService
         $bucket = $config['bucket'] ?? '';
 
         return $schema . '://' . $bucket . '.' . $endpoint . '/' . $cleanPath;
-    }
-
-    /**
-     * 映射driver常量到disk名称
-     */
-    protected function mapDriverToDisk(string $driver): string
-    {
-        return match ($driver) {
-            AdminFileRecord::DRIVER_TOS => 'volcengine',
-            AdminFileRecord::DRIVER_S3 => 's3',
-            AdminFileRecord::DRIVER_OSS => 'oss',
-            default => $driver,
-        };
-    }
-
-    /**
-     * 根据文件ID获取文件信息
-     */
-    public function getFileById(int $fileId): ?array
-    {
-        $record = AdminFileRecord::find($fileId);
-        if (!$record) {
-            return null;
-        }
-
-        return [
-            'file_id' => $record->file_id,
-            'url' => $this->generateFileUrl($record->file_path, $record->file_driver),
-            'path' => $record->file_path,
-            'file_name' => $record->file_name,
-            'file_size' => $record->file_size,
-            'mime_type' => $record->mime_type,
-            'extension' => $record->extension,
-            'width' => $record->width,
-            'height' => $record->height,
-            'duration' => $record->duration,
-            'created_at' => $record->created_at->toIso8601String(),
-        ];
-    }
-
-    /**
-     * 根据文件哈希查找文件
-     */
-    public function findByHash(string $fileHash): ?AdminFileRecord
-    {
-        return AdminFileRecord::byHash($fileHash)->first();
-    }
-
-    /**
-     * 删除文件
-     */
-    public function delete(int $fileId): bool
-    {
-        $record = AdminFileRecord::find($fileId);
-        if (!$record) {
-            return false;
-        }
-
-        try {
-            $disk = $this->mapDriverToDisk($record->file_driver);
-            Storage::disk($disk)->delete($record->file_path);
-            $record->delete();
-            return true;
-        } catch (\Exception $e) {
-            Log::error('Failed to delete file', [
-                'file_id' => $fileId,
-                'error' => $e->getMessage(),
-            ]);
-            return false;
-        }
     }
 }

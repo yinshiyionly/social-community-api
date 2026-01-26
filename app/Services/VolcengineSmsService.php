@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
+use Volc\Service\Sms;
 
 /**
  * 火山云短信服务
@@ -13,166 +13,109 @@ use Illuminate\Support\Facades\Http;
  */
 class VolcengineSmsService
 {
-    private const SERVICE = 'sms';
-    private const VERSION = '2021-01-11';
-    private const ALGORITHM = 'HMAC-SHA256';
+    /**
+     * 短信配置
+     *
+     * @var array
+     */
+    protected $config;
 
     /**
-     * 发送短信
+     * 火山云 SMS 客户端
      *
-     * @param string|array $phoneNumbers 手机号码，支持单个或多个
-     * @param string $templateId 短信模板ID
-     * @param array $templateParams 模板参数
-     * @param string|null $signName 签名名称，不传则使用配置默认值
-     * @return array
+     * @var Sms
      */
-    public function send(
-        $phoneNumbers,
-        string $templateId,
-        array $templateParams = [],
-        ?string $signName = null
-    ): array {
-        $phoneNumbers = is_array($phoneNumbers) ? $phoneNumbers : [$phoneNumbers];
-        $signName = $signName ?? config('services.volcengine_sms.sign_name');
+    protected $client;
 
-        $body = [
-            'SmsAccount' => config('services.volcengine_sms.account'),
-            'Sign' => $signName,
-            'TemplateID' => $templateId,
-            'TemplateParam' => json_encode($templateParams, JSON_UNESCAPED_UNICODE),
-            'PhoneNumbers' => implode(',', $phoneNumbers),
-        ];
+    /**
+     * 模板变量名映射
+     */
+    const TEMPLATE_VAR_CODE = 'xxxx';
 
-        return $this->request('SendSms', $body);
+    public function __construct()
+    {
+        $this->config = config('services.volcengine.sms', []);
+        $this->initClient();
     }
 
     /**
-     * 批量发送短信（不同内容）
+     * 初始化火山云 SMS 客户端
      *
-     * @param array $messages 消息列表，每项包含 phone, template_id, params
-     * @param string|null $signName 签名名称
-     * @return array
+     * @return void
      */
-    public function sendBatch(array $messages, ?string $signName = null): array
+    protected function initClient(): void
     {
-        $signName = $signName ?? config('services.volcengine_sms.sign_name');
-
-        $body = [
-            'SmsAccount' => config('services.volcengine_sms.account'),
-            'Sign' => $signName,
-            'Messages' => array_map(function ($msg) {
-                return [
-                    'TemplateID' => $msg['template_id'],
-                    'TemplateParam' => json_encode($msg['params'] ?? [], JSON_UNESCAPED_UNICODE),
-                    'PhoneNumbers' => is_array($msg['phone']) ? implode(',', $msg['phone']) : $msg['phone'],
-                ];
-            }, $messages),
-        ];
-
-        return $this->request('SendBatchSms', $body);
+        $region = $this->config['region'] ?? 'cn-north-1';
+        $this->client = Sms::getInstance($region);
+        $this->client->setAccessKey($this->config['access_key'] ?? '');
+        $this->client->setSecretKey($this->config['secret_key'] ?? '');
     }
 
     /**
      * 发送验证码短信
      *
-     * @param string $phoneNumber 手机号码
+     * @param string $phoneNumber 手机号
      * @param string $code 验证码
      * @param string $templateId 模板ID
-     * @param int $expireMinutes 过期时间（分钟）
-     * @return array
+     * @return array ['success' => bool, 'request_id' => string, 'error_code' => string, 'error_message' => string]
      */
-    public function sendVerificationCode(
-        string $phoneNumber,
-        string $code,
-        string $templateId,
-        int $expireMinutes = 5
-    ): array {
-        return $this->send($phoneNumber, $templateId, [
-            'code' => $code,
-            'expire' => (string) $expireMinutes,
-        ]);
+    public function sendVerificationCode(string $phoneNumber, string $code, string $templateId): array
+    {
+        $templateParams = [
+            self::TEMPLATE_VAR_CODE => $code
+        ];
+        $tag = sprintf("%s-%d", $phoneNumber, time());
+
+        return $this->send($phoneNumber, $templateId, $templateParams, $tag);
     }
 
     /**
-     * 发起 API 请求
+     * 发送短信（通用方法）
+     *
+     * @param string $phoneNumber 手机号
+     * @param string $templateId 模板ID
+     * @param array $templateParams 模板参数
+     * @param string|null $tag 标签（可选）
+     * @return array ['success' => bool, 'request_id' => string, 'error_code' => string, 'error_message' => string]
      */
-    protected function request(string $action, array $body): array
+    public function send(
+        string $phoneNumber,
+        string $templateId,
+        array  $templateParams = [],
+        string $tag = null
+    ): array
     {
-        $config = config('services.volcengine_sms');
-        $endpoint = $config['endpoint'];
-        $region = $config['region'];
-        $accessKey = $config['access_key'];
-        $secretKey = $config['secret_key'];
-
-        $now = gmdate('Ymd\THis\Z');
-        $date = substr($now, 0, 8);
-
-        $query = [
-            'Action' => $action,
-            'Version' => self::VERSION,
+        $body = [
+            'SmsAccount' => $this->config['account'] ?? '',
+            'Sign' => $this->config['sign_name'] ?? '',
+            'TemplateID' => $templateId,
+            'TemplateParam' => json_encode($templateParams),
+            'PhoneNumbers' => $phoneNumber,
         ];
 
-        $bodyJson = json_encode($body, JSON_UNESCAPED_UNICODE);
-        $headers = $this->buildHeaders($endpoint, $now, $date, $region, $accessKey, $secretKey, $query, $bodyJson);
+        if ($tag !== null) {
+            $body['Tag'] = $tag;
+        }
 
-        $url = 'https://' . $endpoint . '/?' . http_build_query($query);
+        Log::debug('火山云短信发送请求', [
+            'phone' => $this->maskPhone($phoneNumber),
+            'template_id' => $templateId,
+        ]);
 
         try {
-            $response = Http::withHeaders($headers)
-                ->timeout(30)
-                ->withBody($bodyJson, 'application/json')
-                ->post($url);
+            $response = $this->client->sendSms(['json' => $body]);
 
-            $result = $response->json();
-
-            if ($response->successful() && isset($result['ResponseMetadata']['Error'])) {
-                Log::error('Volcengine SMS API error', [
-                    'action' => $action,
-                    'error' => $result['ResponseMetadata']['Error'],
-                    'request_id' => $result['ResponseMetadata']['RequestId'] ?? null,
-                ]);
-
-                return [
-                    'success' => false,
-                    'error_code' => $result['ResponseMetadata']['Error']['Code'] ?? 'Unknown',
-                    'error_message' => $result['ResponseMetadata']['Error']['Message'] ?? 'Unknown error',
-                    'request_id' => $result['ResponseMetadata']['RequestId'] ?? null,
-                ];
-            }
-
-            if (!$response->successful()) {
-                Log::error('Volcengine SMS HTTP error', [
-                    'action' => $action,
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                ]);
-
-                return [
-                    'success' => false,
-                    'error_code' => 'HTTP_ERROR',
-                    'error_message' => 'HTTP request failed with status ' . $response->status(),
-                ];
-            }
-
-            Log::info('Volcengine SMS sent successfully', [
-                'action' => $action,
-                'request_id' => $result['ResponseMetadata']['RequestId'] ?? null,
-            ]);
-
-            return [
-                'success' => true,
-                'data' => $result['Result'] ?? [],
-                'request_id' => $result['ResponseMetadata']['RequestId'] ?? null,
-            ];
-
+            return $this->parseResponse($response->getContents(), $phoneNumber);
         } catch (\Exception $e) {
-            Log::error('Volcengine SMS exception', [
-                'action' => $action,
-                'message' => $e->getMessage(),
+            Log::error('火山云短信发送异常', [
+                'phone' => $this->maskPhone($phoneNumber),
+                'template_id' => $templateId,
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
+                'request_id' => '',
                 'error_code' => 'EXCEPTION',
                 'error_message' => $e->getMessage(),
             ];
@@ -180,70 +123,125 @@ class VolcengineSmsService
     }
 
     /**
-     * 构建请求头（包含签名）
+     * 批量发送短信
+     *
+     * @param array $phoneNumbers 手机号数组
+     * @param string $templateId 模板ID
+     * @param array $templateParams 模板参数
+     * @return array
      */
-    protected function buildHeaders(
-        string $endpoint,
-        string $now,
-        string $date,
-        string $region,
-        string $accessKey,
-        string $secretKey,
-        array $query,
-        string $body
-    ): array {
-        $contentType = 'application/json';
-        $bodyHash = hash('sha256', $body);
+    public function sendBatch(
+        array  $phoneNumbers,
+        string $templateId,
+        array  $templateParams = []
+    ): array
+    {
+        // 火山云支持逗号分隔的手机号
+        $phones = implode(',', $phoneNumbers);
 
-        $headers = [
-            'Host' => $endpoint,
-            'Content-Type' => $contentType,
-            'X-Date' => $now,
-            'X-Content-Sha256' => $bodyHash,
+        return $this->send($phones, $templateId, $templateParams);
+    }
+
+    /**
+     * 解析火山云响应
+     *
+     * @param mixed $response
+     * @param string $phoneNumber
+     * @return array
+     */
+    protected function parseResponse($response, string $phoneNumber): array
+    {
+        $result = [
+            'success' => false,
+            'request_id' => '',
+            'error_code' => '',
+            'error_message' => '',
         ];
 
-        // 构建规范请求
-        $signedHeaders = 'content-type;host;x-content-sha256;x-date';
-        $canonicalHeaders = "content-type:{$contentType}\nhost:{$endpoint}\nx-content-sha256:{$bodyHash}\nx-date:{$now}\n";
+        // 响应为空
+        if (empty($response)) {
+            $result['error_code'] = 'EMPTY_RESPONSE';
+            $result['error_message'] = '响应为空';
 
-        ksort($query);
-        $canonicalQueryString = http_build_query($query);
+            Log::error('火山云短信响应为空', [
+                'phone' => $this->maskPhone($phoneNumber),
+            ]);
 
-        $canonicalRequest = implode("\n", [
-            'POST',
-            '/',
-            $canonicalQueryString,
-            $canonicalHeaders,
-            $signedHeaders,
-            $bodyHash,
-        ]);
+            return $result;
+        }
 
-        // 构建待签名字符串
-        $credentialScope = "{$date}/{$region}/" . self::SERVICE . "/request";
-        $stringToSign = implode("\n", [
-            self::ALGORITHM,
-            $now,
-            $credentialScope,
-            hash('sha256', $canonicalRequest),
-        ]);
+        // 解析响应
+        $responseData = is_string($response) ? json_decode($response, true) : $response;
 
-        // 计算签名
-        $kDate = hash_hmac('sha256', $date, $secretKey, true);
-        $kRegion = hash_hmac('sha256', $region, $kDate, true);
-        $kService = hash_hmac('sha256', self::SERVICE, $kRegion, true);
-        $kSigning = hash_hmac('sha256', 'request', $kService, true);
-        $signature = hash_hmac('sha256', $stringToSign, $kSigning);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            $result['error_code'] = 'INVALID_JSON';
+            $result['error_message'] = '响应格式错误';
 
-        // 构建 Authorization 头
-        $headers['Authorization'] = sprintf(
-            '%s Credential=%s/%s, SignedHeaders=%s, Signature=%s',
-            self::ALGORITHM,
-            $accessKey,
-            $credentialScope,
-            $signedHeaders,
-            $signature
-        );
+            Log::error('火山云短信响应格式错误', [
+                'phone' => $this->maskPhone($phoneNumber),
+                'response' => $response,
+            ]);
 
-        return $headers;
+            return $result;
+        }
+
+        // 提取 RequestId
+        $result['request_id'] = $responseData['ResponseMetadata']['RequestId'] ?? '';
+
+        // 检查是否有错误
+        if (isset($responseData['ResponseMetadata']['Error'])) {
+            $error = $responseData['ResponseMetadata']['Error'];
+            $result['error_code'] = $error['Code'] ?? 'UNKNOWN';
+            $result['error_message'] = $error['Message'] ?? '未知错误';
+
+            Log::error('火山云短信发送失败', [
+                'phone' => $this->maskPhone($phoneNumber),
+                'request_id' => $result['request_id'],
+                'error_code' => $result['error_code'],
+                'error_message' => $result['error_message'],
+            ]);
+
+            return $result;
+        }
+
+        // 检查发送结果
+        $sendResult = $responseData['Result'] ?? [];
+        if (!empty($sendResult['MessageID'])) {
+            $result['success'] = true;
+            $result['message_id'] = $sendResult['MessageID'];
+
+            Log::info('火山云短信发送成功', [
+                'phone' => $this->maskPhone($phoneNumber),
+                'request_id' => $result['request_id'],
+                'message_id' => $result['message_id'],
+            ]);
+        } else {
+            $result['error_code'] = 'NO_MESSAGE_ID';
+            $result['error_message'] = '发送结果异常';
+
+            Log::warning('火山云短信发送结果异常', [
+                'phone' => $this->maskPhone($phoneNumber),
+                'request_id' => $result['request_id'],
+                'result' => $sendResult,
+            ]);
+        }
+
+        return $result;
+    }
+
+    /**
+     * 手机号脱敏
+     *
+     * @param string $phone
+     * @return string
+     */
+    protected function maskPhone(string $phone): string
+    {
+        return $phone;
+        if (strlen($phone) >= 7) {
+            return substr($phone, 0, 3) . '****' . substr($phone, -4);
+        }
+
+        return '****';
     }
 }

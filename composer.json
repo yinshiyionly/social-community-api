@@ -6,6 +6,7 @@
     "license": "MIT",
     "require": {
         "php": "^7.3",
+        "ext-json": "*",
         "fruitcake/laravel-cors": "^2.0",
         "guzzlehttp/guzzle": "^7.0.1",
         "laravel/framework": "^8.75",
@@ -14,7 +15,7 @@
         "laravel/tinker": "^2.5",
         "mews/captcha": "^3.3",
         "volcengine/ve-tos-php-sdk": "^2.1",
-        "ext-json": "*"
+        "volcengine/volc-sdk-php": "^1.0"
     },
     "require-dev": {
         "facade/ignition": "^2.5",

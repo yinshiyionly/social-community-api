@@ -26,7 +26,7 @@ class SmsService
     /**
      * 验证码长度
      */
-    const CODE_LENGTH = 6;
+    const CODE_LENGTH = 4;
 
     /**
      * 缓存 key 前缀

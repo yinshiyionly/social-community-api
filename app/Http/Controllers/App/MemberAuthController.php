@@ -30,6 +30,9 @@ class MemberAuthController extends Controller
 
     /**
      * 手机号密码登录
+     *
+     * @param LoginRequest $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function login(LoginRequest $request)
     {
@@ -42,13 +45,16 @@ class MemberAuthController extends Controller
             return AppApiResponse::error('手机号或密码错误');
         }
 
-        return AppApiResponse::success([
-            'token' => $result['token'],
-        ]);
+        return AppApiResponse::success(['data' => [
+            'token' => $result['token']
+        ]]);
     }
 
     /**
      * 手机号验证码登录
+     *
+     * @param SmsLoginRequest $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function smsLogin(SmsLoginRequest $request)
     {
@@ -72,13 +78,16 @@ class MemberAuthController extends Controller
             return AppApiResponse::accountDisabled();
         }
 
-        return AppApiResponse::success([
-            'token' => $result['token'],
-        ]);
+        return AppApiResponse::success(['data' => [
+            'token' => $result['token']
+        ]]);
     }
 
     /**
      * 发送登录验证码
+     *
+     * @param SendSmsRequest $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function sendSms(SendSmsRequest $request)
     {
@@ -90,8 +99,8 @@ class MemberAuthController extends Controller
             return AppApiResponse::error($result['message']);
         }
 
-        return AppApiResponse::success([
-            'expireSeconds' => $result['expire_seconds'],
-        ]);
+        return AppApiResponse::success(['data' => [
+            'expireSeconds' => $result['expire_seconds']
+        ]]);
     }
 }

@@ -162,8 +162,8 @@ class MemberAuthController extends Controller
         return AppApiResponse::success([
             'data' => [
                 'token' => $result['token'],
-                'is_new' => $result['is_new'],
-                'need_bind_phone' => $needBindPhone,
+                'isNew' => $result['is_new'],
+                'needBindPhone' => $needBindPhone,
             ]
         ]);
     }

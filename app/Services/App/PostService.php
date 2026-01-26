@@ -4,6 +4,7 @@ namespace App\Services\App;
 
 use App\Models\App\AppPostBase;
 use App\Models\App\AppPostCollection;
+use App\Models\App\AppPostLike;
 use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -192,5 +193,144 @@ class PostService
     public function getCollectedPostIds(int $memberId, array $postIds): array
     {
         return AppPostCollection::getCollectedPostIds($memberId, $postIds);
+    }
+
+    /**
+     * 点赞帖子
+     *
+     * @param int $memberId 会员ID
+     * @param int $postId 帖子ID
+     * @return array ['success' => bool, 'message' => string, 'is_liked' => bool]
+     */
+    public function likePost(int $memberId, int $postId): array
+    {
+        // 检查帖子是否存在且可访问
+        $post = AppPostBase::query()
+            ->approved()
+            ->visible()
+            ->where('post_id', $postId)
+            ->first();
+
+        if (!$post) {
+            return [
+                'success' => false,
+                'message' => 'not_found',
+                'is_liked' => false,
+            ];
+        }
+
+        // 检查是否已点赞
+        if (AppPostLike::isLiked($memberId, $postId)) {
+            return [
+                'success' => true,
+                'message' => 'already_liked',
+                'is_liked' => true,
+            ];
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // 创建点赞记录
+            AppPostLike::create([
+                'member_id' => $memberId,
+                'post_id' => $postId,
+            ]);
+
+            // 增加帖子点赞数
+            $post->incrementLikeCount();
+
+            DB::commit();
+
+            return [
+                'success' => true,
+                'message' => 'liked',
+                'is_liked' => true,
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * 取消点赞帖子
+     *
+     * @param int $memberId 会员ID
+     * @param int $postId 帖子ID
+     * @return array ['success' => bool, 'message' => string, 'is_liked' => bool]
+     */
+    public function unlikePost(int $memberId, int $postId): array
+    {
+        // 检查帖子是否存在
+        $post = AppPostBase::query()
+            ->where('post_id', $postId)
+            ->first();
+
+        if (!$post) {
+            return [
+                'success' => false,
+                'message' => 'not_found',
+                'is_liked' => false,
+            ];
+        }
+
+        // 查找点赞记录
+        $like = AppPostLike::where('member_id', $memberId)
+            ->where('post_id', $postId)
+            ->first();
+
+        if (!$like) {
+            return [
+                'success' => true,
+                'message' => 'not_liked',
+                'is_liked' => false,
+            ];
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // 删除点赞记录
+            $like->delete();
+
+            // 减少帖子点赞数
+            $post->decrementLikeCount();
+
+            DB::commit();
+
+            return [
+                'success' => true,
+                'message' => 'unliked',
+                'is_liked' => false,
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * 检查帖子是否已被点赞
+     *
+     * @param int $memberId 会员ID
+     * @param int $postId 帖子ID
+     * @return bool
+     */
+    public function isPostLiked(int $memberId, int $postId): bool
+    {
+        return AppPostLike::isLiked($memberId, $postId);
+    }
+
+    /**
+     * 批量检查帖子是否已被点赞
+     *
+     * @param int $memberId 会员ID
+     * @param array $postIds 帖子ID数组
+     * @return array 已点赞的帖子ID数组
+     */
+    public function getLikedPostIds(int $memberId, array $postIds): array
+    {
+        return AppPostLike::getLikedPostIds($memberId, $postIds);
     }
 }

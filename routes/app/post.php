@@ -24,5 +24,9 @@ Route::prefix('v1/post')->group(function () {
         Route::post('collect/{id}', [PostController::class, 'collect'])->where('id', '[0-9]+');
         // 取消收藏
         Route::post('uncollect/{id}', [PostController::class, 'uncollect'])->where('id', '[0-9]+');
+        // 点赞帖子
+        Route::post('like/{id}', [PostController::class, 'like'])->where('id', '[0-9]+');
+        // 取消点赞
+        Route::post('unlike/{id}', [PostController::class, 'unlike'])->where('id', '[0-9]+');
     });
 });

@@ -46,13 +46,16 @@ class PostController extends Controller
         try {
             $posts = $this->postService->getPostList($cursor, $pageSize);
 
-            // 如果用户已登录，获取收藏状态并注入到 Resource
+            // 如果用户已登录，获取收藏和点赞状态并注入到 Resource
             if ($memberId) {
                 $postIds = $posts->pluck('post_id')->toArray();
                 $collectedPostIds = $this->postService->getCollectedPostIds($memberId, $postIds);
+                $likedPostIds = $this->postService->getLikedPostIds($memberId, $postIds);
                 PostListResource::setCollectedPostIds($collectedPostIds);
+                PostListResource::setLikedPostIds($likedPostIds);
             } else {
                 PostListResource::setCollectedPostIds([]);
+                PostListResource::setLikedPostIds([]);
             }
 
             return AppApiResponse::cursorPaginate($posts, PostListResource::class);
@@ -88,17 +91,19 @@ class PostController extends Controller
             // 增加浏览量
             $this->postService->incrementViewCount($post);
 
-            // 检查收藏状态
+            // 检查收藏和点赞状态
             $isCollected = false;
+            $isLiked = false;
             if ($memberId) {
                 $isCollected = $this->postService->isPostCollected($memberId, $id);
+                $isLiked = $this->postService->isPostLiked($memberId, $id);
             }
 
             return AppApiResponse::resource(
                 $post,
                 PostResource::class,
                 'success',
-                ['is_collected' => $isCollected]
+                ['isCollected' => $isCollected, 'isLiked' => $isLiked]
             );
         } catch (\Exception $e) {
             Log::error('获取帖子详情失败', [
@@ -165,6 +170,70 @@ class PostController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('取消收藏帖子失败', [
+                'member_id' => $memberId,
+                'post_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 点赞帖子
+     *
+     * @param Request $request
+     * @param int $id 帖子ID
+     */
+    public function like(Request $request, int $id)
+    {
+        $memberId = $this->getMemberId($request);
+
+        try {
+            $result = $this->postService->likePost($memberId, $id);
+
+            if (!$result['success'] && $result['message'] === 'not_found') {
+                return AppApiResponse::dataNotFound('内容不存在');
+            }
+
+            return AppApiResponse::success([
+                'isLiked' => $result['is_liked'],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('点赞帖子失败', [
+                'member_id' => $memberId,
+                'post_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 取消点赞帖子
+     *
+     * @param Request $request
+     * @param int $id 帖子ID
+     */
+    public function unlike(Request $request, int $id)
+    {
+        $memberId = $this->getMemberId($request);
+
+        try {
+            $result = $this->postService->unlikePost($memberId, $id);
+
+            if (!$result['success'] && $result['message'] === 'not_found') {
+                return AppApiResponse::dataNotFound('内容不存在');
+            }
+
+            return AppApiResponse::success([
+                'isLiked' => $result['is_liked'],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('取消点赞帖子失败', [
                 'member_id' => $memberId,
                 'post_id' => $id,
                 'error' => $e->getMessage(),

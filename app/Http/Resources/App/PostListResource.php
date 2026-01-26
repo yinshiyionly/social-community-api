@@ -24,6 +24,13 @@ class PostListResource extends JsonResource
     public static $collectedPostIds = [];
 
     /**
+     * 已点赞的帖子ID数组（由控制器注入）
+     *
+     * @var array
+     */
+    public static $likedPostIds = [];
+
+    /**
      * 设置已收藏的帖子ID
      *
      * @param array $postIds
@@ -31,6 +38,16 @@ class PostListResource extends JsonResource
     public static function setCollectedPostIds(array $postIds): void
     {
         self::$collectedPostIds = $postIds;
+    }
+
+    /**
+     * 设置已点赞的帖子ID
+     *
+     * @param array $postIds
+     */
+    public static function setLikedPostIds(array $postIds): void
+    {
+        self::$likedPostIds = $postIds;
     }
 
     /**
@@ -54,6 +71,7 @@ class PostListResource extends JsonResource
             'isVideo' => $this->isVideoPost($firstMedia),
             'aspectRatio' => $this->calculateAspectRatio($firstMedia),
             'isCollected' => in_array($this->post_id, self::$collectedPostIds),
+            'isLiked' => in_array($this->post_id, self::$likedPostIds),
         ];
     }
 

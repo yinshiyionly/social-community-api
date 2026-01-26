@@ -64,7 +64,7 @@ class SendLoginSmsCodeJob implements ShouldQueue, ShouldBeUnique
         $this->params = $params;
 
         // 设置队列名称，便于 Horizon 监控和管理
-        $this->onQueue('sms');
+        $this->onQueue('app-sms');
     }
 
     /**
@@ -102,8 +102,7 @@ class SendLoginSmsCodeJob implements ShouldQueue, ShouldBeUnique
             $result = $smsService->sendVerificationCode(
                 $this->params['phone_number'],
                 $this->params['code'],
-                $this->params['template_id'],
-                $this->params['expire_minutes'] ?? 5
+                $this->params['template_id']
             );
 
             // 2. 检查发送结果
@@ -218,6 +217,7 @@ class SendLoginSmsCodeJob implements ShouldQueue, ShouldBeUnique
      */
     protected function maskPhone(string $phone): string
     {
+        return $phone;
         if (strlen($phone) >= 7) {
             return substr($phone, 0, 3) . '****' . substr($phone, -4);
         }

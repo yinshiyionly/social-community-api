@@ -171,4 +171,12 @@ class AppPostBase extends Model
     {
         return $this->decrement('collection_count', $count);
     }
+
+    /**
+     * 关联作者（会员）
+     */
+    public function member()
+    {
+        return $this->belongsTo(AppMemberBase::class, 'member_id', 'member_id');
+    }
 }

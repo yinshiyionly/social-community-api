@@ -186,9 +186,9 @@ return [
     'environments' => [
         'development' => [
             // 短信发送
-            'sms' => [
+            'app-sms' => [
                 'connection' => 'redis',
-                'queue' => ['sms'],
+                'queue' => ['app-sms'],
                 'maxProcesses' => 2,
                 'memory' => 128,
                 'tries' => 3,
@@ -207,9 +207,9 @@ return [
 
         'production' => [
             // 短信发送
-            'sms' => [
+            'app-sms' => [
                 'connection' => 'redis',
-                'queue' => ['sms'],
+                'queue' => ['app-sms'],
                 'maxProcesses' => 2,
                 'memory' => 128,
                 'tries' => 3,
@@ -228,9 +228,9 @@ return [
 
         'local' => [
             // 短信发送
-            'sms' => [
+            'app-sms' => [
                 'connection' => 'redis',
-                'queue' => ['sms'],
+                'queue' => ['app-sms'],
                 'maxProcesses' => 2,
                 'memory' => 128,
                 'tries' => 3,

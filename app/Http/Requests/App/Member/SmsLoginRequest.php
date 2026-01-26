@@ -15,7 +15,7 @@ class SmsLoginRequest extends FormRequest
     {
         return [
             'phone' => 'required|string|regex:/^1[3-9]\d{9}$/',
-            'code' => 'required|string|size:6',
+            'code' => 'required|string|size:4',
         ];
     }
 

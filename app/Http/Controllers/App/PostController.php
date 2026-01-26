@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\App\PostListRequest;
 use App\Http\Resources\App\AppApiResponse;
 use App\Http\Resources\App\PostListResource;
+use App\Http\Resources\App\PostResource;
 use App\Services\App\PostService;
 use Illuminate\Support\Facades\Log;
 
@@ -37,6 +38,35 @@ class PostController extends Controller
             Log::error('获取帖子列表失败', [
                 'cursor' => $cursor,
                 'pageSize' => $pageSize,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 获取帖子详情
+     *
+     * @param int $id 帖子ID
+     */
+    public function detail(int $id)
+    {
+        try {
+            $post = $this->postService->getPostDetail($id);
+
+            if (!$post) {
+                return AppApiResponse::dataNotFound('内容不存在');
+            }
+
+            // 增加浏览量
+            $this->postService->incrementViewCount($post);
+
+            return AppApiResponse::resource($post, PostResource::class);
+        } catch (\Exception $e) {
+            Log::error('获取帖子详情失败', [
+                'post_id' => $id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);

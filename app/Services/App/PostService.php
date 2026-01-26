@@ -25,4 +25,31 @@ class PostService
             ->orderByDesc('post_id')
             ->cursorPaginate($pageSize, ['*'], 'cursor', $cursor);
     }
+
+    /**
+     * 获取帖子详情
+     *
+     * @param int $postId 帖子ID
+     * @return AppPostBase|null
+     */
+    public function getPostDetail(int $postId)
+    {
+        return AppPostBase::query()
+            ->with('member')
+            ->approved()
+            ->visible()
+            ->where('post_id', $postId)
+            ->first();
+    }
+
+    /**
+     * 增加帖子浏览量
+     *
+     * @param AppPostBase $post 帖子模型
+     * @return bool
+     */
+    public function incrementViewCount(AppPostBase $post): bool
+    {
+        return $post->incrementViewCount();
+    }
 }

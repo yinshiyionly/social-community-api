@@ -22,20 +22,20 @@ class PostController extends Controller
     }
 
     /**
-     * 获取帖子列表
+     * 获取帖子列表（游标分页）
      */
     public function list(PostListRequest $request)
     {
-        $page = $request->input('page', 1);
+        $cursor = $request->input('cursor');
         $pageSize = $request->input('pageSize', 10);
 
         try {
-            $posts = $this->postService->getPostList($page, $pageSize);
+            $posts = $this->postService->getPostList($cursor, $pageSize);
 
-            return AppApiResponse::collection($posts, PostListResource::class);
+            return AppApiResponse::cursorPaginate($posts, PostListResource::class);
         } catch (\Exception $e) {
             Log::error('获取帖子列表失败', [
-                'page' => $page,
+                'cursor' => $cursor,
                 'pageSize' => $pageSize,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),

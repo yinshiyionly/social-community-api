@@ -3,28 +3,26 @@
 namespace App\Services\App;
 
 use App\Models\App\AppPostBase;
-use Illuminate\Support\Collection;
+use Illuminate\Pagination\CursorPaginator;
 
 class PostService
 {
     /**
-     * 获取帖子列表
+     * 获取帖子列表（游标分页）
      *
-     * @param int $page 页码
+     * @param string|null $cursor 游标
      * @param int $pageSize 每页数量
-     * @return Collection
+     * @return CursorPaginator
      */
-    public function getPostList(int $page = 1, int $pageSize = 10): Collection
+    public function getPostList(?string $cursor = null, int $pageSize = 10): CursorPaginator
     {
-        $offset = ($page - 1) * $pageSize;
-
         return AppPostBase::query()
             ->with('member')
             ->approved()
             ->visible()
-            ->orderByTop()
-            ->offset($offset)
-            ->limit($pageSize)
-            ->get();
+            ->orderByDesc('is_top')
+            ->orderByDesc('sort_score')
+            ->orderByDesc('post_id')
+            ->cursorPaginate($pageSize, ['*'], 'cursor', $cursor);
     }
 }

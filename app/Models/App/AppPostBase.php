@@ -31,6 +31,7 @@ class AppPostBase extends Model
         'share_count',
         'collection_count',
         'is_top',
+        'sort_score',
         'visible',
         'status',
         'audit_msg',
@@ -48,6 +49,7 @@ class AppPostBase extends Model
         'share_count' => 'integer',
         'collection_count' => 'integer',
         'is_top' => 'integer',
+        'sort_score' => 'float',
         'visible' => 'integer',
         'status' => 'integer',
     ];

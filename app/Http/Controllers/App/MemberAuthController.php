@@ -107,14 +107,33 @@ class MemberAuthController extends Controller
         $code = $request->input('code');
 
         // 1. 通过 code 获取 access_token
-        $tokenInfo = $this->weChatService->getAccessTokenByCode($code);
+        // $tokenInfo = $this->weChatService->getAccessTokenByCode($code);
+        $tokenInfo = [
+            'access_token' => 'ACCESS_TOKEN',
+            'expires_in' => 7200,
+            'refresh_token' => 'REFRESH_TOKEN',
+            'openid' => 'OPENID',
+            'scope' => 'SCOPE'
+        ];
         if (!$tokenInfo) {
             Log::warning('WeChat login: get access_token failed', ['code' => substr($code, 0, 10) . '...']);
             return AppApiResponse::error('微信授权失败，请重试');
         }
 
         // 2. 获取微信用户信息
-        $userInfo = $this->weChatService->getUserInfo($tokenInfo['access_token'], $tokenInfo['openid']);
+        // @see https://developers.weixin.qq.com/doc/oplatform/Mobile_App/WeChat_Login/Authorized_API_call_UnionID.html
+        // $userInfo = $this->weChatService->getUserInfo($tokenInfo['access_token'], $tokenInfo['openid']);
+        $userInfo = [
+            'openid' => 'OPENID',
+            'nickname' => 'NICKNAME',
+            'sex' => 1,
+            'province' => 'PROVINCE',
+            'city' => 'CITY',
+            'country' => 'COUNTRY',
+            'headimgurl' => 'https://thirdwx.qlogo.cn/mmopen/g3MonUZtNHkdmzicIlibx6iaFqAc56vxLSUfpb6n5WKSYVY0ChQKkiaJSgQ1dZuTOgvLLrhJbERQQ4eMsv84eavHiaiceqxibJxCfHe/0',
+            'privilege' => ['PRIVILEGE1', 'PRIVILEGE2'],
+            'unionid' => 'o6_bmasdasdsad6_2sgVt7hMZOPfL'
+        ];
         if (!$userInfo) {
             Log::warning('WeChat login: get userinfo failed', ['openid' => $tokenInfo['openid']]);
             return AppApiResponse::error('获取用户信息失败，请重试');

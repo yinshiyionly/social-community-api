@@ -17,6 +17,23 @@ class PostListResource extends JsonResource
     const DEFAULT_ASPECT_RATIO = 1.0;
 
     /**
+     * 已收藏的帖子ID数组（由控制器注入）
+     *
+     * @var array
+     */
+    public static $collectedPostIds = [];
+
+    /**
+     * 设置已收藏的帖子ID
+     *
+     * @param array $postIds
+     */
+    public static function setCollectedPostIds(array $postIds): void
+    {
+        self::$collectedPostIds = $postIds;
+    }
+
+    /**
      * 转换资源为数组
      *
      * @param \Illuminate\Http\Request $request
@@ -36,6 +53,7 @@ class PostListResource extends JsonResource
             'likes' => $this->like_count ?? 0,
             'isVideo' => $this->isVideoPost($firstMedia),
             'aspectRatio' => $this->calculateAspectRatio($firstMedia),
+            'isCollected' => in_array($this->post_id, self::$collectedPostIds),
         ];
     }
 

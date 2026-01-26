@@ -18,7 +18,7 @@ class AppApiResponse
     {
         $response = [
             'code' => AppResponseCode::SUCCESS,
-            'message' => $message,
+            'msg' => $message,
         ];
 
         if ($data !== null && !empty($data)) {
@@ -42,7 +42,7 @@ class AppApiResponse
     {
         return response()->json([
             'code' => $code,
-            'message' => $message,
+            'msg' => $message,
             'data' => $data,
         ]);
     }
@@ -60,7 +60,7 @@ class AppApiResponse
 
         return response()->json([
             'code' => AppResponseCode::SUCCESS,
-            'message' => $message,
+            'msg' => $message,
             'total' => $paginator->total(),
             'rows' => $items,
         ]);
@@ -82,7 +82,7 @@ class AppApiResponse
 
         return response()->json([
             'code' => AppResponseCode::SUCCESS,
-            'message' => $message,
+            'msg' => $message,
             'data' => [
                 'list' => $items,
                 'next_cursor' => $nextCursor ? $nextCursor->encode() : null,
@@ -103,7 +103,7 @@ class AppApiResponse
 
         return response()->json([
             'code' => AppResponseCode::SUCCESS,
-            'message' => $message,
+            'msg' => $message,
             'data' => $data,
         ]);
     }
@@ -119,7 +119,7 @@ class AppApiResponse
 
         return response()->json([
             'code' => AppResponseCode::SUCCESS,
-            'message' => $message,
+            'msg' => $message,
             'data' => $data,
         ]);
     }
@@ -131,7 +131,7 @@ class AppApiResponse
     {
         return response()->json([
             'code' => AppResponseCode::INVALID_PARAMS,
-            'message' => $message,
+            'msg' => $message,
             'errors' => $errors,
         ]);
     }
@@ -143,7 +143,7 @@ class AppApiResponse
     {
         return response()->json([
             'code' => AppResponseCode::UNAUTHORIZED,
-            'message' => $message,
+            'msg' => $message,
         ]);
     }
 
@@ -154,7 +154,7 @@ class AppApiResponse
     {
         return response()->json([
             'code' => AppResponseCode::TOKEN_INVALID,
-            'message' => $message,
+            'msg' => $message,
         ]);
     }
 
@@ -165,7 +165,7 @@ class AppApiResponse
     {
         return response()->json([
             'code' => AppResponseCode::TOKEN_EXPIRED,
-            'message' => $message,
+            'msg' => $message,
         ]);
     }
 
@@ -176,7 +176,7 @@ class AppApiResponse
     {
         return response()->json([
             'code' => AppResponseCode::FORBIDDEN,
-            'message' => $message,
+            'msg' => $message,
         ]);
     }
 
@@ -187,7 +187,7 @@ class AppApiResponse
     {
         return response()->json([
             'code' => AppResponseCode::NOT_FOUND,
-            'message' => $message,
+            'msg' => $message,
         ]);
     }
 
@@ -198,7 +198,7 @@ class AppApiResponse
     {
         return response()->json([
             'code' => AppResponseCode::DATA_NOT_FOUND,
-            'message' => $message,
+            'msg' => $message,
         ]);
     }
 
@@ -209,7 +209,7 @@ class AppApiResponse
     {
         return response()->json([
             'code' => AppResponseCode::SERVER_ERROR,
-            'message' => $message,
+            'msg' => $message,
         ]);
     }
 
@@ -220,7 +220,7 @@ class AppApiResponse
     {
         return response()->json([
             'code' => AppResponseCode::TOO_MANY_REQUESTS,
-            'message' => $message,
+            'msg' => $message,
         ]);
     }
 
@@ -231,7 +231,7 @@ class AppApiResponse
     {
         return response()->json([
             'code' => AppResponseCode::TOKEN_INVALID,
-            'message' => $message,
+            'msg' => $message,
         ]);
     }
 
@@ -242,7 +242,7 @@ class AppApiResponse
     {
         return response()->json([
             'code' => AppResponseCode::ACCOUNT_DISABLED,
-            'message' => $message,
+            'msg' => $message,
         ]);
     }
 
@@ -253,7 +253,7 @@ class AppApiResponse
     {
         return response()->json([
             'code' => AppResponseCode::NEED_VERIFICATION,
-            'message' => $message,
+            'msg' => $message,
             'data' => ['need_verification' => true],
         ]);
     }
@@ -265,7 +265,7 @@ class AppApiResponse
     {
         return response()->json([
             'code' => AppResponseCode::NEED_BIND_PHONE,
-            'message' => $message,
+            'msg' => $message,
             'data' => ['need_bind_phone' => true],
         ]);
     }
@@ -277,7 +277,7 @@ class AppApiResponse
     {
         return response()->json([
             'code' => AppResponseCode::NEED_UPDATE,
-            'message' => $message,
+            'msg' => $message,
             'data' => [
                 'need_update' => true,
                 'update_url' => $updateUrl,
@@ -292,7 +292,7 @@ class AppApiResponse
     {
         return response()->json([
             'code' => AppResponseCode::SERVICE_UNAVAILABLE,
-            'message' => $message,
+            'msg' => $message,
         ]);
     }
 }

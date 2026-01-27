@@ -36,6 +36,118 @@ class PostController extends Controller
         return $request->attributes->get('member_id');
     }
 
+    public function feed()
+    {
+        $json = <<<EOF
+{
+    "data": [
+        {
+            "id": 11,
+            "cover": "https://picsum.photos/400/523?random=211",
+            "title": "",
+            "avatar": "/static/images/avatar.jpg",
+            "nickname": "韩",
+            "likes": 231,
+            "isVideo": false,
+            "aspectRatio": 1.1844174939052037
+        },
+        {
+            "id": 12,
+            "cover": "https://picsum.photos/400/520?random=212",
+            "title": "零基础京剧唱腔营",
+            "avatar": "/static/images/avatar.jpg",
+            "nickname": "林",
+            "likes": 227,
+            "isVideo": true,
+            "aspectRatio": 1.7590048998265542
+        },
+        {
+            "id": 13,
+            "cover": "https://picsum.photos/400/489?random=213",
+            "title": "小寒温养瑜伽，通经升阳 温络固本，适合冬季练习的养生瑜伽动作分享，建议每天早晚各练习一次效果更佳",
+            "avatar": "/static/images/avatar.jpg",
+            "nickname": "蕾蕾",
+            "likes": 228,
+            "isVideo": false,
+            "aspectRatio": 0.9553714517348583
+        },
+        {
+            "id": 14,
+            "cover": "https://picsum.photos/400/417?random=214",
+            "title": "2025兴趣岛第四届手机摄影大赛正式开启报名！本次大赛设置多个主题赛道，丰厚奖品等你来拿",
+            "avatar": "/static/images/avatar.jpg",
+            "nickname": "小美",
+            "likes": 107,
+            "isVideo": false,
+            "aspectRatio": 1.0168621293342923
+        },
+        {
+            "id": 15,
+            "cover": "https://picsum.photos/400/454?random=215",
+            "title": "温度提高1°C，免疫力提高30%",
+            "avatar": "/static/images/avatar.jpg",
+            "nickname": "阿杰",
+            "likes": 278,
+            "isVideo": false,
+            "aspectRatio": 1.4252494374575466
+        },
+        {
+            "id": 16,
+            "cover": "https://picsum.photos/400/393?random=216",
+            "title": "",
+            "avatar": "/static/images/avatar.jpg",
+            "nickname": "云舒",
+            "likes": 189,
+            "isVideo": false,
+            "aspectRatio": 1.0906631361643686
+        },
+        {
+            "id": 17,
+            "cover": "https://picsum.photos/400/411?random=217",
+            "title": "蘑菇上的灵动",
+            "avatar": "/static/images/avatar.jpg",
+            "nickname": "张锋",
+            "likes": 112,
+            "isVideo": true,
+            "aspectRatio": 1.7561708340446698
+        },
+        {
+            "id": 18,
+            "cover": "https://picsum.photos/400/487?random=218",
+            "title": "",
+            "avatar": "/static/images/avatar.jpg",
+            "nickname": "珂",
+            "likes": 70,
+            "isVideo": false,
+            "aspectRatio": 1.258329647339067
+        },
+        {
+            "id": 19,
+            "cover": "https://picsum.photos/400/544?random=219",
+            "title": "",
+            "avatar": "/static/images/avatar.jpg",
+            "nickname": "韩",
+            "likes": 333,
+            "isVideo": false,
+            "aspectRatio": 0.9726100173883867
+        },
+        {
+            "id": 20,
+            "cover": "https://picsum.photos/400/596?random=220",
+            "title": "冬日早安",
+            "avatar": "/static/images/avatar.jpg",
+            "nickname": "林",
+            "likes": 135,
+            "isVideo": false,
+            "aspectRatio": 1.7723276199544462
+        }
+    ]
+}
+EOF;
+        $arr = json_decode($json, true);
+        return AppApiResponse::success($arr);
+    }
+
     /**
      * 获取帖子列表（游标分页）
      */

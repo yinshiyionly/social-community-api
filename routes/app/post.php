@@ -12,6 +12,7 @@ use App\Http\Controllers\App\PostController;
 Route::prefix('v1/post')->group(function () {
     // 公开接口（可选鉴权，有 token 时返回收藏状态）
     Route::middleware('app.auth.optional')->group(function () {
+        Route::get('feed', [PostController::class, 'feed']);
         // 动态列表（游标分页）
         Route::get('list', [PostController::class, 'list']);
         // 动态列表（普通分页）

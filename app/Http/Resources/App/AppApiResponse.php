@@ -68,8 +68,13 @@ class AppApiResponse
 
     /**
      * 游标分页响应
+     *
+     * @param CursorPaginator $paginator
+     * @param string|null $resourceClass
+     * @param string $message
+     * @param array $extra 额外数据
      */
-    public static function cursorPaginate($paginator, $resourceClass = null, $message = 'success')
+    public static function cursorPaginate($paginator, $resourceClass = null, $message = 'success', array $extra = [])
     {
         $items = $paginator->items();
 
@@ -80,15 +85,22 @@ class AppApiResponse
         $nextCursor = $paginator->nextCursor();
         $prevCursor = $paginator->previousCursor();
 
+        $data = [
+            'list' => $items,
+            'next_cursor' => $nextCursor ? $nextCursor->encode() : null,
+            'prev_cursor' => $prevCursor ? $prevCursor->encode() : null,
+            'has_more' => $paginator->hasMorePages(),
+        ];
+
+        // 合并额外数据
+        if (!empty($extra)) {
+            $data = array_merge($data, $extra);
+        }
+
         return response()->json([
             'code' => AppResponseCode::SUCCESS,
             'msg' => $message,
-            'data' => [
-                'list' => $items,
-                'next_cursor' => $nextCursor ? $nextCursor->encode() : null,
-                'prev_cursor' => $prevCursor ? $prevCursor->encode() : null,
-                'has_more' => $paginator->hasMorePages(),
-            ],
+            'data' => $data,
         ]);
     }
 
@@ -110,11 +122,21 @@ class AppApiResponse
 
     /**
      * 单个资源响应
+     *
+     * @param mixed $data
+     * @param string|null $resourceClass
+     * @param string $message
+     * @param array $extra 额外数据
      */
-    public static function resource($data, $resourceClass = null, $message = 'success')
+    public static function resource($data, $resourceClass = null, $message = 'success', array $extra = [])
     {
         if ($resourceClass && class_exists($resourceClass)) {
             $data = (new $resourceClass($data))->resolve();
+        }
+
+        // 合并额外数据到 data 中
+        if (!empty($extra)) {
+            $data = array_merge($data, $extra);
         }
 
         return response()->json([

@@ -15,6 +15,17 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
+        // 每10分钟刷新帖子排序分（近7天）
+        $schedule->command('post:refresh-sort-score')
+            ->everyTenMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        // 每天凌晨3点全量刷新
+        $schedule->command('post:refresh-sort-score --all')
+            ->dailyAt('03:00')
+            ->withoutOverlapping()
+            ->runInBackground();
     }
 
     /**

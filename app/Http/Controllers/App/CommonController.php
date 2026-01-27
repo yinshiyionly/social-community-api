@@ -15,7 +15,7 @@ class CommonController extends Controller
     /**
      * @var AppFileUploadService
      */
-    protected $fileUploadService;
+    protected AppFileUploadService $fileUploadService;
 
     public function __construct(AppFileUploadService $fileUploadService)
     {
@@ -51,10 +51,10 @@ class CommonController extends Controller
                 'data' => [
                     'fileName' => $result['original_name'],
                     'key' => $result['path'],
-                    'metadata' => null,
+                    'reused' => $result['reused'] ?? false,
                     'size' => $result['file_size'],
-                    'url' => $result['url'],
-                ],
+                    'url' => $result['url']
+                ]
             ]);
         } catch (FileValidationException $e) {
             return AppApiResponse::error('文件验证失败,请重试');
@@ -101,7 +101,7 @@ class CommonController extends Controller
                 'data' => [
                     'fileName' => $result['original_name'],
                     'key' => $result['path'],
-                    'reused' => $result['reused'],
+                    'reused' => $result['reused'] ?? false,
                     'size' => $result['file_size'],
                     'url' => $result['url'],
                 ]
@@ -178,10 +178,9 @@ class CommonController extends Controller
             foreach ($batchResult['success'] as $index => $item) {
                 $results[] = [
                     'fileName' => $item['original_name'],
-                    'hash' => $item['file_hash'],
                     'index' => $index,
                     'key' => $item['path'],
-                    'reused' => isset($item['reused']) ? $item['reused'] : false,
+                    'reused' => $item['reused'] ?? false,
                     'size' => $item['file_size'],
                     'url' => $item['url'],
                 ];
@@ -196,16 +195,14 @@ class CommonController extends Controller
                 ];
             }
 
-            return response()->json([
-                'code' => 200,
-                'message' => 'success',
+            return AppApiResponse::success([
                 'data' => [
                     'errors' => $errors,
                     'failed' => count($errors),
                     'results' => $results,
                     'success' => count($results),
-                    'total' => count($files),
-                ],
+                    'total' => count($files)
+                ]
             ]);
         } catch (FileValidationException $e) {
             return AppApiResponse::error('文件验证失败,请重试');

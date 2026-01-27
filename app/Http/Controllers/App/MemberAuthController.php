@@ -74,9 +74,18 @@ class MemberAuthController extends Controller
         $phone = $request->input('phone');
         $code = $request->input('code');
 
-        // 验证验证码
-        if (!$this->smsService->verify($phone, $code, SmsService::SCOPE_LOGIN)) {
-            return AppApiResponse::error('验证码错误或已过期');
+        // 白名单手机号
+        $whiteList  = [
+            '15201064085',
+            '13888888888',
+            '18701433585'
+        ];
+
+        if (!in_array($phone, $whiteList)) {
+            // 验证验证码
+            if (!$this->smsService->verify($phone, $code, SmsService::SCOPE_LOGIN)) {
+                return AppApiResponse::error('验证码错误或已过期');
+            }
         }
 
         // 登录（不存在则自动注册）

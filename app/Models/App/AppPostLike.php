@@ -25,7 +25,11 @@ class AppPostLike extends Model
         'like_id' => 'integer',
         'member_id' => 'integer',
         'post_id' => 'integer',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
+
+    // ==================== 关联关系 ====================
 
     /**
      * 关联会员
@@ -43,6 +47,34 @@ class AppPostLike extends Model
         return $this->belongsTo(AppPostBase::class, 'post_id', 'post_id');
     }
 
+    // ==================== 查询作用域 ====================
+
+    /**
+     * 按会员筛选
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int $memberId
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeByMember($query, int $memberId)
+    {
+        return $query->where('member_id', $memberId);
+    }
+
+    /**
+     * 按帖子筛选
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int $postId
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeByPost($query, int $postId)
+    {
+        return $query->where('post_id', $postId);
+    }
+
+    // ==================== 静态方法 ====================
+
     /**
      * 检查是否已点赞
      *
@@ -52,8 +84,8 @@ class AppPostLike extends Model
      */
     public static function isLiked(int $memberId, int $postId): bool
     {
-        return self::where('member_id', $memberId)
-            ->where('post_id', $postId)
+        return self::byMember($memberId)
+            ->byPost($postId)
             ->exists();
     }
 
@@ -70,7 +102,7 @@ class AppPostLike extends Model
             return [];
         }
 
-        return self::where('member_id', $memberId)
+        return self::byMember($memberId)
             ->whereIn('post_id', $postIds)
             ->pluck('post_id')
             ->toArray();

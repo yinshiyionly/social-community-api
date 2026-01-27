@@ -90,7 +90,7 @@ class AdminFileUploadService
             $mediaInfo = $this->extractMediaInfo($file, $storagePath);
 
             // 创建文件记录
-            $fileRecord = $this->createFileRecord($file, $storagePath, $fileHash, $disk, $mediaInfo);
+            $fileRecord = $this->createFileRecord($file, $storagePath, $fileHash, $mediaInfo);
 
             $duration = round((microtime(true) - $startTime) * 1000, 2);
 
@@ -340,7 +340,7 @@ class AdminFileUploadService
     /**
      * 提取媒体文件信息（图片尺寸、视频/音频时长等）
      */
-    protected function extractMediaInfo(UploadedFile $file): array
+    protected function extractMediaInfo(UploadedFile $file, $storagePath): array
     {
         $info = [
             'width' => 0,

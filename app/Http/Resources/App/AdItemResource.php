@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources\App;
 
-use App\Services\AppFileUploadService;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
@@ -21,8 +20,8 @@ class AdItemResource extends JsonResource
             // 'adTitle' => $this->ad_title,
             // 广告类型
             // 'adType' => $this->ad_type,
-            // 广告内容地址
-            'imageUrl' => (new AppFileUploadService())->generateFileUrl($this->content_url),
+            // 广告内容地址（通过 Model Accessor 自动拼接完整 URL）
+            'imageUrl' => $this->content_url,
             // 跳转类型
             'targetType' => $this->target_type,
             // 跳转地址

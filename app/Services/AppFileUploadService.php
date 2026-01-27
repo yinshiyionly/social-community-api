@@ -93,7 +93,7 @@ class AppFileUploadService
             $mediaInfo = $this->extractMediaInfo($file, $storagePath);
 
             // 创建文件记录
-            $fileRecord = $this->createFileRecord($file, $storagePath, $fileHash, $disk, $memberId, $mediaInfo);
+            $fileRecord = $this->createFileRecord($file, $storagePath, $fileHash, $memberId, $mediaInfo);
 
             $duration = round((microtime(true) - $startTime) * 1000, 2);
 
@@ -404,6 +404,9 @@ class AppFileUploadService
     protected function getMediaInfoWithTOS(string $storagePath): array
     {
         try {
+            Log::channel('daily')->info('使用TOS获取媒体信息', [
+                'storage_path' => $storagePath
+            ]);
             $mediaInfoURL = sprintf('%s?x-tos-process=video/info', $this->getBucketEndpoint($storagePath));
             $mediaInfoResponse = Http::get($mediaInfoURL);
             $mediaInfoResult = $mediaInfoResponse->json();

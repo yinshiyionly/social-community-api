@@ -11,6 +11,53 @@ use Illuminate\Support\Facades\DB;
 class PostService
 {
     /**
+     * 帖子列表查询字段
+     */
+    private const POST_LIST_COLUMNS = [
+        'post_id',
+        'member_id',
+        'post_type',
+        'title',
+        'content',
+        'media_data',
+        'location_name',
+        'view_count',
+        'like_count',
+        'comment_count',
+        'share_count',
+        'collection_count',
+        'is_top',
+        'sort_score',
+        'created_at',
+    ];
+
+    /**
+     * 帖子详情查询字段
+     */
+    private const POST_DETAIL_COLUMNS = [
+        'post_id',
+        'member_id',
+        'post_type',
+        'title',
+        'content',
+        'media_data',
+        'location_name',
+        'location_geo',
+        'view_count',
+        'like_count',
+        'comment_count',
+        'share_count',
+        'collection_count',
+        'is_top',
+        'created_at',
+    ];
+
+    /**
+     * 会员关联查询字段
+     */
+    private const MEMBER_COLUMNS = 'member:member_id,nickname,avatar';
+
+    /**
      * 获取帖子列表（游标分页）
      *
      * @param string|null $cursor 游标
@@ -20,7 +67,8 @@ class PostService
     public function getPostList(?string $cursor = null, int $pageSize = 10): CursorPaginator
     {
         return AppPostBase::query()
-            ->with('member')
+            ->select(self::POST_LIST_COLUMNS)
+            ->with(self::MEMBER_COLUMNS)
             ->approved()
             ->visible()
             ->orderByDesc('is_top')
@@ -39,7 +87,8 @@ class PostService
     public function getPostListPaginate(int $page = 1, int $pageSize = 10)
     {
         return AppPostBase::query()
-            ->with('member')
+            ->select(self::POST_LIST_COLUMNS)
+            ->with(self::MEMBER_COLUMNS)
             ->approved()
             ->visible()
             ->orderByDesc('is_top')
@@ -57,7 +106,8 @@ class PostService
     public function getPostDetail(int $postId)
     {
         return AppPostBase::query()
-            ->with('member')
+            ->select(self::POST_DETAIL_COLUMNS)
+            ->with(self::MEMBER_COLUMNS)
             ->approved()
             ->visible()
             ->where('post_id', $postId)
@@ -86,6 +136,7 @@ class PostService
     {
         // 检查帖子是否存在且可访问
         $post = AppPostBase::query()
+            ->select(['post_id', 'collection_count'])
             ->approved()
             ->visible()
             ->where('post_id', $postId)
@@ -144,6 +195,7 @@ class PostService
     {
         // 检查帖子是否存在
         $post = AppPostBase::query()
+            ->select(['post_id', 'collection_count'])
             ->where('post_id', $postId)
             ->first();
 
@@ -225,6 +277,7 @@ class PostService
     {
         // 检查帖子是否存在且可访问
         $post = AppPostBase::query()
+            ->select(['post_id', 'like_count'])
             ->approved()
             ->visible()
             ->where('post_id', $postId)
@@ -283,6 +336,7 @@ class PostService
     {
         // 检查帖子是否存在
         $post = AppPostBase::query()
+            ->select(['post_id', 'like_count'])
             ->where('post_id', $postId)
             ->first();
 

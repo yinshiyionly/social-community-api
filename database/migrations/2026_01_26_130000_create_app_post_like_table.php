@@ -21,7 +21,7 @@ class CreateAppPostLikeTable extends Migration
             $table->timestamps();
 
             // 唯一索引，防止重复点赞
-            $table->unique(['member_id', 'post_id'], 'uk_member_post');
+            $table->unique(['member_id', 'post_id'], 'app_post_like_uk_member_post');
             // 查询索引
             $table->index('member_id', 'idx_like_member');
             $table->index('post_id', 'idx_like_post');

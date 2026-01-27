@@ -65,6 +65,7 @@ class Kernel extends HttpKernel
         'permission' => \App\Http\Middleware\CheckPermission::class,
         // 'operlog' => \App\Http\Middleware\OperationLog::class,
         'app.auth' => \App\Http\Middleware\App\AppJwtAuth::class,
+        'app.auth.optional' => \App\Http\Middleware\App\AppJwtOptional::class,
         // 'admin.auth' => \App\Http\Middleware\Admin\AdminJwtAuth::class,
     ];
 }

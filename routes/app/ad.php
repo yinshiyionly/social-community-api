@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('ad')->group(function () {
+Route::prefix('v1/ad')->group(function () {
     // 广告列表
     Route::get('list', [AdController::class, 'list']);
 });

@@ -30,6 +30,25 @@ class PostService
     }
 
     /**
+     * 获取帖子列表（普通分页）
+     *
+     * @param int $page 页码
+     * @param int $pageSize 每页数量
+     * @return \Illuminate\Pagination\LengthAwarePaginator
+     */
+    public function getPostListPaginate(int $page = 1, int $pageSize = 10)
+    {
+        return AppPostBase::query()
+            ->with('member')
+            ->approved()
+            ->visible()
+            ->orderByDesc('is_top')
+            ->orderByDesc('sort_score')
+            ->orderByDesc('post_id')
+            ->paginate($pageSize, ['*'], 'page', $page);
+    }
+
+    /**
      * 获取帖子详情
      *
      * @param int $postId 帖子ID

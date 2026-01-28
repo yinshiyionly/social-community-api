@@ -190,7 +190,7 @@ return [
                 'connection' => 'redis',
                 'queue' => ['app-sms'],
                 'maxProcesses' => 2,
-                'memory' => 128,
+                'memory' => 64,
                 'tries' => 3,
                 'timeout' => 60,
             ],
@@ -199,9 +199,18 @@ return [
                 'connection' => 'redis',
                 'queue' => ['video-cover'],
                 'maxProcesses' => 2,
-                'memory' => 256,
+                'memory' => 64,
                 'tries' => 3,
                 'timeout' => 120,
+            ],
+            // 填充帖子媒体信息
+            'post-media' => [
+                'connection' => 'redis',
+                'queue' => ['post-media'],
+                'maxProcesses' => 2,
+                'memory' => 64,
+                'tries' => 3,
+                'timeout' => 120
             ]
         ],
 
@@ -211,7 +220,7 @@ return [
                 'connection' => 'redis',
                 'queue' => ['app-sms'],
                 'maxProcesses' => 2,
-                'memory' => 128,
+                'memory' => 64,
                 'tries' => 3,
                 'timeout' => 60,
             ],
@@ -220,9 +229,18 @@ return [
                 'connection' => 'redis',
                 'queue' => ['video-cover'],
                 'maxProcesses' => 2,
-                'memory' => 256,
+                'memory' => 64,
                 'tries' => 3,
                 'timeout' => 120,
+            ],
+            // 填充帖子媒体信息
+            'post-media' => [
+                'connection' => 'redis',
+                'queue' => ['post-media'],
+                'maxProcesses' => 4,
+                'memory' => 64,
+                'tries' => 3,
+                'timeout' => 120
             ]
         ],
 
@@ -232,7 +250,7 @@ return [
                 'connection' => 'redis',
                 'queue' => ['app-sms'],
                 'maxProcesses' => 2,
-                'memory' => 128,
+                'memory' => 64,
                 'tries' => 3,
                 'timeout' => 60,
             ],
@@ -241,9 +259,18 @@ return [
                 'connection' => 'redis',
                 'queue' => ['video-cover'],
                 'maxProcesses' => 2,
-                'memory' => 256,
+                'memory' => 64,
                 'tries' => 3,
                 'timeout' => 120,
+            ],
+            // 填充帖子媒体信息
+            'post-media' => [
+                'connection' => 'redis',
+                'queue' => ['post-media'],
+                'maxProcesses' => 2,
+                'memory' => 64,
+                'tries' => 3,
+                'timeout' => 120
             ]
         ],
     ],

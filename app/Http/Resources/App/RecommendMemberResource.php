@@ -21,7 +21,8 @@ class RecommendMemberResource extends JsonResource
             'memberId' => $this['member_id'],
             'nickname' => $this['nickname'] ?? '',
             'avatar' => $this['avatar'] ?? '',
-            'bio' => $this['bio'] ?? '',
+            'fansCount' => $this['fans_count_text'] ?? '0粉丝',
+            'isFollowed' => $this['is_followed'] ?? false,
         ];
     }
 }

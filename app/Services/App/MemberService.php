@@ -5,6 +5,7 @@ namespace App\Services\App;
 use App\Models\App\AppMemberBase;
 use App\Models\App\AppMemberFollow;
 use App\Models\App\AppPostBase;
+use App\Models\App\AppPostCollection;
 
 class MemberService
 {
@@ -97,6 +98,28 @@ class MemberService
             ->approved()
             ->visible()
             ->orderByDesc('post_id')
+            ->paginate($pageSize, ['*'], 'page', $page);
+    }
+
+    /**
+     * 获取用户收藏帖子列表（普通分页）
+     *
+     * @param int $memberId 用户ID
+     * @param int $page 页码
+     * @param int $pageSize 每页数量
+     * @return \Illuminate\Pagination\LengthAwarePaginator
+     */
+    public function getMemberCollections(int $memberId, int $page = 1, int $pageSize = 10)
+    {
+        return AppPostCollection::query()
+            ->select(['collection_id', 'post_id', 'created_at'])
+            ->with(['post' => function ($query) {
+                $query->select(self::POST_LIST_COLUMNS)
+                    ->approved()
+                    ->visible();
+            }])
+            ->byMember($memberId)
+            ->orderByDesc('collection_id')
             ->paginate($pageSize, ['*'], 'page', $page);
     }
 }

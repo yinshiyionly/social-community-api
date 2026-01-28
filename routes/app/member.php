@@ -31,4 +31,8 @@ Route::prefix('v1/member')->group(function () {
     // 用户帖子列表
     Route::get('{id}/posts', [MemberController::class, 'posts'])
         ->where('id', '[0-9]+');
+
+    // 个人收藏帖子列表（需登录）
+    Route::get('collections', [MemberController::class, 'collections'])
+        ->middleware('app.jwt.auth');
 });

@@ -12,7 +12,8 @@ use App\Http\Controllers\App\PostController;
 Route::prefix('v1/post')->group(function () {
     // 公开接口（可选鉴权，有 token 时返回收藏状态）
     Route::middleware('app.auth.optional')->group(function () {
-        Route::get('feed', [PostController::class, 'feed']);
+        // 动态列表-普通分页-在用
+        Route::get('feed', [PostController::class, 'page']);
         // 动态列表（游标分页）
         Route::get('list', [PostController::class, 'list']);
         // 动态列表（普通分页）
@@ -23,6 +24,8 @@ Route::prefix('v1/post')->group(function () {
 
     // 需要登录的接口
     Route::middleware('app.auth')->group(function () {
+        // 发表帖子
+        Route::post('store', [PostController::class, 'store']);
         // 收藏帖子
         Route::post('collect/{id}', [PostController::class, 'collect'])->where('id', '[0-9]+');
         // 取消收藏

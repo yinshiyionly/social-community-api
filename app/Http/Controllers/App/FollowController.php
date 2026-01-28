@@ -38,7 +38,7 @@ class FollowController extends Controller
      */
     protected function getMemberId(Request $request): int
     {
-        return (int) $request->attributes->get('member_id');
+        return (int)$request->attributes->get('member_id');
     }
 
     /**
@@ -98,20 +98,24 @@ class FollowController extends Controller
      * 关注用户
      *
      * @param FollowRequest $request
-     * @param int $id 被关注用户ID
      * @return JsonResponse
      */
-    public function follow(FollowRequest $request, int $id): JsonResponse
+    public function follow(FollowRequest $request): JsonResponse
     {
         $memberId = $this->getMemberId($request);
         $source = $request->getSource();
+        $id = $request->get('userId', 0);
+
+        if (empty($id)) {
+            return AppApiResponse::error('用户ID不能为空');
+        }
 
         try {
             $result = $this->followService->followMember($memberId, $id, $source);
 
             if (!$result['success']) {
                 if ($result['message'] === 'self_follow') {
-                    return AppApiResponse::error('操作失败');
+                    return AppApiResponse::error('不能关注自己');
                 }
                 if ($result['message'] === 'not_found') {
                     return AppApiResponse::dataNotFound('用户不存在');
@@ -120,7 +124,9 @@ class FollowController extends Controller
             }
 
             return AppApiResponse::success([
-                'data' => ['isFollowing' => $result['is_following']]
+                'data' => [
+                    'isFollowing' => $result['is_following']
+                ]
             ]);
         } catch (\Exception $e) {
             Log::error('关注用户失败', [
@@ -138,18 +144,24 @@ class FollowController extends Controller
      * 取消关注
      *
      * @param Request $request
-     * @param int $id 被关注用户ID
      * @return JsonResponse
      */
-    public function unfollow(Request $request, int $id): JsonResponse
+    public function unfollow(Request $request): JsonResponse
     {
         $memberId = $this->getMemberId($request);
+        $id = $request->get('userId', 0);
+
+        if (empty($id)) {
+            return AppApiResponse::error('用户ID不能为空');
+        }
 
         try {
             $result = $this->followService->unfollowMember($memberId, $id);
 
             return AppApiResponse::success([
-                'data' => ['isFollowing' => $result['is_following']]
+                'data' => [
+                    'isFollowing' => $result['is_following']
+                ]
             ]);
         } catch (\Exception $e) {
             Log::error('取消关注失败', [

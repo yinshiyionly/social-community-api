@@ -17,11 +17,9 @@ Route::prefix('v1/follow')->group(function () {
         // 我关注的人列表
         Route::get('list', [FollowController::class, 'list']);
         // 关注用户
-        Route::post('follow/{id}', [FollowController::class, 'follow'])
-            ->where('id', '[0-9]+');
+        Route::post('followMember', [FollowController::class, 'follow']);
         // 取消关注
-        Route::post('unfollow/{id}', [FollowController::class, 'unfollow'])
-            ->where('id', '[0-9]+');
+        Route::post('unfollowMember', [FollowController::class, 'unfollow']);
         // 关注的人的帖子列表
         Route::get('posts', [FollowController::class, 'posts']);
     });

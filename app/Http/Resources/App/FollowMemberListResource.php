@@ -20,13 +20,9 @@ class FollowMemberListResource extends JsonResource
         $followMember = $this->followMember;
 
         return [
-            'memberId' => $followMember ? $followMember->member_id : null,
+            'id' => $followMember ? $followMember->member_id : null,
             'nickname' => $followMember ? ($followMember->nickname ?? '') : '',
-            'avatar' => $followMember ? ($followMember->avatar ?? '') : '',
-            'bio' => $followMember ? ($followMember->bio ?? '') : '',
-            'followTime' => $this->created_at
-                ? $this->created_at->format('Y-m-d H:i:s')
-                : null,
+            'avatar' => $followMember ? ($followMember->avatar ?? '') : ''
         ];
     }
 }

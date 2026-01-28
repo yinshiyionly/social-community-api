@@ -19,7 +19,8 @@ class CreateAppPostBaseTable extends Migration
             $table->bigInteger('member_id')->index('idx_post_member');
             $table->smallInteger('post_type')->default(1)->comment('动态类型：1=图文 2=视频 3=文章');
             $table->string('title', 200)->default('');
-            $table->text('content')->default('');
+            $table->text('content')->default('')->comment('内容/文章摘要');
+            $table->text('content_html')->default('')->comment('文章HTML内容（post_type=3时使用）');
             $table->jsonb('media_data')->default('[]');
             $table->jsonb('cover')->default('{}')->comment('封面图信息：{url, width, height}');
             $table->smallInteger('image_style')->default(1)->comment('图片样式：1=大图 2=拼图');

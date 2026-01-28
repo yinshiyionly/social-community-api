@@ -73,16 +73,20 @@ class FollowController extends Controller
     /**
      * 可能感兴趣的人（推荐用户）
      *
+     * @param Request $request
      * @return JsonResponse
      */
-    public function recommend(): JsonResponse
+    public function recommend(Request $request): JsonResponse
     {
+        $memberId = $this->getMemberId($request);
+
         try {
-            $recommendMembers = $this->followService->getRecommendMembers();
+            $recommendMembers = $this->followService->getRecommendMembers($memberId);
 
             return AppApiResponse::collection($recommendMembers, RecommendMemberResource::class);
         } catch (\Exception $e) {
             Log::error('获取推荐用户失败', [
+                'member_id' => $memberId,
                 'error' => $e->getMessage(),
             ]);
 

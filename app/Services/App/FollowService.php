@@ -37,28 +37,9 @@ class FollowService
     private const MEMBER_COLUMNS = 'member:member_id,nickname,avatar';
 
     /**
-     * 静态推荐用户数据
+     * 推荐用户ID列表
      */
-    private const RECOMMEND_MEMBERS = [
-        [
-            'member_id' => 1001,
-            'nickname' => '官方小助手',
-            'avatar' => 'https://example.com/avatars/assistant.png',
-            'bio' => '欢迎来到社区，有问题随时找我~',
-        ],
-        [
-            'member_id' => 1002,
-            'nickname' => '生活达人',
-            'avatar' => 'https://example.com/avatars/lifestyle.png',
-            'bio' => '分享生活中的美好瞬间',
-        ],
-        [
-            'member_id' => 1003,
-            'nickname' => '美食探店',
-            'avatar' => 'https://example.com/avatars/food.png',
-            'bio' => '带你发现城市里的美味',
-        ],
-    ];
+    private const RECOMMEND_MEMBER_IDS = [3545623190, 3545623191, 3545623192];
 
 
     /**
@@ -82,11 +63,61 @@ class FollowService
     /**
      * 获取推荐用户列表
      *
+     * @param int $memberId 当前用户ID
      * @return Collection
      */
-    public function getRecommendMembers(): Collection
+    public function getRecommendMembers(int $memberId): Collection
     {
-        return collect(self::RECOMMEND_MEMBERS);
+        if (empty(self::RECOMMEND_MEMBER_IDS)) {
+            return collect([]);
+        }
+
+        // 查询推荐用户基础信息（直接使用冗余的 fans_count）
+        $members = AppMemberBase::query()
+            ->whereIn('member_id', self::RECOMMEND_MEMBER_IDS)
+            ->select(['member_id', 'nickname', 'avatar', 'bio', 'fans_count'])
+            ->get();
+
+        if ($members->isEmpty()) {
+            return collect([]);
+        }
+
+        $memberIds = $members->pluck('member_id')->toArray();
+
+        // 批量查询当前用户是否已关注
+        $followedIds = AppMemberFollow::query()
+            ->byMember($memberId)
+            ->whereIn('follow_member_id', $memberIds)
+            ->normal()
+            ->pluck('follow_member_id')
+            ->toArray();
+
+        // 组装数据
+        return $members->map(function ($member) use ($followedIds) {
+            return [
+                'member_id' => $member->member_id,
+                'nickname' => $member->nickname,
+                'avatar' => $member->avatar,
+                'bio' => $member->bio,
+                'fans_count' => $member->fans_count,
+                'fans_count_text' => $this->formatFansCount($member->fans_count),
+                'is_followed' => in_array($member->member_id, $followedIds),
+            ];
+        });
+    }
+
+    /**
+     * 格式化粉丝数显示
+     *
+     * @param int $count
+     * @return string
+     */
+    private function formatFansCount(int $count): string
+    {
+        if ($count >= 10000) {
+            return round($count / 10000, 1) . 'w粉丝';
+        }
+        return $count . '粉丝';
     }
 
     /**
@@ -123,11 +154,16 @@ class FollowService
             ->byFollowMember($followMemberId)
             ->first();
 
+        $shouldUpdateCount = false;
+
         if ($follow) {
-            // 更新状态为正常
-            $follow->status = AppMemberFollow::STATUS_NORMAL;
-            $follow->source = $source;
-            $follow->save();
+            // 只有从非正常状态变为正常状态才更新计数
+            if ($follow->status !== AppMemberFollow::STATUS_NORMAL) {
+                $shouldUpdateCount = true;
+                $follow->status = AppMemberFollow::STATUS_NORMAL;
+                $follow->source = $source;
+                $follow->save();
+            }
         } else {
             // 创建新记录
             AppMemberFollow::create([
@@ -136,6 +172,19 @@ class FollowService
                 'source' => $source,
                 'status' => AppMemberFollow::STATUS_NORMAL,
             ]);
+            $shouldUpdateCount = true;
+        }
+
+        // 更新冗余计数
+        if ($shouldUpdateCount) {
+            // 增加被关注者的粉丝数
+            AppMemberBase::query()
+                ->where('member_id', $followMemberId)
+                ->increment('fans_count');
+            // 增加当前用户的关注数
+            AppMemberBase::query()
+                ->where('member_id', $memberId)
+                ->increment('following_count');
         }
 
         return [
@@ -169,9 +218,23 @@ class FollowService
             ];
         }
 
-        // 更新状态为已取消
-        $follow->status = AppMemberFollow::STATUS_CANCELLED;
-        $follow->save();
+        // 只有当前是正常关注状态才更新计数
+        if ($follow->status === AppMemberFollow::STATUS_NORMAL) {
+            // 更新状态为已取消
+            $follow->status = AppMemberFollow::STATUS_CANCELLED;
+            $follow->save();
+
+            // 减少被关注者的粉丝数
+            AppMemberBase::query()
+                ->where('member_id', $followMemberId)
+                ->where('fans_count', '>', 0)
+                ->decrement('fans_count');
+            // 减少当前用户的关注数
+            AppMemberBase::query()
+                ->where('member_id', $memberId)
+                ->where('following_count', '>', 0)
+                ->decrement('following_count');
+        }
 
         return [
             'success' => true,

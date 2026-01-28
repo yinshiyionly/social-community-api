@@ -185,7 +185,10 @@ EOF;
     }
 
     /**
-     * 获取帖子列表（普通分页）
+     * 获取帖子列表-普通分页
+     *
+     * @param PostPageRequest $request
+     * @return JsonResponse
      */
     public function page(PostPageRequest $request)
     {
@@ -208,7 +211,7 @@ EOF;
                 PostListResource::setLikedPostIds([]);
             }
 
-            return AppApiResponse::paginate($posts, PostListResource::class);
+            return AppApiResponse::postPaginate($posts, PostListResource::class);
         } catch (\Exception $e) {
             Log::error('获取帖子列表失败', [
                 'page' => $page,

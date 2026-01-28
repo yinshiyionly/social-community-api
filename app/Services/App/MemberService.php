@@ -122,4 +122,26 @@ class MemberService
             ->orderByDesc('collection_id')
             ->paginate($pageSize, ['*'], 'page', $page);
     }
+
+    /**
+     * 获取用户粉丝列表（普通分页）
+     *
+     * @param int $memberId 用户ID
+     * @param int $page 页码
+     * @param int $pageSize 每页数量
+     * @return \Illuminate\Pagination\LengthAwarePaginator
+     */
+    public function getMemberFans(int $memberId, int $page = 1, int $pageSize = 10)
+    {
+        return AppMemberFollow::query()
+            ->select(['follow_id', 'member_id', 'created_at'])
+            ->with(['member' => function ($query) {
+                $query->select(['member_id', 'nickname', 'avatar', 'bio'])
+                    ->normal();
+            }])
+            ->byFollowMember($memberId)
+            ->normal()
+            ->orderByDesc('follow_id')
+            ->paginate($pageSize, ['*'], 'page', $page);
+    }
 }

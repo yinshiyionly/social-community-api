@@ -2,16 +2,27 @@
 
 namespace App\Models\App;
 
+use App\Models\Traits\HasTosUrl;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * 动态基础表
+ *
+ * @property int $post_id
+ * @property int $member_id
+ * @property int $post_type
+ * @property array $media_data
+ * @property array $location_geo
+ * @property array $cover
+ * @property string|null $post_ip
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
  */
 class AppPostBase extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasTosUrl;
 
     protected $table = 'app_post_base';
 
@@ -22,6 +33,7 @@ class AppPostBase extends Model
         'post_type',
         'title',
         'content',
+        'content_html',
         'media_data',
         'cover',
         'image_style',
@@ -193,5 +205,101 @@ class AppPostBase extends Model
         return $this->belongsTo(AppMemberBase::class, 'member_id', 'member_id');
     }
 
+    /**
+     * 设置 media_data - 将绝对路径转为相对路径存储
+     *
+     * @param array|string|null $value
+     */
+    public function setMediaDataAttribute($value): void
+    {
+        if (empty($value)) {
+            $this->attributes['media_data'] = '[]';
+            return;
+        }
 
+        if (is_string($value)) {
+            $value = json_decode($value, true) ?: [];
+        }
+
+        foreach ($value as &$item) {
+            if (isset($item['url'])) {
+                $item['url'] = $this->extractTosPath($item['url']);
+            }
+        }
+
+        $this->attributes['media_data'] = json_encode($value);
+    }
+
+    /**
+     * 获取 media_data - 将相对路径转为绝对路径
+     *
+     * @param string|null $value
+     * @return array
+     */
+    public function getMediaDataAttribute($value): array
+    {
+        if (empty($value)) {
+            return [];
+        }
+
+        $data = is_string($value) ? json_decode($value, true) : $value;
+        if (!is_array($data)) {
+            return [];
+        }
+
+        foreach ($data as &$item) {
+            if (isset($item['url'])) {
+                $item['url'] = $this->getTosUrl($item['url']);
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * 设置 cover - 将绝对路径转为相对路径存储
+     *
+     * @param array|string|null $value
+     */
+    public function setCoverAttribute($value): void
+    {
+        if (empty($value)) {
+            $this->attributes['cover'] = '{}';
+            return;
+        }
+
+        if (is_string($value)) {
+            $value = json_decode($value, true) ?: [];
+        }
+
+        if (isset($value['url'])) {
+            $value['url'] = $this->extractTosPath($value['url']);
+        }
+
+        $this->attributes['cover'] = json_encode($value);
+    }
+
+    /**
+     * 获取 cover - 将相对路径转为绝对路径
+     *
+     * @param string|null $value
+     * @return array
+     */
+    public function getCoverAttribute($value): array
+    {
+        if (empty($value)) {
+            return [];
+        }
+
+        $data = is_string($value) ? json_decode($value, true) : $value;
+        if (!is_array($data)) {
+            return [];
+        }
+
+        if (isset($data['url'])) {
+            $data['url'] = $this->getTosUrl($data['url']);
+        }
+
+        return $data;
+    }
 }

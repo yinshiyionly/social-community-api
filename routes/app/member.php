@@ -43,4 +43,8 @@ Route::prefix('v1/member')->group(function () {
     // 个人关注列表（需登录）
     Route::get('followings', [MemberController::class, 'followings'])
         ->middleware('app.jwt.auth');
+
+    // 修改头像（需登录）
+    Route::put('avatar', [MemberController::class, 'updateAvatar'])
+        ->middleware('app.jwt.auth');
 });

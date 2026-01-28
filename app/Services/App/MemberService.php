@@ -166,4 +166,18 @@ class MemberService
             ->orderByDesc('follow_id')
             ->paginate($pageSize, ['*'], 'page', $page);
     }
+
+    /**
+     * 更新用户头像
+     *
+     * @param int $memberId 用户ID
+     * @param string $avatar 头像URL
+     * @return bool
+     */
+    public function updateAvatar(int $memberId, string $avatar): bool
+    {
+        return AppMemberBase::query()
+            ->where('member_id', $memberId)
+            ->update(['avatar' => $avatar]) > 0;
+    }
 }

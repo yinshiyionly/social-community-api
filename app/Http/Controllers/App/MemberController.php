@@ -238,4 +238,33 @@ class MemberController extends Controller
             return AppApiResponse::serverError();
         }
     }
+
+    /**
+     * 修改用户头像
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function updateAvatar(Request $request): JsonResponse
+    {
+        $memberId = $this->getMemberId($request);
+        $avatar = $request->input('avatar');
+
+        if (empty($avatar)) {
+            return AppApiResponse::error('头像不能为空');
+        }
+
+        try {
+            $this->memberService->updateAvatar($memberId, $avatar);
+
+            return AppApiResponse::success();
+        } catch (\Exception $e) {
+            Log::error('修改头像失败', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
 }

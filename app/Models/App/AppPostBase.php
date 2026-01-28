@@ -23,6 +23,9 @@ class AppPostBase extends Model
         'title',
         'content',
         'media_data',
+        'cover',
+        'image_style',
+        'post_ip',
         'location_name',
         'location_geo',
         'view_count',
@@ -42,6 +45,8 @@ class AppPostBase extends Model
         'member_id' => 'integer',
         'post_type' => 'integer',
         'media_data' => 'array',
+        'cover' => 'array',
+        'image_style' => 'integer',
         'location_geo' => 'array',
         'view_count' => 'integer',
         'like_count' => 'integer',
@@ -55,7 +60,13 @@ class AppPostBase extends Model
     ];
 
     // 动态类型
-    const POST_TYPE_NORMAL = 1;     // 普通动态
+    const POST_TYPE_IMAGE_TEXT = 1; // 图文动态
+    const POST_TYPE_VIDEO = 2;      // 视频动态
+    const POST_TYPE_ARTICLE = 3;    // 文章动态
+
+    // 图片样式（图文动态）
+    const IMAGE_STYLE_LARGE = 1;    // 大图
+    const IMAGE_STYLE_PUZZLE = 2;   // 拼图
 
     // 可见性
     const VISIBLE_PUBLIC = 1;       // 公开
@@ -181,4 +192,6 @@ class AppPostBase extends Model
     {
         return $this->belongsTo(AppMemberBase::class, 'member_id', 'member_id');
     }
+
+
 }

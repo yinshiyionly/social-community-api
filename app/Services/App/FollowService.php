@@ -5,6 +5,8 @@ namespace App\Services\App;
 use App\Models\App\AppMemberBase;
 use App\Models\App\AppMemberFollow;
 use App\Models\App\AppPostBase;
+use App\Models\App\AppPostCollection;
+use App\Models\App\AppPostLike;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -266,9 +268,9 @@ class FollowService
      * @param int $memberId 当前用户ID
      * @param int $page 页码
      * @param int $pageSize 每页数量
-     * @return LengthAwarePaginator
+     * @return array ['posts' => LengthAwarePaginator, 'likedIds' => array, 'collectedIds' => array, 'followedIds' => array]
      */
-    public function getFollowingPosts(int $memberId, int $page, int $pageSize): LengthAwarePaginator
+    public function getFollowingPosts(int $memberId, int $page, int $pageSize): array
     {
         // 获取关注的用户ID列表
         $followingIds = AppMemberFollow::query()
@@ -279,11 +281,16 @@ class FollowService
 
         // 如果没有关注任何人，返回空分页
         if (empty($followingIds)) {
-            return new LengthAwarePaginator([], 0, $pageSize, $page);
+            return [
+                'posts' => new LengthAwarePaginator([], 0, $pageSize, $page),
+                'likedIds' => [],
+                'collectedIds' => [],
+                'followedIds' => [],
+            ];
         }
 
         // 查询这些用户的帖子
-        return AppPostBase::query()
+        $posts = AppPostBase::query()
             ->select(self::POST_LIST_COLUMNS)
             ->whereIn('member_id', $followingIds)
             ->approved()
@@ -291,6 +298,35 @@ class FollowService
             ->with(self::MEMBER_COLUMNS)
             ->orderByDesc('created_at')
             ->paginate($pageSize, ['*'], 'page', $page);
+
+        // 批量查询当前用户的交互状态
+        $postIds = $posts->pluck('post_id')->toArray();
+        $authorIds = $posts->pluck('member_id')->unique()->toArray();
+
+        $likedIds = [];
+        $collectedIds = [];
+        $followedAuthorIds = [];
+
+        if (!empty($postIds)) {
+            $likedIds = AppPostLike::getLikedPostIds($memberId, $postIds);
+            $collectedIds = AppPostCollection::getCollectedPostIds($memberId, $postIds);
+        }
+
+        if (!empty($authorIds)) {
+            $followedAuthorIds = AppMemberFollow::query()
+                ->byMember($memberId)
+                ->whereIn('follow_member_id', $authorIds)
+                ->normal()
+                ->pluck('follow_member_id')
+                ->toArray();
+        }
+
+        return [
+            'posts' => $posts,
+            'likedIds' => $likedIds,
+            'collectedIds' => $collectedIds,
+            'followedIds' => $followedAuthorIds,
+        ];
     }
 
     /**

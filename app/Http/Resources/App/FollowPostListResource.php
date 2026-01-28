@@ -10,6 +10,41 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class FollowPostListResource extends JsonResource
 {
     /**
+     * 点赞的帖子ID数组
+     *
+     * @var array
+     */
+    protected static $likedIds = [];
+
+    /**
+     * 收藏的帖子ID数组
+     *
+     * @var array
+     */
+    protected static $collectedIds = [];
+
+    /**
+     * 关注的作者ID数组
+     *
+     * @var array
+     */
+    protected static $followedIds = [];
+
+    /**
+     * 设置交互状态数据
+     *
+     * @param array $likedIds
+     * @param array $collectedIds
+     * @param array $followedIds
+     */
+    public static function setInteractionData(array $likedIds, array $collectedIds, array $followedIds): void
+    {
+        self::$likedIds = $likedIds;
+        self::$collectedIds = $collectedIds;
+        self::$followedIds = $followedIds;
+    }
+
+    /**
      * 转换资源为数组
      *
      * @param \Illuminate\Http\Request $request
@@ -18,58 +53,41 @@ class FollowPostListResource extends JsonResource
     public function toArray($request): array
     {
         $mediaData = $this->media_data ?? [];
-        $firstMedia = is_array($mediaData) && count($mediaData) > 0 ? $mediaData[0] : null;
         $member = $this->member;
 
         return [
-            'postId' => $this->post_id,
-            'title' => $this->title ?? '',
-            'content' => $this->content ?? '',
-            'cover' => $this->extractCover($firstMedia),
-            'isVideo' => $this->isVideoPost($firstMedia),
-            'likeCount' => $this->like_count ?? 0,
-            'commentCount' => $this->comment_count ?? 0,
-            'createdAt' => $this->created_at
-                ? $this->created_at->format('Y-m-d H:i:s')
-                : null,
+            'id' => $this->post_id,
             'author' => [
-                'memberId' => $member ? $member->member_id : null,
-                'nickname' => $member ? ($member->nickname ?? '') : '',
+                'id' => $member ? $member->member_id : null,
                 'avatar' => $member ? ($member->avatar ?? '') : '',
+                'nickname' => $member ? ($member->nickname ?? '') : '',
             ],
+            'content' => $this->content ?? '',
+            'images' => $this->extractImages($mediaData),
+            'commentCount' => $this->comment_count ?? 0,
+            'favoriteCount' => $this->collection_count ?? 0,
+            'likeCount' => $this->like_count ?? 0,
+            'isFollowed' => $member ? in_array($member->member_id, self::$followedIds) : false,
+            'isLiked' => in_array($this->post_id, self::$likedIds),
+            'isFavorited' => in_array($this->post_id, self::$collectedIds),
+            'createTime' => $this->created_at ? $this->created_at->toISOString() : null,
         ];
     }
 
     /**
-     * 从媒体数据中提取封面图
+     * 从媒体数据中提取图片URL列表
      *
-     * @param array|null $media 媒体数据
-     * @return string
+     * @param array $mediaData
+     * @return array
      */
-    protected function extractCover($media): string
+    protected function extractImages(array $mediaData): array
     {
-        if (!$media || !is_array($media)) {
-            return '';
+        $images = [];
+        foreach ($mediaData as $media) {
+            if (isset($media['url'])) {
+                $images[] = $media['url'];
+            }
         }
-        // 视频取封面图，图片取原图
-        if (isset($media['cover']) && !empty($media['cover'])) {
-            return $media['cover'];
-        }
-        return isset($media['url']) ? $media['url'] : '';
-    }
-
-    /**
-     * 判断是否为视频帖子
-     *
-     * @param array|null $media 媒体数据
-     * @return bool
-     */
-    protected function isVideoPost($media): bool
-    {
-        if (!$media || !is_array($media)) {
-            return false;
-        }
-        $type = isset($media['type']) ? $media['type'] : 'image';
-        return $type === 'video';
+        return $images;
     }
 }

@@ -187,9 +187,16 @@ class FollowController extends Controller
         $pageSize = $request->input('pageSize', 10);
 
         try {
-            $posts = $this->followService->getFollowingPosts($memberId, $page, $pageSize);
+            $result = $this->followService->getFollowingPosts($memberId, $page, $pageSize);
 
-            return AppApiResponse::paginate($posts, FollowPostListResource::class);
+            // 设置交互状态数据到 Resource
+            FollowPostListResource::setInteractionData(
+                $result['likedIds'],
+                $result['collectedIds'],
+                $result['followedIds']
+            );
+
+            return AppApiResponse::normalPaginate($result['posts'], FollowPostListResource::class);
         } catch (\Exception $e) {
             Log::error('获取关注用户帖子失败', [
                 'member_id' => $memberId,

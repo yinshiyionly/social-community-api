@@ -2,6 +2,7 @@
 
 namespace App\Models\App;
 
+use App\Models\Traits\HasTosUrl;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class AppMemberBase extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasTosUrl;
 
     protected $table = 'app_member_base';
 
@@ -123,5 +124,16 @@ class AppMemberBase extends Model
     public function isDisabled(): bool
     {
         return $this->status === self::STATUS_DISABLED;
+    }
+
+    /**
+     * 拼接 TOS URL 绝对路径
+     *
+     * @param $value
+     * @return string|null
+     */
+    public function getAvatarAttribute($value)
+    {
+        return $this->getTosUrl($value);
     }
 }

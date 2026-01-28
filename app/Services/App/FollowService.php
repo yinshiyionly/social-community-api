@@ -7,6 +7,7 @@ use App\Models\App\AppMemberFollow;
 use App\Models\App\AppPostBase;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class FollowService
 {
@@ -148,50 +149,58 @@ class FollowService
             ];
         }
 
-        // 查找现有关注记录
-        $follow = AppMemberFollow::query()
-            ->byMember($memberId)
-            ->byFollowMember($followMemberId)
-            ->first();
+        DB::beginTransaction();
+        try {
+            // 查找现有关注记录
+            $follow = AppMemberFollow::query()
+                ->byMember($memberId)
+                ->byFollowMember($followMemberId)
+                ->first();
 
-        $shouldUpdateCount = false;
+            $shouldUpdateCount = false;
 
-        if ($follow) {
-            // 只有从非正常状态变为正常状态才更新计数
-            if ($follow->status !== AppMemberFollow::STATUS_NORMAL) {
+            if ($follow) {
+                // 只有从非正常状态变为正常状态才更新计数
+                if ($follow->status !== AppMemberFollow::STATUS_NORMAL) {
+                    $shouldUpdateCount = true;
+                    $follow->status = AppMemberFollow::STATUS_NORMAL;
+                    $follow->source = $source;
+                    $follow->save();
+                }
+            } else {
+                // 创建新记录
+                AppMemberFollow::create([
+                    'member_id' => $memberId,
+                    'follow_member_id' => $followMemberId,
+                    'source' => $source,
+                    'status' => AppMemberFollow::STATUS_NORMAL,
+                ]);
                 $shouldUpdateCount = true;
-                $follow->status = AppMemberFollow::STATUS_NORMAL;
-                $follow->source = $source;
-                $follow->save();
             }
-        } else {
-            // 创建新记录
-            AppMemberFollow::create([
-                'member_id' => $memberId,
-                'follow_member_id' => $followMemberId,
-                'source' => $source,
-                'status' => AppMemberFollow::STATUS_NORMAL,
-            ]);
-            $shouldUpdateCount = true;
-        }
 
-        // 更新冗余计数
-        if ($shouldUpdateCount) {
-            // 增加被关注者的粉丝数
-            AppMemberBase::query()
-                ->where('member_id', $followMemberId)
-                ->increment('fans_count');
-            // 增加当前用户的关注数
-            AppMemberBase::query()
-                ->where('member_id', $memberId)
-                ->increment('following_count');
-        }
+            // 更新冗余计数
+            if ($shouldUpdateCount) {
+                // 增加被关注者的粉丝数
+                AppMemberBase::query()
+                    ->where('member_id', $followMemberId)
+                    ->increment('fans_count');
+                // 增加当前用户的关注数
+                AppMemberBase::query()
+                    ->where('member_id', $memberId)
+                    ->increment('following_count');
+            }
 
-        return [
-            'success' => true,
-            'message' => 'followed',
-            'is_following' => true,
-        ];
+            DB::commit();
+
+            return [
+                'success' => true,
+                'message' => 'followed',
+                'is_following' => true,
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
     }
 
 
@@ -220,20 +229,28 @@ class FollowService
 
         // 只有当前是正常关注状态才更新计数
         if ($follow->status === AppMemberFollow::STATUS_NORMAL) {
-            // 更新状态为已取消
-            $follow->status = AppMemberFollow::STATUS_CANCELLED;
-            $follow->save();
+            DB::beginTransaction();
+            try {
+                // 更新状态为已取消
+                $follow->status = AppMemberFollow::STATUS_CANCELLED;
+                $follow->save();
 
-            // 减少被关注者的粉丝数
-            AppMemberBase::query()
-                ->where('member_id', $followMemberId)
-                ->where('fans_count', '>', 0)
-                ->decrement('fans_count');
-            // 减少当前用户的关注数
-            AppMemberBase::query()
-                ->where('member_id', $memberId)
-                ->where('following_count', '>', 0)
-                ->decrement('following_count');
+                // 减少被关注者的粉丝数
+                AppMemberBase::query()
+                    ->where('member_id', $followMemberId)
+                    ->where('fans_count', '>', 0)
+                    ->decrement('fans_count');
+                // 减少当前用户的关注数
+                AppMemberBase::query()
+                    ->where('member_id', $memberId)
+                    ->where('following_count', '>', 0)
+                    ->decrement('following_count');
+
+                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
         }
 
         return [

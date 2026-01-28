@@ -267,4 +267,37 @@ class MemberController extends Controller
             return AppApiResponse::serverError();
         }
     }
+
+    /**
+     * 修改用户昵称
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function updateNickname(Request $request): JsonResponse
+    {
+        $memberId = $this->getMemberId($request);
+        $nickname = $request->input('nickname');
+
+        if (empty($nickname)) {
+            return AppApiResponse::error('昵称不能为空');
+        }
+
+        if (mb_strlen($nickname) > 20) {
+            return AppApiResponse::error('昵称不能超过20个字符');
+        }
+
+        try {
+            $this->memberService->updateNickname($memberId, $nickname);
+
+            return AppApiResponse::success();
+        } catch (\Exception $e) {
+            Log::error('修改昵称失败', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
 }

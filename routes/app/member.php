@@ -47,4 +47,8 @@ Route::prefix('v1/member')->group(function () {
     // 修改头像（需登录）
     Route::put('avatar', [MemberController::class, 'updateAvatar'])
         ->middleware('app.jwt.auth');
+
+    // 修改昵称（需登录）
+    Route::put('nickname', [MemberController::class, 'updateNickname'])
+        ->middleware('app.jwt.auth');
 });

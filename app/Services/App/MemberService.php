@@ -180,4 +180,18 @@ class MemberService
             ->where('member_id', $memberId)
             ->update(['avatar' => $avatar]) > 0;
     }
+
+    /**
+     * 更新用户昵称
+     *
+     * @param int $memberId 用户ID
+     * @param string $nickname 昵称
+     * @return bool
+     */
+    public function updateNickname(int $memberId, string $nickname): bool
+    {
+        return AppMemberBase::query()
+            ->where('member_id', $memberId)
+            ->update(['nickname' => $nickname]) > 0;
+    }
 }

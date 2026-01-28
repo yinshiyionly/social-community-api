@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\App;
 
+use App\Models\App\AppPostBase;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
@@ -58,20 +59,17 @@ class PostListResource extends JsonResource
      */
     public function toArray($request): array
     {
-        $mediaData = $this->media_data ?? [];
-        $firstMedia = is_array($mediaData) && count($mediaData) > 0 ? $mediaData[0] : null;
-
         return [
             'id' => $this->post_id,
-            'cover' => $this->extractCover($firstMedia),
-            'title' => $this->title ?? '',
+            'cover' => $this->cover['url'],
+            'title' => $this->title ?: (empty($this->content) ? '' : $this->content),
             'avatar' => $this->getAuthorAvatar(),
             'nickname' => $this->getAuthorNickname(),
             'likes' => $this->like_count ?? 0,
-            'isVideo' => $this->isVideoPost($firstMedia),
-            'aspectRatio' => $this->calculateAspectRatio($firstMedia),
-            'isCollected' => in_array($this->post_id, self::$collectedPostIds),
-            'isLiked' => in_array($this->post_id, self::$likedPostIds),
+            'isVideo' => $this->post_type == AppPostBase::POST_TYPE_VIDEO,
+            'aspectRatio' => $this->calculateAspectRatio($this->cover),
+            // 'isCollected' => in_array($this->post_id, self::$collectedPostIds),
+            // 'isLiked' => in_array($this->post_id, self::$likedPostIds),
         ];
     }
 
@@ -122,33 +120,18 @@ class PostListResource extends JsonResource
     }
 
     /**
-     * 判断是否为视频帖子
-     *
-     * @param array|null $media 媒体数据
-     * @return bool
-     */
-    protected function isVideoPost($media): bool
-    {
-        if (!$media || !is_array($media)) {
-            return false;
-        }
-        $type = isset($media['type']) ? $media['type'] : 'image';
-        return $type === 'video';
-    }
-
-    /**
      * 计算封面图宽高比
      *
-     * @param array|null $media 媒体数据
+     * @param array|null $cover 封面数据
      * @return float
      */
-    protected function calculateAspectRatio($media): float
+    protected function calculateAspectRatio($cover): float
     {
-        if (!$media || !is_array($media)) {
+        if (!$cover || !is_array($cover)) {
             return self::DEFAULT_ASPECT_RATIO;
         }
-        $width = isset($media['width']) ? (int)$media['width'] : 0;
-        $height = isset($media['height']) ? (int)$media['height'] : 0;
+        $width = isset($cover['width']) ? (int)$cover['width'] : 0;
+        $height = isset($cover['height']) ? (int)$cover['height'] : 0;
         if ($height <= 0) {
             return self::DEFAULT_ASPECT_RATIO;
         }

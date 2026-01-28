@@ -82,8 +82,8 @@ class FillPostMediaInfoJob implements ShouldQueue
             return;
         }
 
-        $mediaData = $post->media_data ?: [];
-        $cover = $post->cover ?: [];
+        $mediaData = $post->media_data ?? [];
+        $cover = $post->cover ?? [];
         $updated = false;
 
         // 收集所有需要查询的 URL
@@ -102,7 +102,6 @@ class FillPostMediaInfoJob implements ShouldQueue
 
         // 批量查询文件记录
         $fileRecords = $this->getFileRecordsByUrls($urls);
-
         // 填充 media_data
         foreach ($mediaData as $index => $item) {
             if (empty($item['url'])) {
@@ -125,8 +124,8 @@ class FillPostMediaInfoJob implements ShouldQueue
         if (!empty($cover['url']) && (empty($cover['width']) || empty($cover['height']))) {
             $fileRecord = $fileRecords[$cover['url']] ?? null;
             if ($fileRecord) {
-                $cover['width'] = $fileRecord->width ?: 0;
-                $cover['height'] = $fileRecord->height ?: 0;
+                $cover['width'] = $fileRecord->width ?? 0;
+                $cover['height'] = $fileRecord->height ?? 0;
                 $updated = true;
             }
         }
@@ -224,15 +223,15 @@ class FillPostMediaInfoJob implements ShouldQueue
 
         // 填充宽高
         if (empty($item['width'])) {
-            $item['width'] = $fileRecord->width ?: 0;
+            $item['width'] = $fileRecord->width ?? 0;
         }
         if (empty($item['height'])) {
-            $item['height'] = $fileRecord->height ?: 0;
+            $item['height'] = $fileRecord->height ?? 0;
         }
 
         // 视频填充时长
         if ($item['type'] === 'video' && empty($item['duration'])) {
-            $item['duration'] = $fileRecord->duration ?: 0;
+            $item['duration'] = $fileRecord->duration ?? 0;
         }
 
         return $item;

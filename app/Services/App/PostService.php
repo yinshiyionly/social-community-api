@@ -2,6 +2,7 @@
 
 namespace App\Services\App;
 
+use App\Jobs\App\FillPostMediaInfoJob;
 use App\Models\App\AppPostBase;
 use App\Models\App\AppPostCollection;
 use App\Models\App\AppPostLike;
@@ -10,6 +11,73 @@ use Illuminate\Support\Facades\DB;
 
 class PostService
 {
+    /**
+     * 发表帖子
+     *
+     * @param int $memberId 会员ID
+     * @param array $data 帖子数据
+     * @return int 帖子ID
+     * @throws \Exception
+     */
+    public function createPost(int $memberId, array $data): int
+    {
+        try {
+            // 文章动态：自动生成摘要
+            if ($data['post_type'] == AppPostBase::POST_TYPE_ARTICLE) {
+                if (empty($data['content']) && !empty($data['content_html'])) {
+                    $data['content'] = $this->extractSummary($data['content_html'], 200);
+                }
+            }
+
+            $insert = [
+                'member_id' => $memberId,
+                'post_type' => $data['post_type'],
+                'title' => $data['title'],
+                'content' => $data['content'],
+                'content_html' => $data['content_html'] ?? '',
+                'media_data' => $data['media_data'],
+                'cover' => $data['cover'],
+                'image_style' => $data['image_style'],
+                'location_name' => $data['location_name'],
+                'location_geo' => $data['location_geo'],
+                'visible' => $data['visible'],
+                'status' => AppPostBase::STATUS_PENDING,
+            ];
+            $post = AppPostBase::query()->create($insert);
+
+            // 派发异步任务填充媒体信息
+            FillPostMediaInfoJob::dispatch($post->post_id);
+
+            return $post->post_id;
+        } catch (\Exception $e) {
+            throw new \Exception('保存入库失败-' . $e->getMessage());
+        }
+    }
+
+    /**
+     * 从 HTML 提取文本摘要
+     *
+     * @param string $html
+     * @param int $length 摘要长度
+     * @return string
+     */
+    protected function extractSummary(string $html, int $length = 200): string
+    {
+        // 去除 HTML 标签
+        $text = strip_tags($html);
+
+        // 去除多余空白
+        $text = preg_replace('/\s+/', ' ', $text);
+        $text = trim($text);
+
+        // 截取指定长度
+        if (mb_strlen($text) > $length) {
+            $text = mb_substr($text, 0, $length) . '...';
+        }
+
+        return $text;
+    }
+
     /**
      * 帖子列表查询字段
      */
@@ -20,6 +88,8 @@ class PostService
         'title',
         'content',
         'media_data',
+        'cover',
+        'image_style',
         'location_name',
         'view_count',
         'like_count',
@@ -41,6 +111,8 @@ class PostService
         'title',
         'content',
         'media_data',
+        'cover',
+        'image_style',
         'location_name',
         'location_geo',
         'view_count',

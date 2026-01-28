@@ -56,7 +56,7 @@ class FollowController extends Controller
         try {
             $followList = $this->followService->getFollowingList($memberId, $page, $pageSize);
 
-            return AppApiResponse::paginate($followList, FollowMemberListResource::class);
+            return AppApiResponse::normalPaginate($followList, FollowMemberListResource::class);
         } catch (\Exception $e) {
             Log::error('获取关注列表失败', [
                 'member_id' => $memberId,

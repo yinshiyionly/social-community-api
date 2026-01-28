@@ -2,7 +2,7 @@
 
 namespace App\Models\App;
 
-use App\Services\AppFileUploadService;
+use App\Models\Traits\HasTosUrl;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class AppAdItem extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasTosUrl;
 
     protected $table = 'app_ad_item';
 
@@ -114,71 +114,24 @@ class AppAdItem extends Model
     }
 
     /**
-     * Accessor: 获取 content_url 时自动拼接完整 URL
+     * 拼接 TOS URL 绝对路径
      *
-     * @param string|null $value 数据库存储的相对路径或完整 URL
-     * @return string|null 完整的 URL
+     * @param $value
+     * @return string|null
      */
     public function getContentUrlAttribute($value): ?string
     {
-        if (empty($value)) {
-            return null;
-        }
-
-        // 如果已经是完整 URL（外部资源），直接返回
-        if (stripos($value, 'http://') === 0 || stripos($value, 'https://') === 0) {
-            return $value;
-        }
-
-        return (new AppFileUploadService())->generateFileUrl($value);
+        return $this->getTosUrl($value);
     }
 
     /**
-     * Mutator: 设置 content_url 时自动提取相对路径
+     * 提取 TOS URL 相对路径
      *
-     * TOS 域名的完整 URL 会提取相对路径，外部资源 URL 原样保存
-     *
-     * @param string|null $value 完整 URL 或相对路径
+     * @param $value
+     * @return void
      */
     public function setContentUrlAttribute($value): void
     {
-        if (empty($value)) {
-            $this->attributes['content_url'] = null;
-            return;
-        }
-
-        // 如果是完整 URL
-        if (stripos($value, 'http://') === 0 || stripos($value, 'https://') === 0) {
-            $config = config('filesystems.disks.volcengine');
-            $schema = $config['schema'] ?? 'https';
-
-            // CDN 域名匹配
-            if (!empty($config['url'])) {
-                $cdnDomain = $schema . '://' . rtrim($config['url'], '/');
-                if (stripos($value, $cdnDomain) === 0) {
-                    $path = parse_url($value, PHP_URL_PATH);
-                    $this->attributes['content_url'] = $path ? ltrim($path, '/') : $value;
-                    return;
-                }
-            }
-
-            // Bucket 域名匹配（处理 endpoint 可能带协议前缀）
-            if (!empty($config['bucket']) && !empty($config['endpoint'])) {
-                $endpoint = preg_replace('/^https?:\/\//', '', $config['endpoint']);
-                $bucketDomain = $schema . '://' . $config['bucket'] . '.' . $endpoint;
-                if (stripos($value, $bucketDomain) === 0) {
-                    $path = parse_url($value, PHP_URL_PATH);
-                    $this->attributes['content_url'] = $path ? ltrim($path, '/') : $value;
-                    return;
-                }
-            }
-
-            // 非 TOS 域名（外部资源），原样保存
-            $this->attributes['content_url'] = $value;
-            return;
-        }
-
-        // 相对路径直接保存
-        $this->attributes['content_url'] = ltrim($value, '/');
+        $this->attributes['content_url'] = $this->extractTosPath($value);
     }
 }

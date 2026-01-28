@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\App\ArticlePostStoreRequest;
+use App\Http\Requests\App\ImageTextPostStoreRequest;
 use App\Http\Requests\App\PostListRequest;
 use App\Http\Requests\App\PostPageRequest;
 use App\Http\Requests\App\PostStoreRequest;
+use App\Http\Requests\App\VideoPostStoreRequest;
 use App\Http\Resources\App\AppApiResponse;
 use App\Http\Resources\App\PostListResource;
 use App\Http\Resources\App\PostResource;
@@ -40,6 +43,11 @@ class PostController extends Controller
     /**
      * 发表帖子
      *
+     * @deprecated 建议使用新接口：storeImageText()、storeVideo()、storeArticle()
+     * @see storeImageText() 发表图文动态
+     * @see storeVideo() 发表视频动态
+     * @see storeArticle() 发表文章动态
+     *
      * @param PostStoreRequest $request
      * @return JsonResponse
      */
@@ -58,6 +66,87 @@ class PostController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('发表帖子失败', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 发表图文动态
+     *
+     * @param ImageTextPostStoreRequest $request
+     * @return JsonResponse
+     */
+    public function storeImageText(ImageTextPostStoreRequest $request): JsonResponse
+    {
+        $memberId = $this->getMemberId($request);
+        $data = $request->validatedWithDefaults();
+
+        try {
+            $postId = $this->postService->createPost($memberId, $data);
+
+            return AppApiResponse::success([
+                'data' => ['post_id' => $postId]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('发表图文动态失败', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 发表视频动态
+     *
+     * @param VideoPostStoreRequest $request
+     * @return JsonResponse
+     */
+    public function storeVideo(VideoPostStoreRequest $request): JsonResponse
+    {
+        $memberId = $this->getMemberId($request);
+        $data = $request->validatedWithDefaults();
+
+        try {
+            $postId = $this->postService->createPost($memberId, $data);
+
+            return AppApiResponse::success([
+                'data' => ['post_id' => $postId]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('发表视频动态失败', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 发表文章动态
+     *
+     * @param ArticlePostStoreRequest $request
+     * @return JsonResponse
+     */
+    public function storeArticle(ArticlePostStoreRequest $request): JsonResponse
+    {
+        $memberId = $this->getMemberId($request);
+        $data = $request->validatedWithDefaults();
+
+        try {
+            $postId = $this->postService->createPost($memberId, $data);
+
+            return AppApiResponse::success([
+                'data' => ['post_id' => $postId]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('发表文章动态失败', [
                 'member_id' => $memberId,
                 'error' => $e->getMessage(),
             ]);

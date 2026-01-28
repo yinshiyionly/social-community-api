@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\App\AppApiResponse;
 use App\Http\Resources\App\MemberCollectionListResource;
 use App\Http\Resources\App\MemberFansListResource;
+use App\Http\Resources\App\MemberFollowingListResource;
 use App\Http\Resources\App\MemberPostListResource;
 use App\Http\Resources\App\MemberProfileResource;
 use App\Services\App\MemberService;
@@ -188,6 +189,47 @@ class MemberController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('获取粉丝列表失败', [
+                'member_id' => $memberId,
+                'page' => $page,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 获取个人关注列表
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function followings(Request $request): JsonResponse
+    {
+        $memberId = $this->getMemberId($request);
+        $page = (int)$request->input('page', 1);
+        $pageSize = (int)$request->input('pageSize', 10);
+
+        try {
+            $followings = $this->memberService->getMemberFollowings($memberId, $page, $pageSize);
+
+            // 过滤掉已注销的用户
+            $items = collect($followings->items())
+                ->map(function ($item) {
+                    return (new MemberFollowingListResource($item))->resolve();
+                })
+                ->filter()
+                ->values()
+                ->toArray();
+
+            return response()->json([
+                'code' => 200,
+                'msg' => 'success',
+                'total' => $followings->total(),
+                'rows' => $items,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('获取关注列表失败', [
                 'member_id' => $memberId,
                 'page' => $page,
                 'error' => $e->getMessage(),

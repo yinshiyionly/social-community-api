@@ -144,4 +144,26 @@ class MemberService
             ->orderByDesc('follow_id')
             ->paginate($pageSize, ['*'], 'page', $page);
     }
+
+    /**
+     * 获取用户关注列表（普通分页）
+     *
+     * @param int $memberId 用户ID
+     * @param int $page 页码
+     * @param int $pageSize 每页数量
+     * @return \Illuminate\Pagination\LengthAwarePaginator
+     */
+    public function getMemberFollowings(int $memberId, int $page = 1, int $pageSize = 10)
+    {
+        return AppMemberFollow::query()
+            ->select(['follow_id', 'follow_member_id', 'created_at'])
+            ->with(['followMember' => function ($query) {
+                $query->select(['member_id', 'nickname', 'avatar', 'bio'])
+                    ->normal();
+            }])
+            ->byMember($memberId)
+            ->normal()
+            ->orderByDesc('follow_id')
+            ->paginate($pageSize, ['*'], 'page', $page);
+    }
 }

@@ -39,4 +39,8 @@ Route::prefix('v1/member')->group(function () {
     // 个人粉丝列表（需登录）
     Route::get('fans', [MemberController::class, 'fans'])
         ->middleware('app.jwt.auth');
+
+    // 个人关注列表（需登录）
+    Route::get('followings', [MemberController::class, 'followings'])
+        ->middleware('app.jwt.auth');
 });

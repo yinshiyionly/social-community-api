@@ -48,6 +48,29 @@ class AppApiResponse
     }
 
     /**
+     * 帖子列表分页
+     *
+     * @param $paginator
+     * @param $resourceClass
+     * @param $message
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public static function postPaginate($paginator, $resourceClass = null, $message = 'success')
+    {
+        $items = $paginator->items();
+
+        if ($resourceClass && class_exists($resourceClass)) {
+            $items = $resourceClass::collection(collect($items))->resolve();
+        }
+
+        return response()->json([
+            'code' => AppResponseCode::SUCCESS,
+            'msg' => $message,
+            'data' => $items
+        ]);
+    }
+
+    /**
      * 分页响应
      */
     public static function paginate($paginator, $resourceClass = null, $message = 'success')

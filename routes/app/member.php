@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\App\MemberAuthController;
+use App\Http\Controllers\App\MemberController;
 
 /*
 |--------------------------------------------------------------------------
@@ -21,4 +22,13 @@ Route::prefix('v1/member')->group(function () {
 
     // 发送登录验证码
     Route::post('sms/send', [MemberAuthController::class, 'sendSms']);
+
+    // 用户主页详情（可选鉴权）
+    Route::get('{id}/profile', [MemberController::class, 'profile'])
+        ->middleware('app.jwt.optional')
+        ->where('id', '[0-9]+');
+
+    // 用户帖子列表
+    Route::get('{id}/posts', [MemberController::class, 'posts'])
+        ->where('id', '[0-9]+');
 });

@@ -74,7 +74,7 @@ class FollowService
         return AppMemberFollow::query()
             ->byMember($memberId)
             ->normal()
-            ->with('followMember:member_id,nickname,avatar,bio')
+            ->with('followMember:member_id,nickname,avatar')
             ->orderByDesc('created_at')
             ->paginate($pageSize, ['*'], 'page', $page);
     }

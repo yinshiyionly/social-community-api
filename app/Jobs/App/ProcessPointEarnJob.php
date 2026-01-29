@@ -164,4 +164,5 @@ class ProcessPointEarnJob implements ShouldQueue
 // // 同步消费（需要即时结果）
 // $result = $pointService->consumeSync($memberId, 100, '兑换商品', $orderNo);
 
+
 }

@@ -115,7 +115,7 @@ class FollowService
      * @param int $count
      * @return string
      */
-    private function formatFansCount(int $count): string
+    public function formatFansCount(int $count): string
     {
         if ($count >= 10000) {
             return round($count / 10000, 1) . 'w粉丝';

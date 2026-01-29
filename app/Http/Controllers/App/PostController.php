@@ -278,12 +278,12 @@ class PostController extends Controller
      * 收藏帖子
      *
      * @param Request $request
-     * @param int $id 帖子ID
      * @return JsonResponse
      */
-    public function collect(Request $request, int $id)
+    public function collect(Request $request)
     {
         $memberId = $this->getMemberId($request);
+        $id = $request->get('postId', 0);
 
         try {
             $result = $this->postService->collectPost($memberId, $id);
@@ -310,12 +310,12 @@ class PostController extends Controller
      * 取消收藏帖子
      *
      * @param Request $request
-     * @param int $id 帖子ID
      * @return JsonResponse
      */
-    public function uncollect(Request $request, int $id)
+    public function uncollect(Request $request)
     {
         $memberId = $this->getMemberId($request);
+        $id = $request->get('postId', 0);
 
         try {
             $result = $this->postService->uncollectPost($memberId, $id);
@@ -342,12 +342,12 @@ class PostController extends Controller
      * 点赞帖子
      *
      * @param Request $request
-     * @param int $id 帖子ID
      * @return JsonResponse
      */
-    public function like(Request $request, int $id)
+    public function like(Request $request)
     {
         $memberId = $this->getMemberId($request);
+        $id = $request->get('postId', 0);
 
         try {
             $result = $this->postService->likePost($memberId, $id);
@@ -374,12 +374,12 @@ class PostController extends Controller
      * 取消点赞帖子
      *
      * @param Request $request
-     * @param int $id 帖子ID
      * @return JsonResponse
      */
-    public function unlike(Request $request, int $id)
+    public function unlike(Request $request)
     {
         $memberId = $this->getMemberId($request);
+        $id = $request->get('postId', 0);
 
         try {
             $result = $this->postService->unlikePost($memberId, $id);

@@ -23,32 +23,25 @@ Route::prefix('v1/member')->group(function () {
     // 发送登录验证码
     Route::post('sms/send', [MemberAuthController::class, 'sendSms']);
 
+    Route::middleware('app.auth')->group(function () {
+        // 用户帖子列表
+        Route::get('post', [MemberController::class, 'posts']);
+        // 个人收藏帖子列表
+        Route::get('collections', [MemberController::class, 'collections']);
+        // 个人粉丝列表
+        Route::get('fans', [MemberController::class, 'fans']);
+        // 个人关注列表
+        Route::get('followings', [MemberController::class, 'followings']);
+        // 修改头像
+        Route::put('avatar', [MemberController::class, 'updateAvatar']);
+        // 修改昵称
+        Route::put('nickname', [MemberController::class, 'updateNickname']);
+    });
+
     // 用户主页详情（可选鉴权）
     Route::get('{id}/profile', [MemberController::class, 'profile'])
         ->middleware('app.jwt.optional')
         ->where('id', '[0-9]+');
 
-    // 用户帖子列表
-    Route::get('{id}/posts', [MemberController::class, 'posts'])
-        ->where('id', '[0-9]+');
 
-    // 个人收藏帖子列表（需登录）
-    Route::get('collections', [MemberController::class, 'collections'])
-        ->middleware('app.jwt.auth');
-
-    // 个人粉丝列表（需登录）
-    Route::get('fans', [MemberController::class, 'fans'])
-        ->middleware('app.jwt.auth');
-
-    // 个人关注列表（需登录）
-    Route::get('followings', [MemberController::class, 'followings'])
-        ->middleware('app.jwt.auth');
-
-    // 修改头像（需登录）
-    Route::put('avatar', [MemberController::class, 'updateAvatar'])
-        ->middleware('app.jwt.auth');
-
-    // 修改昵称（需登录）
-    Route::put('nickname', [MemberController::class, 'updateNickname'])
-        ->middleware('app.jwt.auth');
 });

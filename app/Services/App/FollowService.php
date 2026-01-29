@@ -194,6 +194,11 @@ class FollowService
 
             DB::commit();
 
+            // 创建关注消息（仅当实际更新了计数时才发送）
+            if ($shouldUpdateCount) {
+                MessageService::createFollowMessage($memberId, $followMemberId);
+            }
+
             return [
                 'success' => true,
                 'message' => 'followed',

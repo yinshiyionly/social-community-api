@@ -2,6 +2,7 @@
 
 namespace App\Services\App;
 
+use App\Constant\MessageType;
 use App\Jobs\App\FillPostMediaInfoJob;
 use App\Models\App\AppPostBase;
 use App\Models\App\AppPostCollection;
@@ -208,7 +209,7 @@ class PostService
     {
         // 检查帖子是否存在且可访问
         $post = AppPostBase::query()
-            ->select(['post_id', 'collection_count'])
+            ->select(['post_id', 'member_id', 'content', 'cover', 'collection_count'])
             ->approved()
             ->visible()
             ->where('post_id', $postId)
@@ -244,6 +245,17 @@ class PostService
             $post->incrementCollectionCount();
 
             DB::commit();
+
+            // 创建收藏消息（异步，不影响主流程）
+            $coverUrl = isset($post->cover['url']) ? $post->cover['url'] : null;
+            MessageService::createCollectMessage(
+                $memberId,
+                $post->member_id,
+                $postId,
+                MessageType::TARGET_POST,
+                mb_substr($post->content, 0, 50),
+                $coverUrl
+            );
 
             return [
                 'success' => true,
@@ -349,7 +361,7 @@ class PostService
     {
         // 检查帖子是否存在且可访问
         $post = AppPostBase::query()
-            ->select(['post_id', 'like_count'])
+            ->select(['post_id', 'member_id', 'content', 'cover', 'like_count'])
             ->approved()
             ->visible()
             ->where('post_id', $postId)
@@ -385,6 +397,17 @@ class PostService
             $post->incrementLikeCount();
 
             DB::commit();
+
+            // 创建点赞消息（异步，不影响主流程）
+            $coverUrl = isset($post->cover['url']) ? $post->cover['url'] : null;
+            MessageService::createLikeMessage(
+                $memberId,
+                $post->member_id,
+                $postId,
+                MessageType::TARGET_POST,
+                mb_substr($post->content, 0, 50),
+                $coverUrl
+            );
 
             return [
                 'success' => true,

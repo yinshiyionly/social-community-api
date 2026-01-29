@@ -2,6 +2,7 @@
 
 namespace App\Services\App;
 
+use App\Constant\MessageType;
 use App\Models\App\AppPostBase;
 use App\Models\App\AppPostComment;
 use Illuminate\Pagination\CursorPaginator;
@@ -20,12 +21,15 @@ class PostCommentService
     public function getCommentList(int $postId, ?string $cursor = null, int $pageSize = 10): CursorPaginator
     {
         return AppPostComment::query()
-            ->with(['member', 'replies' => function ($query) {
-                $query->with(['member', 'replyToMember'])
-                    ->normal()
-                    ->orderBy('created_at')
-                    ->limit(3);
-            }])
+            ->with([
+                'member',
+                'replies' => function ($query) {
+                    $query->with(['member', 'replyToMember'])
+                        ->normal()
+                        ->orderBy('created_at')
+                        ->limit(3);
+                }
+            ])
             ->byPost($postId)
             ->topLevel()
             ->normal()
@@ -70,6 +74,7 @@ class PostCommentService
     ): array {
         // 检查帖子是否存在且可访问
         $post = AppPostBase::query()
+            ->select(['post_id', 'member_id', 'cover'])
             ->approved()
             ->visible()
             ->where('post_id', $postId)
@@ -134,6 +139,30 @@ class PostCommentService
 
             // 加载关联数据
             $comment->load(['member', 'replyToMember']);
+
+            // 创建评论消息
+            $coverUrl = isset($post->cover['url']) ? $post->cover['url'] : null;
+            if ($parentId > 0 && $replyToMemberId > 0) {
+                // 回复评论，通知被回复的用户
+                MessageService::createCommentMessage(
+                    $memberId,
+                    $replyToMemberId,
+                    $comment->comment_id,
+                    MessageType::TARGET_COMMENT,
+                    mb_substr($content, 0, 50),
+                    $coverUrl
+                );
+            } else {
+                // 一级评论，通知帖子作者
+                MessageService::createCommentMessage(
+                    $memberId,
+                    $post->member_id,
+                    $postId,
+                    MessageType::TARGET_POST,
+                    mb_substr($content, 0, 50),
+                    $coverUrl
+                );
+            }
 
             return [
                 'success' => true,

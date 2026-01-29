@@ -1,0 +1,359 @@
+<?php
+
+namespace App\Services\App;
+
+use App\Constant\MessageType;
+use App\Jobs\App\CreateInteractionMessageJob;
+use App\Models\App\AppMemberBase;
+use App\Models\App\AppMessageInteraction;
+use App\Models\App\AppMessageSystem;
+use App\Models\App\AppMessageUnreadCount;
+use App\Models\App\AppMemberFollow;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+/**
+ * 消息服务类
+ */
+class MessageService
+{
+    /**
+     * 获取未读数统计
+     *
+     * @param int $memberId
+     * @return array
+     */
+    public function getUnreadCount(int $memberId): array
+    {
+        $unreadCount = AppMessageUnreadCount::getOrCreate($memberId);
+
+        $likeAndCollect = $unreadCount->getLikeAndCollectCount();
+        $comment = $unreadCount->comment_count;
+        $follow = $unreadCount->follow_count;
+        $system = $unreadCount->system_count;
+        $total = $likeAndCollect + $comment + $follow + $system;
+
+        return [
+            'total' => $total,
+            'likeAndCollect' => $likeAndCollect,
+            'comment' => $comment,
+            'follow' => $follow,
+            'system' => $system,
+        ];
+    }
+
+    /**
+     * 获取赞和收藏消息列表（游标分页）
+     *
+     * @param int $memberId
+     * @param string|null $cursor
+     * @param int $pageSize
+     * @return \Illuminate\Pagination\CursorPaginator
+     */
+    public function getLikeAndCollectMessages(int $memberId, ?string $cursor, int $pageSize)
+    {
+        $query = AppMessageInteraction::byReceiver($memberId)
+            ->likeAndCollect()
+            ->with('sender')
+            ->orderBy('message_id', 'desc');
+
+        return $query->cursorPaginate($pageSize, ['*'], 'cursor', $cursor);
+    }
+
+    /**
+     * 获取评论消息列表（游标分页）
+     *
+     * @param int $memberId
+     * @param string|null $cursor
+     * @param int $pageSize
+     * @return \Illuminate\Pagination\CursorPaginator
+     */
+    public function getCommentMessages(int $memberId, ?string $cursor, int $pageSize)
+    {
+        $query = AppMessageInteraction::byReceiver($memberId)
+            ->byType(MessageType::COMMENT)
+            ->with('sender')
+            ->orderBy('message_id', 'desc');
+
+        return $query->cursorPaginate($pageSize, ['*'], 'cursor', $cursor);
+    }
+
+    /**
+     * 获取关注消息列表（游标分页）
+     *
+     * @param int $memberId
+     * @param string|null $cursor
+     * @param int $pageSize
+     * @return \Illuminate\Pagination\CursorPaginator
+     */
+    public function getFollowMessages(int $memberId, ?string $cursor, int $pageSize)
+    {
+        $query = AppMessageInteraction::byReceiver($memberId)
+            ->byType(MessageType::FOLLOW)
+            ->with('sender')
+            ->orderBy('message_id', 'desc');
+
+        return $query->cursorPaginate($pageSize, ['*'], 'cursor', $cursor);
+    }
+
+    /**
+     * 检查关注状态
+     *
+     * @param int $memberId 当前用户ID
+     * @param array $targetMemberIds 目标用户ID列表
+     * @return array 已关注的用户ID列表
+     */
+    public function getFollowedMemberIds(int $memberId, array $targetMemberIds): array
+    {
+        if (empty($targetMemberIds)) {
+            return [];
+        }
+
+        return AppMemberFollow::where('member_id', $memberId)
+            ->whereIn('follow_member_id', $targetMemberIds)
+            ->pluck('follow_member_id')
+            ->toArray();
+    }
+
+    /**
+     * 获取系统消息列表（游标分页）
+     *
+     * @param int $memberId
+     * @param string|null $cursor
+     * @param int $pageSize
+     * @return \Illuminate\Pagination\CursorPaginator
+     */
+    public function getSystemMessages(int $memberId, ?string $cursor, int $pageSize)
+    {
+        $query = AppMessageSystem::forReceiver($memberId)
+            ->orderBy('message_id', 'desc');
+
+        return $query->cursorPaginate($pageSize, ['*'], 'cursor', $cursor);
+    }
+
+    /**
+     * 获取系统消息详情
+     *
+     * @param int $memberId
+     * @param int $messageId
+     * @return AppMessageSystem|null
+     */
+    public function getSystemDetail(int $memberId, int $messageId)
+    {
+        $message = AppMessageSystem::forReceiver($memberId)
+            ->where('message_id', $messageId)
+            ->first();
+
+        if ($message && $message->is_read === AppMessageSystem::READ_NO) {
+            // 标记为已读
+            $message->update(['is_read' => AppMessageSystem::READ_YES]);
+        }
+
+        return $message;
+    }
+
+    /**
+     * 标记消息为已读
+     *
+     * @param int $memberId
+     * @param string $type 消息类型：likeAndCollect/comment/follow/system/all
+     * @return void
+     */
+    public function markAsRead(int $memberId, string $type): void
+    {
+        DB::beginTransaction();
+
+        try {
+            switch ($type) {
+                case 'likeAndCollect':
+                    // 标记点赞和收藏消息为已读
+                    AppMessageInteraction::byReceiver($memberId)
+                        ->likeAndCollect()
+                        ->unread()
+                        ->update(['is_read' => AppMessageInteraction::READ_YES]);
+                    // 清空未读数
+                    AppMessageUnreadCount::clearLike($memberId);
+                    AppMessageUnreadCount::clearCollect($memberId);
+                    break;
+
+                case 'comment':
+                    AppMessageInteraction::byReceiver($memberId)
+                        ->byType(MessageType::COMMENT)
+                        ->unread()
+                        ->update(['is_read' => AppMessageInteraction::READ_YES]);
+                    AppMessageUnreadCount::clearComment($memberId);
+                    break;
+
+                case 'follow':
+                    AppMessageInteraction::byReceiver($memberId)
+                        ->byType(MessageType::FOLLOW)
+                        ->unread()
+                        ->update(['is_read' => AppMessageInteraction::READ_YES]);
+                    AppMessageUnreadCount::clearFollow($memberId);
+                    break;
+
+                case 'system':
+                    AppMessageSystem::byReceiver($memberId)
+                        ->unread()
+                        ->update(['is_read' => AppMessageSystem::READ_YES]);
+                    AppMessageUnreadCount::clearSystem($memberId);
+                    break;
+
+                case 'all':
+                    // 标记所有消息为已读
+                    AppMessageInteraction::byReceiver($memberId)
+                        ->unread()
+                        ->update(['is_read' => AppMessageInteraction::READ_YES]);
+                    AppMessageSystem::byReceiver($memberId)
+                        ->unread()
+                        ->update(['is_read' => AppMessageSystem::READ_YES]);
+                    // 清空所有未读数
+                    AppMessageUnreadCount::where('member_id', $memberId)->update([
+                        'like_count' => 0,
+                        'collect_count' => 0,
+                        'comment_count' => 0,
+                        'follow_count' => 0,
+                        'system_count' => 0,
+                    ]);
+                    break;
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::channel('job')->error('标记消息已读失败', [
+                'member_id' => $memberId,
+                'type' => $type,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * 创建互动消息（异步队列）
+     *
+     * @param array $data 消息数据
+     * @return void
+     */
+    public static function createInteractionMessage(array $data): void
+    {
+        // 不给自己发消息
+        if ($data['sender_id'] === $data['receiver_id']) {
+            return;
+        }
+
+        // 分发到异步队列
+        CreateInteractionMessageJob::dispatch($data);
+    }
+
+    /**
+     * 创建点赞消息（异步队列）
+     *
+     * @param int $senderId 发送者ID
+     * @param int $receiverId 接收者ID
+     * @param int $targetId 目标ID
+     * @param int $targetType 目标类型
+     * @param string|null $contentSummary 内容摘要
+     * @param string|null $coverUrl 封面URL
+     * @return void
+     */
+    public static function createLikeMessage(
+        int $senderId,
+        int $receiverId,
+        int $targetId,
+        int $targetType,
+        ?string $contentSummary = null,
+        ?string $coverUrl = null
+    ): void {
+        self::createInteractionMessage([
+            'sender_id' => $senderId,
+            'receiver_id' => $receiverId,
+            'message_type' => MessageType::LIKE,
+            'target_id' => $targetId,
+            'target_type' => $targetType,
+            'content_summary' => $contentSummary,
+            'cover_url' => $coverUrl,
+        ]);
+    }
+
+    /**
+     * 创建收藏消息（异步队列）
+     *
+     * @param int $senderId 发送者ID
+     * @param int $receiverId 接收者ID
+     * @param int $targetId 目标ID
+     * @param int $targetType 目标类型
+     * @param string|null $contentSummary 内容摘要
+     * @param string|null $coverUrl 封面URL
+     * @return void
+     */
+    public static function createCollectMessage(
+        int $senderId,
+        int $receiverId,
+        int $targetId,
+        int $targetType,
+        ?string $contentSummary = null,
+        ?string $coverUrl = null
+    ): void {
+        self::createInteractionMessage([
+            'sender_id' => $senderId,
+            'receiver_id' => $receiverId,
+            'message_type' => MessageType::COLLECT,
+            'target_id' => $targetId,
+            'target_type' => $targetType,
+            'content_summary' => $contentSummary,
+            'cover_url' => $coverUrl,
+        ]);
+    }
+
+    /**
+     * 创建评论消息（异步队列）
+     *
+     * @param int $senderId 发送者ID
+     * @param int $receiverId 接收者ID
+     * @param int $targetId 目标ID
+     * @param int $targetType 目标类型
+     * @param string|null $contentSummary 内容摘要
+     * @param string|null $coverUrl 封面URL
+     * @return void
+     */
+    public static function createCommentMessage(
+        int $senderId,
+        int $receiverId,
+        int $targetId,
+        int $targetType,
+        ?string $contentSummary = null,
+        ?string $coverUrl = null
+    ): void {
+        self::createInteractionMessage([
+            'sender_id' => $senderId,
+            'receiver_id' => $receiverId,
+            'message_type' => MessageType::COMMENT,
+            'target_id' => $targetId,
+            'target_type' => $targetType,
+            'content_summary' => $contentSummary,
+            'cover_url' => $coverUrl,
+        ]);
+    }
+
+    /**
+     * 创建关注消息（异步队列）
+     *
+     * @param int $senderId 发送者ID
+     * @param int $receiverId 接收者ID
+     * @return void
+     */
+    public static function createFollowMessage(int $senderId, int $receiverId): void
+    {
+        self::createInteractionMessage([
+            'sender_id' => $senderId,
+            'receiver_id' => $receiverId,
+            'message_type' => MessageType::FOLLOW,
+            'target_id' => null,
+            'target_type' => null,
+            'content_summary' => null,
+            'cover_url' => null,
+        ]);
+    }
+}

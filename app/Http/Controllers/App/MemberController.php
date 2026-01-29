@@ -4,9 +4,9 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\App\AppApiResponse;
+use App\Http\Resources\App\Member\MemberCollectionListResource;
 use App\Http\Resources\App\Member\MemberFansListResource;
 use App\Http\Resources\App\Member\MemberFollowingListResource;
-use App\Http\Resources\App\MemberCollectionListResource;
 use App\Http\Resources\App\MemberPostListResource;
 use App\Http\Resources\App\MemberProfileResource;
 use App\Services\App\MemberService;
@@ -91,7 +91,7 @@ class MemberController extends Controller
     {
         $page = (int)$request->input('page', 1);
         $pageSize = (int)$request->input('pageSize', 10);
-        $id = (int)$request->input('member_id', 0);
+        $id = (int)$request->input('id', 0);
         if (empty($id)) {
             $id = $request->attributes->get('member_id');
         }
@@ -134,21 +134,7 @@ class MemberController extends Controller
         try {
             $collections = $this->memberService->getMemberCollections($memberId, $page, $pageSize);
 
-            // 过滤掉已删除的帖子
-            $items = collect($collections->items())
-                ->map(function ($item) {
-                    return (new MemberCollectionListResource($item))->resolve();
-                })
-                ->filter()
-                ->values()
-                ->toArray();
-
-            return response()->json([
-                'code' => 200,
-                'msg' => 'success',
-                'total' => $collections->total(),
-                'rows' => $items,
-            ]);
+            return AppApiResponse::normalPaginate($collections, MemberCollectionListResource::class);
         } catch (\Exception $e) {
             Log::error('获取收藏帖子列表失败', [
                 'member_id' => $memberId,

@@ -4,9 +4,9 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\App\AppApiResponse;
+use App\Http\Resources\App\Member\MemberFollowingListResource;
 use App\Http\Resources\App\MemberCollectionListResource;
 use App\Http\Resources\App\MemberFansListResource;
-use App\Http\Resources\App\MemberFollowingListResource;
 use App\Http\Resources\App\MemberPostListResource;
 use App\Http\Resources\App\MemberProfileResource;
 use App\Services\App\MemberService;
@@ -213,21 +213,7 @@ class MemberController extends Controller
         try {
             $followings = $this->memberService->getMemberFollowings($memberId, $page, $pageSize);
 
-            // 过滤掉已注销的用户
-            $items = collect($followings->items())
-                ->map(function ($item) {
-                    return (new MemberFollowingListResource($item))->resolve();
-                })
-                ->filter()
-                ->values()
-                ->toArray();
-
-            return response()->json([
-                'code' => 200,
-                'msg' => 'success',
-                'total' => $followings->total(),
-                'rows' => $items,
-            ]);
+            return AppApiResponse::normalPaginate($followings, MemberFollowingListResource::class);
         } catch (\Exception $e) {
             Log::error('获取关注列表失败', [
                 'member_id' => $memberId,

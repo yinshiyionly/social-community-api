@@ -158,7 +158,7 @@ class MemberService
         return AppMemberFollow::query()
             ->select(['follow_id', 'follow_member_id', 'created_at'])
             ->with(['followMember' => function ($query) {
-                $query->select(['member_id', 'nickname', 'avatar', 'bio'])
+                $query->select(['member_id', 'nickname', 'avatar', 'bio', 'fans_count'])
                     ->normal();
             }])
             ->byMember($memberId)

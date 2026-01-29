@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Resources\App;
+namespace App\Http\Resources\App\Member;
 
+use App\Services\App\FollowService;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
@@ -24,10 +25,12 @@ class MemberFansListResource extends JsonResource
         }
 
         return [
-            'memberId' => $member->member_id,
+            'id' => $member->member_id,
             'nickname' => $member->nickname ?? '',
             'avatar' => $member->avatar ?? '',
             'bio' => $member->bio ?? '',
+            'fansCount' => app(FollowService::class)->formatFansCount($member->fans_count ?? 0),
+            'isFollowed' => $this->is_followed ?? false,
         ];
     }
 }

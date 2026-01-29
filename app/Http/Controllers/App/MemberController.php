@@ -4,9 +4,9 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\App\AppApiResponse;
+use App\Http\Resources\App\Member\MemberFansListResource;
 use App\Http\Resources\App\Member\MemberFollowingListResource;
 use App\Http\Resources\App\MemberCollectionListResource;
-use App\Http\Resources\App\MemberFansListResource;
 use App\Http\Resources\App\MemberPostListResource;
 use App\Http\Resources\App\MemberProfileResource;
 use App\Services\App\MemberService;
@@ -172,21 +172,19 @@ class MemberController extends Controller
         try {
             $fans = $this->memberService->getMemberFans($memberId, $page, $pageSize);
 
-            // 过滤掉已注销的用户
-            $items = collect($fans->items())
-                ->map(function ($item) {
-                    return (new MemberFansListResource($item))->resolve();
-                })
+            // 批量查询当前用户对粉丝的关注状态
+            $fanMemberIds = collect($fans->items())
+                ->pluck('member_id')
                 ->filter()
-                ->values()
                 ->toArray();
+            $followedIds = $this->memberService->getFollowedMemberIds($memberId, $fanMemberIds);
 
-            return response()->json([
-                'code' => 200,
-                'msg' => 'success',
-                'total' => $fans->total(),
-                'rows' => $items,
-            ]);
+            // 将关注状态附加到每个粉丝记录
+            foreach ($fans->items() as $fan) {
+                $fan->is_followed = in_array($fan->member_id, $followedIds);
+            }
+
+            return AppApiResponse::normalPaginate($fans, MemberFansListResource::class);
         } catch (\Exception $e) {
             Log::error('获取粉丝列表失败', [
                 'member_id' => $memberId,

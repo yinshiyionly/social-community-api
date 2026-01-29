@@ -136,13 +136,34 @@ class MemberService
         return AppMemberFollow::query()
             ->select(['follow_id', 'member_id', 'created_at'])
             ->with(['member' => function ($query) {
-                $query->select(['member_id', 'nickname', 'avatar', 'bio'])
+                $query->select(['member_id', 'nickname', 'avatar', 'bio', 'fans_count'])
                     ->normal();
             }])
             ->byFollowMember($memberId)
             ->normal()
             ->orderByDesc('follow_id')
             ->paginate($pageSize, ['*'], 'page', $page);
+    }
+
+    /**
+     * 批量获取当前用户对指定用户列表的关注状态
+     *
+     * @param int $memberId 当前用户ID
+     * @param array $targetMemberIds 目标用户ID列表
+     * @return array 已关注的用户ID列表
+     */
+    public function getFollowedMemberIds(int $memberId, array $targetMemberIds): array
+    {
+        if (empty($targetMemberIds)) {
+            return [];
+        }
+
+        return AppMemberFollow::query()
+            ->byMember($memberId)
+            ->whereIn('follow_member_id', $targetMemberIds)
+            ->normal()
+            ->pluck('follow_member_id')
+            ->toArray();
     }
 
     /**

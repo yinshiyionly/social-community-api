@@ -25,7 +25,7 @@ Route::prefix('v1/member')->group(function () {
 
     Route::middleware('app.auth')->group(function () {
         // 用户帖子列表
-        Route::get('post', [MemberController::class, 'posts']);
+        Route::get('posts', [MemberController::class, 'posts']);
         // 个人收藏帖子列表
         Route::get('collections', [MemberController::class, 'collections']);
         // 个人粉丝列表

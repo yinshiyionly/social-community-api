@@ -85,13 +85,16 @@ class MemberController extends Controller
      * 获取用户帖子列表
      *
      * @param Request $request
-     * @param int $id 目标用户ID
      * @return JsonResponse
      */
-    public function posts(Request $request, int $id): JsonResponse
+    public function posts(Request $request): JsonResponse
     {
         $page = (int)$request->input('page', 1);
         $pageSize = (int)$request->input('pageSize', 10);
+        $id = (int)$request->input('member_id', 0);
+        if (empty($id)) {
+            $id = $request->attributes->get('member_id');
+        }
 
         try {
             // 检查用户是否存在
@@ -104,7 +107,7 @@ class MemberController extends Controller
             // 获取帖子列表
             $posts = $this->memberService->getMemberPosts($id, $page, $pageSize);
 
-            return AppApiResponse::paginate($posts, MemberPostListResource::class);
+            return AppApiResponse::normalPaginate($posts, MemberPostListResource::class);
         } catch (\Exception $e) {
             Log::error('获取用户帖子列表失败', [
                 'target_member_id' => $id,

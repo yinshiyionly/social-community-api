@@ -1,0 +1,186 @@
+<?php
+
+namespace App\Models\App;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class AppPointTask extends Model
+{
+    use HasFactory;
+
+    protected $table = 'app_point_task';
+    protected $primaryKey = 'task_id';
+    public $timestamps = false;
+
+    // 任务类型
+    const TYPE_DAILY = 1;      // 日常任务
+    const TYPE_GROWTH = 2;     // 成长任务（一次性）
+    const TYPE_SPECIAL = 3;    // 特殊任务
+
+    // 任务分类
+    const CATEGORY_DAILY = 'daily';       // 日常
+    const CATEGORY_GROWTH = 'growth';     // 成长
+    const CATEGORY_ACTIVITY = 'activity'; // 活动
+
+    // 状态
+    const STATUS_ENABLED = 1;   // 启用
+    const STATUS_DISABLED = 2;  // 禁用
+
+    // 删除标志
+    const DEL_FLAG_NORMAL = 0;
+    const DEL_FLAG_DELETED = 1;
+
+    protected $fillable = [
+        'task_code',
+        'task_name',
+        'task_type',
+        'task_category',
+        'point_value',
+        'daily_limit',
+        'total_limit',
+        'icon',
+        'description',
+        'jump_url',
+        'sort_order',
+        'status',
+        'start_time',
+        'end_time',
+        'create_by',
+        'create_time',
+        'update_by',
+        'update_time',
+        'del_flag',
+    ];
+
+    protected $casts = [
+        'task_id' => 'integer',
+        'task_type' => 'integer',
+        'point_value' => 'integer',
+        'daily_limit' => 'integer',
+        'total_limit' => 'integer',
+        'sort_order' => 'integer',
+        'status' => 'integer',
+        'del_flag' => 'integer',
+        'start_time' => 'datetime',
+        'end_time' => 'datetime',
+        'create_time' => 'datetime',
+        'update_time' => 'datetime',
+    ];
+
+    /**
+     * 查询作用域：启用状态
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeEnabled($query)
+    {
+        return $query->where('status', self::STATUS_ENABLED)
+                     ->where('del_flag', self::DEL_FLAG_NORMAL);
+    }
+
+    /**
+     * 查询作用域：按任务类型
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int $type
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeByType($query, int $type)
+    {
+        return $query->where('task_type', $type);
+    }
+
+    /**
+     * 查询作用域：按任务分类
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string $category
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeByCategory($query, string $category)
+    {
+        return $query->where('task_category', $category);
+    }
+
+    /**
+     * 查询作用域：生效中
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeActive($query)
+    {
+        $now = now();
+        return $query->where(function ($q) use ($now) {
+            $q->whereNull('start_time')
+              ->orWhere('start_time', '<=', $now);
+        })->where(function ($q) use ($now) {
+            $q->whereNull('end_time')
+              ->orWhere('end_time', '>=', $now);
+        });
+    }
+
+    /**
+     * 根据任务编码获取任务配置
+     *
+     * @param string $taskCode
+     * @return self|null
+     */
+    public static function getByCode(string $taskCode)
+    {
+        return self::enabled()
+            ->active()
+            ->where('task_code', $taskCode)
+            ->first();
+    }
+
+    /**
+     * 获取日常任务列表
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public static function getDailyTasks()
+    {
+        return self::enabled()
+            ->active()
+            ->byType(self::TYPE_DAILY)
+            ->orderBy('sort_order')
+            ->get();
+    }
+
+    /**
+     * 获取成长任务列表
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public static function getGrowthTasks()
+    {
+        return self::enabled()
+            ->active()
+            ->byType(self::TYPE_GROWTH)
+            ->orderBy('sort_order')
+            ->get();
+    }
+
+    /**
+     * 判断是否为日常任务
+     *
+     * @return bool
+     */
+    public function isDailyTask(): bool
+    {
+        return $this->task_type === self::TYPE_DAILY;
+    }
+
+    /**
+     * 判断是否为成长任务
+     *
+     * @return bool
+     */
+    public function isGrowthTask(): bool
+    {
+        return $this->task_type === self::TYPE_GROWTH;
+    }
+}

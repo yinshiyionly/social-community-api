@@ -10,7 +10,9 @@ use App\Http\Resources\App\AppApiResponse;
 use App\Http\Resources\App\FollowMemberListResource;
 use App\Http\Resources\App\FollowPostListResource;
 use App\Http\Resources\App\RecommendMemberResource;
+use App\Http\Resources\App\RecommendPostListResource;
 use App\Services\App\FollowService;
+use App\Services\App\RecommendPostService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -25,9 +27,15 @@ class FollowController extends Controller
      */
     protected $followService;
 
-    public function __construct(FollowService $followService)
+    /**
+     * @var RecommendPostService
+     */
+    protected $recommendPostService;
+
+    public function __construct(FollowService $followService, RecommendPostService $recommendPostService)
     {
         $this->followService = $followService;
+        $this->recommendPostService = $recommendPostService;
     }
 
     /**
@@ -199,6 +207,41 @@ class FollowController extends Controller
             return AppApiResponse::normalPaginate($result['posts'], FollowPostListResource::class);
         } catch (\Exception $e) {
             Log::error('获取关注用户帖子失败', [
+                'member_id' => $memberId,
+                'page' => $page,
+                'pageSize' => $pageSize,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 获取推荐帖子列表（猜你喜欢）
+     *
+     * @param FollowPostListRequest $request
+     * @return JsonResponse
+     */
+    public function recommendPosts(FollowPostListRequest $request): JsonResponse
+    {
+        $memberId = $this->getMemberId($request);
+        $page = $request->input('page', 1);
+        $pageSize = $request->input('pageSize', 10);
+
+        try {
+            $result = $this->recommendPostService->getRecommendPosts($memberId, $page, $pageSize);
+
+            // 设置交互状态数据到 Resource
+            RecommendPostListResource::setInteractionData(
+                $result['likedIds'],
+                $result['collectedIds'],
+                $result['followedIds']
+            );
+
+            return AppApiResponse::normalPaginate($result['posts'], RecommendPostListResource::class);
+        } catch (\Exception $e) {
+            Log::error('获取推荐帖子失败', [
                 'member_id' => $memberId,
                 'page' => $page,
                 'pageSize' => $pageSize,

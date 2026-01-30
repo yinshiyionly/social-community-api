@@ -31,7 +31,7 @@ Route::prefix('v1/post')->group(function () {
         // 发表文章动态
         Route::post('store/article', [PostController::class, 'storeArticle']);
         // 发表帖子（已废弃，建议使用新接口）
-        Route::post('store', [PostController::class, 'store']);
+        // Route::post('store', [PostController::class, 'store']);
         // 收藏帖子
         Route::post('collect', [PostController::class, 'collect']);
         // 取消收藏

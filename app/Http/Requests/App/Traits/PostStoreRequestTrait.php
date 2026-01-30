@@ -16,14 +16,14 @@ trait PostStoreRequestTrait
      *
      * @var array
      */
-    protected static $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+    protected static array $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
 
     /**
      * 允许的视频后缀
      *
      * @var array
      */
-    protected static $videoExtensions = ['mp4', 'mov', 'avi', 'wmv', 'flv', 'mkv', 'webm'];
+    protected static array $videoExtensions = ['mp4', 'mov', 'avi', 'wmv', 'flv', 'mkv', 'webm'];
 
     /**
      * 公共验证规则
@@ -104,8 +104,14 @@ trait PostStoreRequestTrait
      */
     protected function applyDefaults(array $data, int $postType): array
     {
+        // 帖子类型
         $data['post_type'] = $postType;
+        // post_type = 3 时
         $data['title'] = $data['title'] ?? '';
+        // post_type = 1/2 时, title = content
+        if (in_array($postType, [AppPostBase::POST_TYPE_IMAGE_TEXT, AppPostBase::POST_TYPE_VIDEO])) {
+            $data['title'] = $data['content'] ?? '';
+        }
         $data['content'] = $data['content'] ?? '';
         $data['image_show_style'] = $data['image_show_style'] ?? AppPostBase::IMAGE_SHOW_STYLE_LARGE;
         $data['article_cover_style'] = $data['article_cover_style'] ?? AppPostBase::ARTICLE_COVER_STYLE_SINGLE;

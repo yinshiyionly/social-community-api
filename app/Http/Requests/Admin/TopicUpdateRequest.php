@@ -27,7 +27,7 @@ class TopicUpdateRequest extends FormRequest
     public function rules()
     {
         $topicId = $this->input('topicId');
-        
+
         return [
             'topicId' => 'required|exists:app_topic_base,topic_id',
             'topicName' => 'required|string|max:100|unique:app_topic_base,topic_name,' . $topicId . ',topic_id',

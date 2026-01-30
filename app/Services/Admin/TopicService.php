@@ -189,8 +189,8 @@ class TopicService
     public function changeStatus(int $topicId, int $status): bool
     {
         return AppTopicBase::query()
-            ->where('topic_id', $topicId)
-            ->update(['status' => $status]) > 0;
+                ->where('topic_id', $topicId)
+                ->update(['status' => $status]) > 0;
     }
 
     /**
@@ -203,8 +203,8 @@ class TopicService
     public function changeRecommend(int $topicId, int $isRecommend): bool
     {
         return AppTopicBase::query()
-            ->where('topic_id', $topicId)
-            ->update(['is_recommend' => $isRecommend]) > 0;
+                ->where('topic_id', $topicId)
+                ->update(['is_recommend' => $isRecommend]) > 0;
     }
 
     /**

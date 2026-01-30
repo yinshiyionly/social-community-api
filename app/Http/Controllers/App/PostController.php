@@ -43,13 +43,13 @@ class PostController extends Controller
     /**
      * 发表帖子
      *
-     * @deprecated 建议使用新接口：storeImageText()、storeVideo()、storeArticle()
-     * @see storeImageText() 发表图文动态
+     * @param PostStoreRequest $request
+     * @return JsonResponse
      * @see storeVideo() 发表视频动态
      * @see storeArticle() 发表文章动态
      *
-     * @param PostStoreRequest $request
-     * @return JsonResponse
+     * @deprecated 建议使用新接口：storeImageText()、storeVideo()、storeArticle()
+     * @see storeImageText() 发表图文动态
      */
     public function store(PostStoreRequest $request)
     {

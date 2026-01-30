@@ -34,7 +34,7 @@ class FillPostMediaInfoJob
                 break;
 
             case AppPostBase::POST_TYPE_ARTICLE:
-                FillArticlePostMediaJob::dispatch($postId);
+                // FillArticlePostMediaJob::dispatch($postId);
                 break;
 
             default:

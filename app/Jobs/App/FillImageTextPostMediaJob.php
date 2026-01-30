@@ -19,9 +19,9 @@ class FillImageTextPostMediaJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $tries = 3;
-    public $timeout = 60;
-    public $backoff = 10;
+    public int $tries = 3;
+    public int $timeout = 60;
+    public int $backoff = 10;
 
     /**
      * @var int

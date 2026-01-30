@@ -392,6 +392,56 @@ class AppFileUploadService
             $info['duration'] = $duration;
         }
 
+        // 使用 TOS 提供的媒体处理来解决视频封面问题
+        // @doc https://www.volcengine.com/docs/6349/336155?lang=zh
+        if (substr($mimeType, 0, 6) === 'video/') {
+            try {
+                // 此时的 storagePath 类似 3545623190/video/20260113/48f3dbdc-1b30-43dd-82c3-55700f1b4ffe.mp4
+                // 将 video 替换为 video-cover
+                // 将 mp4 替换为 jpg
+
+                // $storagePath = '3545623190/video/20260113/48f3dbdc-1b30-43dd-82c3-55700f1b4ffe.mp4';
+
+                // 1. 只替换目录中的 /video/
+                $path = preg_replace('#/video/#', '/video-cover/', $storagePath, 1);
+
+                // 2. 安全替换扩展名
+                $fileInfo = pathinfo($path);
+
+                $videoCoverPath = $fileInfo['dirname']
+                    . '/' . $fileInfo['filename']
+                    . '.jpg';
+
+                // 截图参数
+                $snapshotTime = 100; // 默认 0.1 秒
+                $format = 'jpg';
+                $mode = 'fast';
+
+                // 构建 x-tos-process 参数
+                // 格式: video/snapshot,t_{时间毫秒},f_{格式},m_{模式}
+                $processParam = sprintf(
+                    'video/snapshot,t_%d,f_%s,m_%s',
+                    $snapshotTime,
+                    $format,
+                    $mode,
+                );
+                // 发起 TOS 请求
+                $processURL = sprintf('%s?x-tos-process=%s', $this->getBucketEndpoint($storagePath), $processParam);
+                $videoCoverContent = $this->fetchSnapshot($processURL);
+
+                $uploadCoverResult = $this->uploadCoverToTos($videoCoverContent, $videoCoverPath);
+                if ($uploadCoverResult) {
+                    $info['extra'] = [
+                        'cover' => $videoCoverPath
+                    ];
+                }
+            } catch (\Exception $e) {
+                Log::channel('daily')->error('使用TOS视频截帧失败: ' . $e->getMessage(), [
+                    'storage_path' => $storagePath
+                ]);
+            }
+        }
+
         return $info;
     }
 
@@ -630,5 +680,59 @@ class AppFileUploadService
         ]);
 
         return $results;
+    }
+
+    /**
+     * 上传封面到 TOS
+     *
+     * @param string $imageContent
+     * @param string $coverPath
+     * @return bool
+     * @throws \Exception
+     */
+    protected function uploadCoverToTos(string $imageContent, string $coverPath)
+    {
+        // 上传到 TOS
+        $disk = Storage::disk('volcengine');
+        $uploaded = $disk->put($coverPath, $imageContent);
+
+        if (!$uploaded) {
+            throw new \Exception('封面上传到 TOS 失败');
+        }
+        return $uploaded;
+    }
+
+    /**
+     * 获取截图图片流
+     *
+     * @param string $snapshotUrl
+     * @return string
+     * @throws \Exception
+     */
+    protected function fetchSnapshot(string $snapshotUrl): string
+    {
+        $response = Http::timeout(60)->get($snapshotUrl);
+
+        if (!$response->successful()) {
+            throw new \Exception(sprintf(
+                '获取视频截图失败: HTTP %d, %s',
+                $response->status(),
+                $response->body()
+            ));
+        }
+
+        $content = $response->body();
+
+        if (empty($content)) {
+            throw new \Exception('获取视频截图失败: 返回内容为空');
+        }
+
+        // 验证是否为有效图片
+        $imageInfo = @getimagesizefromstring($content);
+        if ($imageInfo === false) {
+            throw new \Exception('获取视频截图失败: 返回内容不是有效图片');
+        }
+
+        return $content;
     }
 }

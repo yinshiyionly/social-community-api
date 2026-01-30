@@ -29,10 +29,9 @@ class PostResource extends JsonResource
             'title' => $this->title ?? '',
             'content' => $this->content ?? '',
             'mediaData' => $this->media_data ?? [],
-
-            // 位置信息
-            'locationName' => $this->location_name,
-            'locationGeo' => $this->location_geo,
+            'cover' => $this->cover ?? [],
+            'imageShowStyle' => $this->image_show_style,
+            'articleCoverStyle' => $this->article_cover_style,
 
             // 统计数据
             'viewCount' => $this->stat ? $this->stat->view_count : 0,

@@ -27,24 +27,15 @@ class PostService
         try {
             DB::beginTransaction();
 
-            // 文章动态：自动生成摘要
-            if ($data['post_type'] == AppPostBase::POST_TYPE_ARTICLE) {
-                if (empty($data['content']) && !empty($data['content_html'])) {
-                    $data['content'] = $this->extractSummary($data['content_html'], 200);
-                }
-            }
-
             $insert = [
                 'member_id' => $memberId,
                 'post_type' => $data['post_type'],
                 'title' => $data['title'],
                 'content' => $data['content'],
-                'content_html' => $data['content_html'] ?? '',
                 'media_data' => $data['media_data'],
                 'cover' => $data['cover'],
-                'image_style' => $data['image_style'],
-                'location_name' => $data['location_name'],
-                'location_geo' => $data['location_geo'],
+                'image_show_style' => $data['image_show_style'] ?? AppPostBase::IMAGE_SHOW_STYLE_LARGE,
+                'article_cover_style' => $data['article_cover_style'] ?? AppPostBase::ARTICLE_COVER_STYLE_SINGLE,
                 'visible' => $data['visible'],
                 'status' => AppPostBase::STATUS_PENDING,
             ];
@@ -99,30 +90,6 @@ class PostService
     }
 
     /**
-     * 从 HTML 提取文本摘要
-     *
-     * @param string $html
-     * @param int $length 摘要长度
-     * @return string
-     */
-    protected function extractSummary(string $html, int $length = 200): string
-    {
-        // 去除 HTML 标签
-        $text = strip_tags($html);
-
-        // 去除多余空白
-        $text = preg_replace('/\s+/', ' ', $text);
-        $text = trim($text);
-
-        // 截取指定长度
-        if (mb_strlen($text) > $length) {
-            $text = mb_substr($text, 0, $length) . '...';
-        }
-
-        return $text;
-    }
-
-    /**
      * 帖子列表查询字段
      */
     private const POST_LIST_COLUMNS = [
@@ -133,8 +100,8 @@ class PostService
         'content',
         'media_data',
         'cover',
-        'image_style',
-        'location_name',
+        'image_show_style',
+        'article_cover_style',
         'is_top',
         'sort_score',
         'created_at',
@@ -151,9 +118,8 @@ class PostService
         'content',
         'media_data',
         'cover',
-        'image_style',
-        'location_name',
-        'location_geo',
+        'image_show_style',
+        'article_cover_style',
         'is_top',
         'created_at',
     ];

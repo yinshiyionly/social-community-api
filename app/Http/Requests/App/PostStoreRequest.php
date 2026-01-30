@@ -37,11 +37,8 @@ class PostStoreRequest extends FormRequest
             'media_data' => 'sometimes|nullable|array',
             'media_data.*' => 'required|string|max:500',
             'cover' => 'sometimes|nullable|string|max:500',
-            'image_style' => 'sometimes|integer|in:1,2',
-            'location_name' => 'sometimes|nullable|string|max:100',
-            'location_geo' => 'sometimes|nullable|array',
-            'location_geo.lat' => 'sometimes|nullable|numeric',
-            'location_geo.lng' => 'sometimes|nullable|numeric',
+            'image_show_style' => 'sometimes|integer|in:1,2',
+            'article_cover_style' => 'sometimes|integer|in:1,2,3',
             'visible' => 'sometimes|integer|in:0,1',
         ];
 
@@ -186,9 +183,8 @@ class PostStoreRequest extends FormRequest
             'media_data.size' => '视频动态只能上传:size个视频',
             'media_data.*.string' => '媒体文件URL格式错误',
             'cover.string' => '封面图URL格式错误',
-            'location_name.max' => '位置名称最多100字',
-            'content_html.required' => '请输入文章内容',
-            'content_html.max' => '文章内容过长',
+            'image_show_style.in' => '图片展示样式不正确',
+            'article_cover_style.in' => '文章封面样式不正确',
         ];
     }
 
@@ -204,9 +200,8 @@ class PostStoreRequest extends FormRequest
         // 设置默认值
         $data['title'] = $data['title'] ?? '';
         $data['content'] = $data['content'] ?? '';
-        $data['image_style'] = $data['image_style'] ?? AppPostBase::IMAGE_STYLE_LARGE;
-        $data['location_name'] = $data['location_name'] ?? '';
-        $data['location_geo'] = $data['location_geo'] ?? [];
+        $data['image_show_style'] = $data['image_show_style'] ?? AppPostBase::IMAGE_SHOW_STYLE_LARGE;
+        $data['article_cover_style'] = $data['article_cover_style'] ?? AppPostBase::ARTICLE_COVER_STYLE_SINGLE;
         $data['visible'] = $data['visible'] ?? AppPostBase::VISIBLE_PUBLIC;
 
         // media_data: 将 URL 字符串数组转为对象数组，其他字段由异步队列补充

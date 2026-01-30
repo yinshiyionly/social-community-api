@@ -49,7 +49,7 @@ class PostService
             DB::commit();
 
             // 派发异步任务填充媒体信息
-            FillPostMediaInfoJob::dispatch($post->post_id);
+            FillPostMediaInfoJob::dispatch($post->post_id, (int)$data['post_type']);
 
             return $post->post_id;
         } catch (\Exception $e) {

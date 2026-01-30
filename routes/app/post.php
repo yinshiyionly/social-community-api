@@ -25,7 +25,7 @@ Route::prefix('v1/post')->group(function () {
     // 需要登录的接口
     Route::middleware('app.auth')->group(function () {
         // 发表图文动态
-        Route::post('store/image-text', [PostController::class, 'storeImageText']);
+        Route::post('store/imageText', [PostController::class, 'storeImageText']);
         // 发表视频动态
         Route::post('store/video', [PostController::class, 'storeVideo']);
         // 发表文章动态

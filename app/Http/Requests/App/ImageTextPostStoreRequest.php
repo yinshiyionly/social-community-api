@@ -175,9 +175,9 @@ class ImageTextPostStoreRequest extends FormRequest
         $data = $this->applyDefaults($validated, AppPostBase::POST_TYPE_IMAGE_TEXT);
 
         // 图文动态：如果未指定封面，使用第一张图片作为封面
-        if (!empty($data['media_data']) && empty($data['cover']['url'])) {
+        /*if (!empty($data['media_data']) && empty($data['cover']['url'])) {
             $data['cover'] = $data['media_data'][0];
-        }
+        }*/
 
         // 处理话题数据
         $data['topics'] = $this->input('topics', []);

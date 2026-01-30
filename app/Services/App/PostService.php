@@ -7,6 +7,8 @@ use App\Jobs\App\FillPostMediaInfoJob;
 use App\Models\App\AppPostBase;
 use App\Models\App\AppPostCollection;
 use App\Models\App\AppPostLike;
+use App\Models\App\AppTopicPostRelation;
+use App\Models\App\AppTopicStat;
 use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -23,6 +25,8 @@ class PostService
     public function createPost(int $memberId, array $data): int
     {
         try {
+            DB::beginTransaction();
+
             // 文章动态：自动生成摘要
             if ($data['post_type'] == AppPostBase::POST_TYPE_ARTICLE) {
                 if (empty($data['content']) && !empty($data['content_html'])) {
@@ -46,12 +50,51 @@ class PostService
             ];
             $post = AppPostBase::query()->create($insert);
 
+            // 处理话题关联
+            if (!empty($data['topics'])) {
+                $this->attachTopics($post->post_id, $memberId, $data['topics']);
+            }
+
+            DB::commit();
+
             // 派发异步任务填充媒体信息
             FillPostMediaInfoJob::dispatch($post->post_id);
 
             return $post->post_id;
         } catch (\Exception $e) {
+            DB::rollBack();
             throw new \Exception('保存入库失败-' . $e->getMessage());
+        }
+    }
+
+    /**
+     * 关联帖子与话题
+     *
+     * @param int $postId 帖子ID
+     * @param int $memberId 会员ID
+     * @param array $topics 话题数组 [['id' => 1, 'name' => '话题名'], ...]
+     * @return void
+     */
+    protected function attachTopics(int $postId, int $memberId, array $topics): void
+    {
+        $now = now();
+
+        foreach ($topics as $topic) {
+            $topicId = $topic['id'];
+
+            // 创建关联记录
+            AppTopicPostRelation::create([
+                'topic_id' => $topicId,
+                'post_id' => $postId,
+                'member_id' => $memberId,
+                'is_featured' => AppTopicPostRelation::IS_FEATURED_NO,
+                'created_at' => $now,
+            ]);
+
+            // 更新话题统计：帖子数+1
+            AppTopicStat::query()
+                ->where('topic_id', $topicId)
+                ->increment('post_count');
         }
     }
 

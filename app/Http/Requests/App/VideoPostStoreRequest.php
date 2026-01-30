@@ -10,10 +10,15 @@ use Illuminate\Validation\Validator;
 /**
  * 视频动态发表请求验证
  *
+ * 请求参数：
+ * - videoUrl: 必填，视频URL字符串
+ * - coverUrl: 可选，自定义封面URL
+ * - content: 可选，最大500字符
+ * - topics: 可选，话题数组
+ *
  * 验证规则：
- * - media_data 必填，且只能包含 1 个视频
+ * - videoUrl 必填，必须是视频格式
  * - content 最大 500 字符
- * - media_data 只能包含视频格式
  */
 class VideoPostStoreRequest extends FormRequest
 {
@@ -38,8 +43,11 @@ class VideoPostStoreRequest extends FormRequest
     {
         return array_merge($this->commonRules(), [
             'content' => 'sometimes|nullable|string|max:500',
-            'media_data' => 'required|array|size:1',
-            'media_data.*' => 'required|string|max:500',
+            'videoUrl' => 'required|string|max:500',
+            'coverUrl' => 'sometimes|nullable|string|max:500',
+            'topics' => 'sometimes|nullable|array',
+            'topics.*.id' => 'required_with:topics|integer',
+            'topics.*.name' => 'required_with:topics|string|max:50',
         ]);
     }
 
@@ -52,29 +60,26 @@ class VideoPostStoreRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
-            $this->validateVideoOnly($validator);
+            $this->validateVideoUrl($validator);
         });
     }
 
     /**
-     * 验证 media_data 只包含视频格式
+     * 验证 videoUrl 是视频格式
      *
      * @param Validator $validator
      * @return void
      */
-    protected function validateVideoOnly(Validator $validator): void
+    protected function validateVideoUrl(Validator $validator): void
     {
-        $mediaData = $this->input('media_data', []);
+        $videoUrl = $this->input('videoUrl', '');
 
-        if (empty($mediaData) || !is_array($mediaData)) {
+        if (empty($videoUrl)) {
             return;
         }
 
-        foreach ($mediaData as $url) {
-            if (!$this->isVideoUrl($url)) {
-                $validator->errors()->add('media_data', '视频动态只能上传视频');
-                return;
-            }
+        if (!$this->isVideoUrl($videoUrl)) {
+            $validator->errors()->add('videoUrl', '请上传正确的视频格式');
         }
     }
 
@@ -87,9 +92,15 @@ class VideoPostStoreRequest extends FormRequest
     {
         return array_merge($this->commonMessages(), [
             'content.max' => '内容最多500字',
-            'media_data.required' => '请上传视频',
-            'media_data.size' => '视频动态只能上传1个视频',
-            'media_data.*.max' => '媒体文件URL过长',
+            'videoUrl.required' => '请上传视频',
+            'videoUrl.string' => '视频URL格式不正确',
+            'videoUrl.max' => '视频URL过长',
+            'coverUrl.string' => '封面URL格式不正确',
+            'coverUrl.max' => '封面URL过长',
+            'topics.array' => '话题格式不正确',
+            'topics.*.id.required_with' => '话题ID不能为空',
+            'topics.*.id.integer' => '话题ID必须是整数',
+            'topics.*.name.required_with' => '话题名称不能为空',
         ]);
     }
 
@@ -100,9 +111,18 @@ class VideoPostStoreRequest extends FormRequest
      */
     public function validatedWithDefaults(): array
     {
-        return $this->applyDefaults(
-            $this->validated(),
-            AppPostBase::POST_TYPE_VIDEO
-        );
+        $data = $this->validated();
+
+        // 将 videoUrl 转换为 media_data 格式
+        $data['media_data'] = [$data['videoUrl']];
+        unset($data['videoUrl']);
+
+        // 将 coverUrl 转换为 cover 格式
+        if (!empty($data['coverUrl'])) {
+            $data['cover'] = $data['coverUrl'];
+        }
+        unset($data['coverUrl']);
+
+        return $this->applyDefaults($data, AppPostBase::POST_TYPE_VIDEO);
     }
 }

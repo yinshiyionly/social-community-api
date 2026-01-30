@@ -18,7 +18,7 @@ class RecommendMemberResource extends JsonResource
     public function toArray($request): array
     {
         return [
-            'memberId' => $this['member_id'],
+            'id' => $this['member_id'],
             'nickname' => $this['nickname'] ?? '',
             'avatar' => $this['avatar'] ?? '',
             'fansCount' => $this['fans_count_text'] ?? '0粉丝',

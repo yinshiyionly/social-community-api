@@ -65,7 +65,7 @@ class PostListResource extends JsonResource
             'title' => $this->title ?: (empty($this->content) ? '' : $this->content),
             'avatar' => $this->getAuthorAvatar(),
             'nickname' => $this->getAuthorNickname(),
-            'likes' => $this->like_count ?? 0,
+            'likes' => $this->stat ? $this->stat->like_count : 0,
             'isVideo' => $this->post_type == AppPostBase::POST_TYPE_VIDEO,
             'aspectRatio' => $this->calculateAspectRatio($this->cover),
             // 'isCollected' => in_array($this->post_id, self::$collectedPostIds),

@@ -63,6 +63,9 @@ class RefreshPostSortScore extends Command
             $query->where('created_at', '>=', now()->subDays(7));
         }
 
+        // 预加载统计数据
+        $query->with('stat:post_id,view_count,like_count,comment_count,share_count,collection_count');
+
         $total = $query->count();
         $processed = 0;
 
@@ -103,12 +106,14 @@ class RefreshPostSortScore extends Command
      */
     protected function calculateScore(AppPostBase $post): float
     {
+        $stat = $post->stat;
+
         // 互动加权分
-        $interactionScore = $post->like_count * self::WEIGHT_LIKE
-            + $post->comment_count * self::WEIGHT_COMMENT
-            + $post->share_count * self::WEIGHT_SHARE
-            + $post->collection_count * self::WEIGHT_COLLECTION
-            + $post->view_count * self::WEIGHT_VIEW;
+        $interactionScore = ($stat ? $stat->like_count : 0) * self::WEIGHT_LIKE
+            + ($stat ? $stat->comment_count : 0) * self::WEIGHT_COMMENT
+            + ($stat ? $stat->share_count : 0) * self::WEIGHT_SHARE
+            + ($stat ? $stat->collection_count : 0) * self::WEIGHT_COLLECTION
+            + ($stat ? $stat->view_count : 0) * self::WEIGHT_VIEW;
 
         // 时间衰减（小时）
         $hoursAge = max(0, now()->diffInHours($post->created_at));

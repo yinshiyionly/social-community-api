@@ -24,7 +24,7 @@ class PostSearchResource extends JsonResource
             'postId' => $this->post_id,
             'cover' => $this->extractCover($firstMedia),
             'title' => $this->title ?? '',
-            'likeCount' => $this->like_count ?? 0,
+            'likeCount' => $this->stat ? $this->stat->like_count : 0,
         ];
     }
 

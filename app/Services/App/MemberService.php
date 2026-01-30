@@ -78,9 +78,13 @@ class MemberService
         'title',
         'content',
         'cover',
-        'like_count',
         'created_at',
     ];
+
+    /**
+     * 统计关联
+     */
+    private const POST_STAT_RELATION = 'stat:post_id,like_count';
 
     /**
      * 获取用户帖子列表（普通分页）
@@ -94,6 +98,7 @@ class MemberService
     {
         return AppPostBase::query()
             ->select(self::POST_LIST_COLUMNS)
+            ->with(self::POST_STAT_RELATION)
             ->byMember($memberId)
             ->approved()
             ->visible()
@@ -115,6 +120,7 @@ class MemberService
             ->select(['collection_id', 'post_id', 'created_at'])
             ->with(['post' => function ($query) {
                 $query->select(self::POST_LIST_COLUMNS)
+                    ->with(self::POST_STAT_RELATION)
                     ->approved()
                     ->visible();
             }])

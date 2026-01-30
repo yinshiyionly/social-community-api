@@ -135,11 +135,6 @@ class PostService
         'cover',
         'image_style',
         'location_name',
-        'view_count',
-        'like_count',
-        'comment_count',
-        'share_count',
-        'collection_count',
         'is_top',
         'sort_score',
         'created_at',
@@ -159,11 +154,6 @@ class PostService
         'image_style',
         'location_name',
         'location_geo',
-        'view_count',
-        'like_count',
-        'comment_count',
-        'share_count',
-        'collection_count',
         'is_top',
         'created_at',
     ];
@@ -172,6 +162,11 @@ class PostService
      * 会员关联查询字段
      */
     private const MEMBER_COLUMNS = 'member:member_id,nickname,avatar';
+
+    /**
+     * 统计关联
+     */
+    private const STAT_RELATION = 'stat:post_id,view_count,like_count,comment_count,share_count,collection_count';
 
     /**
      * 获取帖子列表（游标分页）
@@ -184,7 +179,7 @@ class PostService
     {
         return AppPostBase::query()
             ->select(self::POST_LIST_COLUMNS)
-            ->with(self::MEMBER_COLUMNS)
+            ->with([self::MEMBER_COLUMNS, self::STAT_RELATION])
             ->approved()
             ->visible()
             ->orderByDesc('is_top')
@@ -204,7 +199,7 @@ class PostService
     {
         return AppPostBase::query()
             ->select(self::POST_LIST_COLUMNS)
-            ->with(self::MEMBER_COLUMNS)
+            ->with([self::MEMBER_COLUMNS, self::STAT_RELATION])
             ->approved()
             ->visible()
             ->orderByDesc('is_top')
@@ -223,7 +218,7 @@ class PostService
     {
         return AppPostBase::query()
             ->select(self::POST_DETAIL_COLUMNS)
-            ->with(self::MEMBER_COLUMNS)
+            ->with([self::MEMBER_COLUMNS, self::STAT_RELATION])
             ->approved()
             ->visible()
             ->where('post_id', $postId)
@@ -238,7 +233,7 @@ class PostService
      */
     public function incrementViewCount(AppPostBase $post): bool
     {
-        return $post->incrementViewCount();
+        return $post->getOrCreateStat()->incrementViewCount();
     }
 
     /**
@@ -252,7 +247,7 @@ class PostService
     {
         // 检查帖子是否存在且可访问
         $post = AppPostBase::query()
-            ->select(['post_id', 'member_id', 'content', 'cover', 'collection_count'])
+            ->select(['post_id', 'member_id', 'content', 'cover'])
             ->approved()
             ->visible()
             ->where('post_id', $postId)
@@ -285,7 +280,7 @@ class PostService
             ]);
 
             // 增加帖子收藏数
-            $post->incrementCollectionCount();
+            $post->getOrCreateStat()->incrementCollectionCount();
 
             DB::commit();
 
@@ -322,7 +317,7 @@ class PostService
     {
         // 检查帖子是否存在
         $post = AppPostBase::query()
-            ->select(['post_id', 'collection_count'])
+            ->select(['post_id'])
             ->where('post_id', $postId)
             ->first();
 
@@ -354,7 +349,7 @@ class PostService
             $collection->delete();
 
             // 减少帖子收藏数
-            $post->decrementCollectionCount();
+            $post->getOrCreateStat()->decrementCollectionCount();
 
             DB::commit();
 
@@ -404,7 +399,7 @@ class PostService
     {
         // 检查帖子是否存在且可访问
         $post = AppPostBase::query()
-            ->select(['post_id', 'member_id', 'content', 'cover', 'like_count'])
+            ->select(['post_id', 'member_id', 'content', 'cover'])
             ->approved()
             ->visible()
             ->where('post_id', $postId)
@@ -437,7 +432,7 @@ class PostService
             ]);
 
             // 增加帖子点赞数
-            $post->incrementLikeCount();
+            $post->getOrCreateStat()->incrementLikeCount();
 
             DB::commit();
 
@@ -474,7 +469,7 @@ class PostService
     {
         // 检查帖子是否存在
         $post = AppPostBase::query()
-            ->select(['post_id', 'like_count'])
+            ->select(['post_id'])
             ->where('post_id', $postId)
             ->first();
 
@@ -506,7 +501,7 @@ class PostService
             $like->delete();
 
             // 减少帖子点赞数
-            $post->decrementLikeCount();
+            $post->getOrCreateStat()->decrementLikeCount();
 
             DB::commit();
 

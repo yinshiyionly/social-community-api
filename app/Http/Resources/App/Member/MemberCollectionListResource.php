@@ -31,7 +31,7 @@ class MemberCollectionListResource extends JsonResource
             'id' => $post->post_id,
             'cover' => isset($cover['url']) ? $cover['url'] : '',
             'title' => $post->title ?: ($post->content ?: ''),
-            'likes' => $post->like_count ?? 0,
+            'likes' => $post->stat ? $post->stat->like_count : 0,
             'isVideo' => $post->post_type == AppPostBase::POST_TYPE_VIDEO,
             'aspectRatio' => $this->calculateAspectRatio($cover),
         ];

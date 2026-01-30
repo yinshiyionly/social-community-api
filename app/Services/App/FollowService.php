@@ -24,11 +24,6 @@ class FollowService
         'content',
         'media_data',
         'location_name',
-        'view_count',
-        'like_count',
-        'comment_count',
-        'share_count',
-        'collection_count',
         'is_top',
         'sort_score',
         'created_at',
@@ -38,6 +33,11 @@ class FollowService
      * 会员关联查询字段
      */
     private const MEMBER_COLUMNS = 'member:member_id,nickname,avatar';
+
+    /**
+     * 统计关联
+     */
+    private const STAT_RELATION = 'stat:post_id,view_count,like_count,comment_count,share_count,collection_count';
 
     /**
      * 推荐用户ID列表
@@ -300,7 +300,7 @@ class FollowService
             ->whereIn('member_id', $followingIds)
             ->approved()
             ->visible()
-            ->with(self::MEMBER_COLUMNS)
+            ->with([self::MEMBER_COLUMNS, self::STAT_RELATION])
             ->orderByDesc('created_at')
             ->paginate($pageSize, ['*'], 'page', $page);
 

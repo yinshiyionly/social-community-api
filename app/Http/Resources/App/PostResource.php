@@ -35,11 +35,11 @@ class PostResource extends JsonResource
             'locationGeo' => $this->location_geo,
 
             // 统计数据
-            'viewCount' => $this->view_count ?? 0,
-            'likeCount' => $this->like_count ?? 0,
-            'commentCount' => $this->comment_count ?? 0,
-            'shareCount' => $this->share_count ?? 0,
-            'collectionCount' => $this->collection_count ?? 0,
+            'viewCount' => $this->stat ? $this->stat->view_count : 0,
+            'likeCount' => $this->stat ? $this->stat->like_count : 0,
+            'commentCount' => $this->stat ? $this->stat->comment_count : 0,
+            'shareCount' => $this->stat ? $this->stat->share_count : 0,
+            'collectionCount' => $this->stat ? $this->stat->collection_count : 0,
 
             // 状态
             'isTop' => $this->is_top ?? 0,

@@ -62,7 +62,7 @@ class PostListResource extends JsonResource
         return [
             'id' => $this->post_id,
             'cover' => $this->cover['url'],
-            'title' => $this->title ?: (empty($this->content) ? '' : $this->content),
+            'title' => $this->title ?? '',
             'avatar' => $this->getAuthorAvatar(),
             'nickname' => $this->getAuthorNickname(),
             'likes' => $this->stat ? $this->stat->like_count : 0,

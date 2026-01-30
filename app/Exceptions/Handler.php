@@ -149,6 +149,7 @@ class Handler extends ExceptionHandler
 
         // 404 异常
         if ($e instanceof NotFoundHttpException) {
+            Log::error('路由不存在', ['content' => $e->getMessage()]);
             return response()->json([
                 'code' => ResponseCode::NOT_FOUND,
                 'msg' => ResponseCode::getMessage(ResponseCode::NOT_FOUND),

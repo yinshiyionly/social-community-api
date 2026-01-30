@@ -13,10 +13,16 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $post_id
  * @property int $member_id
  * @property int $post_type
+ * @property string $title
+ * @property string $content
  * @property array $media_data
- * @property array $location_geo
  * @property array $cover
- * @property string|null $post_ip
+ * @property int $image_show_style
+ * @property int $article_cover_style
+ * @property int $is_top
+ * @property float $sort_score
+ * @property int $visible
+ * @property int $status
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  */
@@ -33,18 +39,14 @@ class AppPostBase extends Model
         'post_type',
         'title',
         'content',
-        'content_html',
         'media_data',
         'cover',
-        'image_style',
-        'post_ip',
-        'location_name',
-        'location_geo',
+        'image_show_style',
+        'article_cover_style',
         'is_top',
         'sort_score',
         'visible',
         'status',
-        'audit_msg',
     ];
 
     protected $casts = [
@@ -53,8 +55,8 @@ class AppPostBase extends Model
         'post_type' => 'integer',
         'media_data' => 'array',
         'cover' => 'array',
-        'image_style' => 'integer',
-        'location_geo' => 'array',
+        'image_show_style' => 'integer',
+        'article_cover_style' => 'integer',
         'is_top' => 'integer',
         'sort_score' => 'float',
         'visible' => 'integer',
@@ -66,9 +68,14 @@ class AppPostBase extends Model
     const POST_TYPE_VIDEO = 2;      // 视频动态
     const POST_TYPE_ARTICLE = 3;    // 文章动态
 
-    // 图片样式（图文动态）
-    const IMAGE_STYLE_LARGE = 1;    // 大图
-    const IMAGE_STYLE_PUZZLE = 2;   // 拼图
+    // 图文动态图片展示样式
+    const IMAGE_SHOW_STYLE_LARGE = 1;    // 大图
+    const IMAGE_SHOW_STYLE_PUZZLE = 2;   // 拼图
+
+    // 文章封面样式
+    const ARTICLE_COVER_STYLE_SINGLE = 1;  // 单图
+    const ARTICLE_COVER_STYLE_DOUBLE = 2;  // 双图
+    const ARTICLE_COVER_STYLE_TRIPLE = 3;  // 三图
 
     // 可见性
     const VISIBLE_PUBLIC = 1;       // 公开

@@ -91,7 +91,7 @@ class TopicService
                 'sort_num' => $data['sortNum'] ?? 0,
                 'is_recommend' => $data['isRecommend'] ?? AppTopicBase::IS_RECOMMEND_NO,
                 'is_official' => $data['isOfficial'] ?? AppTopicBase::IS_OFFICIAL_NO,
-                'status' => $data['status'],
+                'status' => $data['status'] ?? AppTopicBase::STATUS_NORMAL,
             ]);
 
             // 同步创建统计记录

@@ -28,13 +28,13 @@ class TopicStoreRequest extends FormRequest
     {
         return [
             'topicName' => 'required|string|max:100|unique:app_topic_base,topic_name',
-            'coverUrl' => 'nullable|string|max:500',
+            'coverUrl' => 'required|string|max:500',
             'description' => 'nullable|string|max:500',
             'detailHtml' => 'nullable|string',
             'sortNum' => 'nullable|integer|min:0',
             'isRecommend' => 'nullable|in:0,1',
             'isOfficial' => 'nullable|in:0,1',
-            'status' => 'required|in:1,2',
+            //'status' => 'required|in:1,2',
         ];
     }
 
@@ -50,6 +50,7 @@ class TopicStoreRequest extends FormRequest
             'topicName.string' => '话题名称必须是字符串',
             'topicName.max' => '话题名称不能超过100个字符',
             'topicName.unique' => '话题名称已存在',
+            'coverUrl.required' => '封面图不能为空',
             'coverUrl.string' => '封面图URL必须是字符串',
             'coverUrl.max' => '封面图URL不能超过500个字符',
             'description.string' => '话题简介必须是字符串',

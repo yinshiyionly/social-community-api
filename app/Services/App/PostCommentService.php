@@ -111,6 +111,8 @@ class PostCommentService
      * @param string $content 评论内容
      * @param int $parentId 父评论ID（0表示一级评论）
      * @param int $replyToMemberId 回复目标用户ID
+     * @param string $ipAddress IP地址
+     * @param string $ipRegion IP归属地
      * @return array
      */
     public function createComment(
@@ -118,7 +120,9 @@ class PostCommentService
         int    $postId,
         string $content,
         int    $parentId = 0,
-        int    $replyToMemberId = 0
+        int    $replyToMemberId = 0,
+        string $ipAddress = '',
+        string $ipRegion = ''
     ): array
     {
         // 检查帖子是否存在且可访问
@@ -171,6 +175,8 @@ class PostCommentService
                 'reply_to_member_id' => $replyToMemberId,
                 'content' => $content,
                 'status' => AppPostComment::STATUS_NORMAL,
+                'ip_address' => $ipAddress,
+                'ip_region' => $ipRegion,
             ]);
 
             // 增加帖子评论数

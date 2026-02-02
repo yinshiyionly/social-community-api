@@ -43,6 +43,7 @@ class PostCommentReplyResource extends JsonResource
             'content' => $this->content,
             'likeCount' => $this->like_count ?? 0,
             'isLiked' => in_array($this->comment_id, self::$likedCommentIds),
+            'ipRegion' => $this->ip_region ?: '',
             'createdAt' => $this->created_at ? $this->created_at->toIso8601String() : null,
             'author' => $this->formatAuthor(),
             'replyTo' => $this->formatReplyTo(),

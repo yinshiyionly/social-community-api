@@ -107,6 +107,9 @@ class PostCommentController extends Controller
         $parentId = $request->input('parent_id', 0);
         $replyToMemberId = $request->input('reply_to_member_id', 0);
 
+        // 获取IP和地域信息
+        $ipAddress = $this->getClientIp($request);
+        $ipRegion = $this->getIpRegion($ipAddress);
 
         try {
             $result = $this->commentService->createComment(
@@ -114,7 +117,9 @@ class PostCommentController extends Controller
                 $postId,
                 $content,
                 $parentId,
-                $replyToMemberId
+                $replyToMemberId,
+                $ipAddress,
+                $ipRegion
             );
 
             if (!$result['success']) {
@@ -271,5 +276,54 @@ class PostCommentController extends Controller
 
             return AppApiResponse::serverError();
         }
+    }
+
+    /**
+     * 获取客户端真实IP
+     *
+     * @param Request $request
+     * @return string
+     */
+    protected function getClientIp(Request $request): string
+    {
+        $headers = [
+            'HTTP_X_FORWARDED_FOR',
+            'HTTP_X_REAL_IP',
+            'HTTP_CLIENT_IP',
+        ];
+
+        foreach ($headers as $header) {
+            if ($request->server($header)) {
+                $ips = explode(',', $request->server($header));
+                $ip = trim($ips[0]);
+                if (filter_var($ip, FILTER_VALIDATE_IP)) {
+                    return $ip;
+                }
+            }
+        }
+
+        return $request->ip() ?: '';
+    }
+
+    /**
+     * 根据IP获取归属地
+     *
+     * @param string $ip
+     * @return string
+     */
+    protected function getIpRegion(string $ip): string
+    {
+        if (empty($ip) || $ip === '127.0.0.1' || $ip === '::1') {
+            return '';
+        }
+
+        // 检查是否是私有IP
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+            return '';
+        }
+
+        // TODO: 集成第三方IP地理位置服务（如 ip2region、GeoIP2 等）
+        // 这里返回空字符串，实际项目中需要接入IP解析服务
+        return '';
     }
 }

@@ -44,7 +44,7 @@ class FollowService
     /**
      * 推荐用户ID列表
      */
-    private const RECOMMEND_MEMBER_IDS = [3545623190, 3545623191, 3545623192];
+    private const RECOMMEND_MEMBER_IDS = [3545623190, 3545623191, 3545623192, 3545623193];
 
 
     /**

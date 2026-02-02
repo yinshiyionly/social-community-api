@@ -192,6 +192,25 @@ class PostService
     }
 
     /**
+     * 获取指定类型的帖子详情
+     *
+     * @param int $postId 帖子ID
+     * @param int $postType 帖子类型
+     * @return AppPostBase|null
+     */
+    public function getPostDetailByType(int $postId, int $postType)
+    {
+        return AppPostBase::query()
+            ->select(self::POST_DETAIL_COLUMNS)
+            ->with([self::MEMBER_COLUMNS, self::STAT_RELATION])
+            ->approved()
+            ->visible()
+            ->where('post_id', $postId)
+            ->where('post_type', $postType)
+            ->first();
+    }
+
+    /**
      * 增加帖子浏览量
      *
      * @param AppPostBase $post 帖子模型

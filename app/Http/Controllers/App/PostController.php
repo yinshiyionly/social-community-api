@@ -10,8 +10,12 @@ use App\Http\Requests\App\PostPageRequest;
 use App\Http\Requests\App\PostStoreRequest;
 use App\Http\Requests\App\VideoPostStoreRequest;
 use App\Http\Resources\App\AppApiResponse;
+use App\Http\Resources\App\ArticlePostResource;
+use App\Http\Resources\App\ImageTextPostResource;
 use App\Http\Resources\App\PostListResource;
 use App\Http\Resources\App\PostResource;
+use App\Http\Resources\App\VideoPostResource;
+use App\Models\App\AppPostBase;
 use App\Services\App\PostService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -266,6 +270,135 @@ class PostController extends Controller
             );
         } catch (\Exception $e) {
             Log::error('获取帖子详情失败', [
+                'post_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 获取图文动态详情
+     *
+     * @param Request $request
+     * @param int $id 帖子ID
+     * @return JsonResponse
+     */
+    public function detailImageText(Request $request, int $id): JsonResponse
+    {
+        $memberId = $this->getMemberId($request);
+
+        try {
+            $post = $this->postService->getPostDetailByType($id, AppPostBase::POST_TYPE_IMAGE_TEXT);
+
+            if (!$post) {
+                return AppApiResponse::dataNotFound('内容不存在');
+            }
+
+            $this->postService->incrementViewCount($post);
+
+            $isCollected = false;
+            $isLiked = false;
+            if ($memberId) {
+                $isCollected = $this->postService->isPostCollected($memberId, $id);
+                $isLiked = $this->postService->isPostLiked($memberId, $id);
+            }
+
+            return AppApiResponse::resource(
+                $post,
+                ImageTextPostResource::class,
+                'success',
+                ['isCollected' => $isCollected, 'isLiked' => $isLiked]
+            );
+        } catch (\Exception $e) {
+            Log::error('获取图文动态详情失败', [
+                'post_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 获取视频动态详情
+     *
+     * @param Request $request
+     * @param int $id 帖子ID
+     * @return JsonResponse
+     */
+    public function detailVideo(Request $request, int $id): JsonResponse
+    {
+        $memberId = $this->getMemberId($request);
+
+        try {
+            $post = $this->postService->getPostDetailByType($id, AppPostBase::POST_TYPE_VIDEO);
+
+            if (!$post) {
+                return AppApiResponse::dataNotFound('内容不存在');
+            }
+
+            $this->postService->incrementViewCount($post);
+
+            $isCollected = false;
+            $isLiked = false;
+            if ($memberId) {
+                $isCollected = $this->postService->isPostCollected($memberId, $id);
+                $isLiked = $this->postService->isPostLiked($memberId, $id);
+            }
+
+            return AppApiResponse::resource(
+                $post,
+                VideoPostResource::class,
+                'success',
+                ['isCollected' => $isCollected, 'isLiked' => $isLiked]
+            );
+        } catch (\Exception $e) {
+            Log::error('获取视频动态详情失败', [
+                'post_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 获取文章动态详情
+     *
+     * @param Request $request
+     * @param int $id 帖子ID
+     * @return JsonResponse
+     */
+    public function detailArticle(Request $request, int $id): JsonResponse
+    {
+        $memberId = $this->getMemberId($request);
+
+        try {
+            $post = $this->postService->getPostDetailByType($id, AppPostBase::POST_TYPE_ARTICLE);
+
+            if (!$post) {
+                return AppApiResponse::dataNotFound('内容不存在');
+            }
+
+            $this->postService->incrementViewCount($post);
+
+            $isCollected = false;
+            $isLiked = false;
+            if ($memberId) {
+                $isCollected = $this->postService->isPostCollected($memberId, $id);
+                $isLiked = $this->postService->isPostLiked($memberId, $id);
+            }
+
+            return AppApiResponse::resource(
+                $post,
+                ArticlePostResource::class,
+                'success',
+                ['isCollected' => $isCollected, 'isLiked' => $isLiked]
+            );
+        } catch (\Exception $e) {
+            Log::error('获取文章动态详情失败', [
                 'post_id' => $id,
                 'error' => $e->getMessage()
             ]);

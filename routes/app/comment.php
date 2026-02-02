@@ -24,5 +24,9 @@ Route::prefix('v1/comment')->group(function () {
         Route::post('post', [PostCommentController::class, 'store']);
         // 删除评论
         Route::delete('post', [PostCommentController::class, 'destroy']);
+        // 点赞评论
+        Route::post('like', [PostCommentController::class, 'like']);
+        // 取消点赞评论
+        Route::post('unlike', [PostCommentController::class, 'unlike']);
     });
 });

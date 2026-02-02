@@ -8,6 +8,7 @@ use App\Models\App\AppPostBase;
 use App\Models\App\AppPostComment;
 use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PostCommentService
 {
@@ -113,12 +114,13 @@ class PostCommentService
      * @return array
      */
     public function createComment(
-        int $memberId,
-        int $postId,
+        int    $memberId,
+        int    $postId,
         string $content,
-        int $parentId = 0,
-        int $replyToMemberId = 0
-    ): array {
+        int    $parentId = 0,
+        int    $replyToMemberId = 0
+    ): array
+    {
         // 检查帖子是否存在且可访问
         $post = AppPostBase::query()
             ->select(['post_id', 'member_id', 'cover'])
@@ -298,5 +300,154 @@ class PostCommentService
             ->normal()
             ->where('comment_id', $commentId)
             ->first();
+    }
+
+    /**
+     * 点赞评论
+     *
+     * @param int $memberId 会员ID
+     * @param int $commentId 评论ID
+     * @return array
+     * @throws \Exception
+     */
+    public function likeComment(int $memberId, int $commentId): array
+    {
+        // 检查评论是否存在
+        $comment = AppPostComment::query()
+            ->select(['comment_id', 'post_id', 'member_id', 'content', 'like_count'])
+            ->normal()
+            ->where('comment_id', $commentId)
+            ->first();
+
+        if (!$comment) {
+            return [
+                'success' => false,
+                'message' => 'comment_not_found',
+            ];
+        }
+
+        // 检查是否已点赞
+        if (AppPostCommentLike::isLiked($memberId, $commentId)) {
+            return [
+                'success' => false,
+                'message' => 'already_liked',
+            ];
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // 创建点赞记录
+            AppPostCommentLike::create([
+                'member_id' => $memberId,
+                'comment_id' => $commentId,
+            ]);
+
+            // 增加评论点赞数
+            $comment->incrementLikeCount();
+
+            DB::commit();
+
+            // 异步发送消息通知（通知评论作者）
+            $this->sendCommentLikeMessage($memberId, $comment);
+
+            return [
+                'success' => true,
+                'message' => 'liked',
+                'likeCount' => $comment->like_count
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * 取消点赞评论
+     *
+     * @param int $memberId 会员ID
+     * @param int $commentId 评论ID
+     * @return array
+     * @throws \Exception
+     */
+    public function unlikeComment(int $memberId, int $commentId): array
+    {
+        // 检查评论是否存在
+        $comment = AppPostComment::query()
+            ->select(['comment_id', 'like_count'])
+            ->normal()
+            ->where('comment_id', $commentId)
+            ->first();
+
+        if (!$comment) {
+            return [
+                'success' => false,
+                'message' => 'comment_not_found',
+            ];
+        }
+
+        // 检查是否已点赞
+        $like = AppPostCommentLike::byMember($memberId)
+            ->byComment($commentId)
+            ->first();
+
+        if (!$like) {
+            return [
+                'success' => false,
+                'message' => 'not_liked',
+            ];
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // 删除点赞记录
+            $like->delete();
+
+            // 减少评论点赞数
+            $comment->decrementLikeCount();
+
+            DB::commit();
+
+            return [
+                'success' => true,
+                'message' => 'unliked',
+                'likeCount' => max(0, $comment->like_count),
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * 发送评论点赞消息通知
+     *
+     * @param int $senderId 点赞者ID
+     * @param AppPostComment $comment 评论
+     * @return void
+     */
+    private function sendCommentLikeMessage(int $senderId, AppPostComment $comment): void
+    {
+        // 获取帖子封面
+        $coverUrl = null;
+        $post = AppPostBase::query()
+            ->select(['post_id', 'cover'])
+            ->where('post_id', $comment->post_id)
+            ->first();
+
+        if ($post && isset($post->cover['url'])) {
+            $coverUrl = $post->cover['url'];
+        }
+
+        // 发送点赞消息
+        MessageService::createLikeMessage(
+            $senderId,
+            $comment->member_id,
+            $comment->comment_id,
+            MessageType::TARGET_COMMENT,
+            mb_substr($comment->content, 0, 50),
+            $coverUrl
+        );
     }
 }

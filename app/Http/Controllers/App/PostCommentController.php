@@ -184,4 +184,92 @@ class PostCommentController extends Controller
             return AppApiResponse::serverError();
         }
     }
+
+    /**
+     * 点赞评论
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function like(Request $request)
+    {
+        $memberId = $this->getMemberId($request);
+        $commentId = $request->input('id', 0);
+
+        if (empty($commentId)) {
+            return AppApiResponse::error('评论ID不能为空');
+        }
+
+        try {
+            $result = $this->commentService->likeComment($memberId, $commentId);
+
+            if (!$result['success']) {
+                if ($result['message'] === 'comment_not_found') {
+                    return AppApiResponse::dataNotFound('评论不存在');
+                }
+                if ($result['message'] === 'already_liked') {
+                    return AppApiResponse::error('已点赞');
+                }
+                return AppApiResponse::error('点赞失败');
+            }
+
+            return AppApiResponse::success([
+                'data' => [
+                    'likeCount' => $result['likeCount']
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('点赞评论失败', [
+                'member_id' => $memberId,
+                'comment_id' => $commentId,
+                'error' => $e->getMessage()
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 取消点赞评论
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function unlike(Request $request)
+    {
+        $memberId = $this->getMemberId($request);
+        $commentId = $request->input('id', 0);
+
+        if (empty($commentId)) {
+            return AppApiResponse::error('评论ID不能为空');
+        }
+
+        try {
+            $result = $this->commentService->unlikeComment($memberId, $commentId);
+
+            if (!$result['success']) {
+                if ($result['message'] === 'comment_not_found') {
+                    return AppApiResponse::dataNotFound('评论不存在');
+                }
+                if ($result['message'] === 'not_liked') {
+                    return AppApiResponse::error('未点赞');
+                }
+                return AppApiResponse::error('取消点赞失败');
+            }
+
+            return AppApiResponse::success([
+                'data' => [
+                    'likeCount' => $result['likeCount']
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('取消点赞评论失败', [
+                'member_id' => $memberId,
+                'comment_id' => $commentId,
+                'error' => $e->getMessage()
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
 }

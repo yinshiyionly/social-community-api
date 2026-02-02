@@ -125,7 +125,7 @@ class PostCommentService
             ]);
 
             // 增加帖子评论数
-            $post->incrementCommentCount();
+            $post->getOrCreateStat()->incrementCommentCount();
 
             // 如果是回复，增加父评论的回复数
             if ($parentId > 0) {
@@ -215,7 +215,7 @@ class PostCommentService
             // 减少帖子评论数
             $post = AppPostBase::find($comment->post_id);
             if ($post) {
-                $post->decrementCommentCount();
+                $post->getOrCreateStat()->decrementCommentCount();
             }
 
             // 如果是回复，减少父评论的回复数

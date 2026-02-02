@@ -13,6 +13,24 @@ class PostCommentReplyResource extends JsonResource
     const DEFAULT_NICKNAME = '用户';
 
     /**
+     * 已点赞的评论ID列表
+     *
+     * @var array
+     */
+    protected static $likedCommentIds = [];
+
+    /**
+     * 设置已点赞的评论ID列表
+     *
+     * @param array $likedCommentIds
+     * @return void
+     */
+    public static function setLikedCommentIds(array $likedCommentIds): void
+    {
+        self::$likedCommentIds = $likedCommentIds;
+    }
+
+    /**
      * 转换资源为数组
      *
      * @param \Illuminate\Http\Request $request
@@ -24,6 +42,7 @@ class PostCommentReplyResource extends JsonResource
             'commentId' => $this->comment_id,
             'content' => $this->content,
             'likeCount' => $this->like_count ?? 0,
+            'isLiked' => in_array($this->comment_id, self::$likedCommentIds),
             'createdAt' => $this->created_at ? $this->created_at->toIso8601String() : null,
             'author' => $this->formatAuthor(),
             'replyTo' => $this->formatReplyTo(),

@@ -3,6 +3,7 @@
 namespace App\Services\App;
 
 use App\Constant\MessageType;
+use App\Models\App\AppPostCommentLike;
 use App\Models\App\AppPostBase;
 use App\Models\App\AppPostComment;
 use Illuminate\Pagination\CursorPaginator;
@@ -14,13 +15,14 @@ class PostCommentService
      * 获取帖子评论列表（游标分页）
      *
      * @param int $postId 帖子ID
+     * @param int|null $memberId 当前登录会员ID
      * @param string|null $cursor 游标
      * @param int $pageSize 每页数量
-     * @return CursorPaginator
+     * @return array ['paginator' => CursorPaginator, 'likedCommentIds' => array]
      */
-    public function getCommentList(int $postId, ?string $cursor = null, int $pageSize = 10): CursorPaginator
+    public function getCommentList(int $postId, ?int $memberId = null, ?string $cursor = null, int $pageSize = 10): array
     {
-        return AppPostComment::query()
+        $paginator = AppPostComment::query()
             ->with([
                 'member',
                 'replies' => function ($query) {
@@ -35,24 +37,69 @@ class PostCommentService
             ->normal()
             ->orderByDesc('comment_id')
             ->cursorPaginate($pageSize, ['*'], 'cursor', $cursor);
+
+        // 获取当前用户点赞的评论ID列表
+        $likedCommentIds = [];
+        if ($memberId) {
+            $commentIds = $this->extractCommentIds($paginator);
+            $likedCommentIds = AppPostCommentLike::getLikedCommentIds($memberId, $commentIds);
+        }
+
+        return [
+            'paginator' => $paginator,
+            'likedCommentIds' => $likedCommentIds,
+        ];
+    }
+
+    /**
+     * 从分页结果中提取所有评论ID（包括回复）
+     *
+     * @param CursorPaginator $paginator
+     * @return array
+     */
+    private function extractCommentIds(CursorPaginator $paginator): array
+    {
+        $commentIds = [];
+        foreach ($paginator->items() as $comment) {
+            $commentIds[] = $comment->comment_id;
+            if ($comment->relationLoaded('replies')) {
+                foreach ($comment->replies as $reply) {
+                    $commentIds[] = $reply->comment_id;
+                }
+            }
+        }
+        return $commentIds;
     }
 
     /**
      * 获取评论的回复列表（游标分页）
      *
      * @param int $commentId 父评论ID
+     * @param int|null $memberId 当前登录会员ID
      * @param string|null $cursor 游标
      * @param int $pageSize 每页数量
-     * @return CursorPaginator
+     * @return array ['paginator' => CursorPaginator, 'likedCommentIds' => array]
      */
-    public function getReplyList(int $commentId, ?string $cursor = null, int $pageSize = 10): CursorPaginator
+    public function getReplyList(int $commentId, ?int $memberId = null, ?string $cursor = null, int $pageSize = 10): array
     {
-        return AppPostComment::query()
+        $paginator = AppPostComment::query()
             ->with(['member', 'replyToMember'])
             ->byParent($commentId)
             ->normal()
             ->orderBy('created_at')
             ->cursorPaginate($pageSize, ['*'], 'cursor', $cursor);
+
+        // 获取当前用户点赞的评论ID列表
+        $likedCommentIds = [];
+        if ($memberId) {
+            $commentIds = $paginator->pluck('comment_id')->toArray();
+            $likedCommentIds = AppPostCommentLike::getLikedCommentIds($memberId, $commentIds);
+        }
+
+        return [
+            'paginator' => $paginator,
+            'likedCommentIds' => $likedCommentIds,
+        ];
     }
 
     /**

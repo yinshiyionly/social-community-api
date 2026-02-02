@@ -43,13 +43,17 @@ class PostCommentController extends Controller
      */
     public function list(Request $request, int $postId)
     {
+        $memberId = $this->getMemberId($request);
         $cursor = $request->input('cursor');
         $pageSize = $request->input('pageSize', 10);
 
         try {
-            $comments = $this->commentService->getCommentList($postId, $cursor, $pageSize);
+            $result = $this->commentService->getCommentList($postId, $memberId, $cursor, $pageSize);
 
-            return AppApiResponse::cursorPaginate($comments, PostCommentResource::class);
+            // 设置点赞状态到 Resource
+            PostCommentResource::setLikedCommentIds($result['likedCommentIds']);
+
+            return AppApiResponse::cursorPaginate($result['paginator'], PostCommentResource::class);
         } catch (\Exception $e) {
             Log::error('获取评论列表失败', [
                 'post_id' => $postId,
@@ -68,13 +72,17 @@ class PostCommentController extends Controller
      */
     public function replies(Request $request, int $commentId)
     {
+        $memberId = $this->getMemberId($request);
         $cursor = $request->input('cursor');
         $pageSize = $request->input('pageSize', 10);
 
         try {
-            $replies = $this->commentService->getReplyList($commentId, $cursor, $pageSize);
+            $result = $this->commentService->getReplyList($commentId, $memberId, $cursor, $pageSize);
 
-            return AppApiResponse::cursorPaginate($replies, PostCommentReplyResource::class);
+            // 设置点赞状态到 Resource
+            PostCommentReplyResource::setLikedCommentIds($result['likedCommentIds']);
+
+            return AppApiResponse::cursorPaginate($result['paginator'], PostCommentReplyResource::class);
         } catch (\Exception $e) {
             Log::error('获取回复列表失败', [
                 'comment_id' => $commentId,

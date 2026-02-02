@@ -53,8 +53,7 @@ class PostCommentController extends Controller
         } catch (\Exception $e) {
             Log::error('获取评论列表失败', [
                 'post_id' => $postId,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'error' => $e->getMessage()
             ]);
 
             return AppApiResponse::serverError();
@@ -79,8 +78,7 @@ class PostCommentController extends Controller
         } catch (\Exception $e) {
             Log::error('获取回复列表失败', [
                 'comment_id' => $commentId,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'error' => $e->getMessage()
             ]);
 
             return AppApiResponse::serverError();
@@ -131,8 +129,7 @@ class PostCommentController extends Controller
             Log::error('发表评论失败', [
                 'member_id' => $memberId,
                 'post_id' => $postId,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'error' => $e->getMessage()
             ]);
 
             return AppApiResponse::serverError();
@@ -143,13 +140,19 @@ class PostCommentController extends Controller
      * 删除评论
      *
      * @param Request $request
-     * @param int $commentId 评论ID
+     * @return JsonResponse
      */
-    public function destroy(Request $request, int $commentId)
+    public function destroy(Request $request)
     {
         $memberId = $this->getMemberId($request);
 
+        $commentId = $request->input('id', 0);
+        if (empty($commentId)) {
+            return AppApiResponse::error('评论ID不存在或错误');
+        }
+
         try {
+
             $result = $this->commentService->deleteComment($memberId, $commentId);
 
             if (!$result['success']) {
@@ -167,8 +170,7 @@ class PostCommentController extends Controller
             Log::error('删除评论失败', [
                 'member_id' => $memberId,
                 'comment_id' => $commentId,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'error' => $e->getMessage()
             ]);
 
             return AppApiResponse::serverError();

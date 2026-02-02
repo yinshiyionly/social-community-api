@@ -23,6 +23,6 @@ Route::prefix('v1/comment')->group(function () {
         // 发表评论
         Route::post('post', [PostCommentController::class, 'store']);
         // 删除评论
-        Route::delete('{commentId}', [PostCommentController::class, 'destroy'])->where('commentId', '[0-9]+');
+        Route::delete('post', [PostCommentController::class, 'destroy']);
     });
 });

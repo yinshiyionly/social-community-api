@@ -8,6 +8,7 @@ use App\Http\Resources\App\AppApiResponse;
 use App\Http\Resources\App\PostCommentResource;
 use App\Http\Resources\App\PostCommentReplyResource;
 use App\Services\App\PostCommentService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -90,14 +91,16 @@ class PostCommentController extends Controller
      * 发表评论
      *
      * @param PostCommentRequest $request
-     * @param int $postId 帖子ID
+     * @return JsonResponse
      */
-    public function store(PostCommentRequest $request, int $postId)
+    public function store(PostCommentRequest $request)
     {
         $memberId = $this->getMemberId($request);
+        $postId = $request->input('id', 0);
         $content = $request->input('content');
         $parentId = $request->input('parent_id', 0);
         $replyToMemberId = $request->input('reply_to_member_id', 0);
+
 
         try {
             $result = $this->commentService->createComment(

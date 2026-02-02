@@ -21,7 +21,7 @@ Route::prefix('v1/comment')->group(function () {
     // 需要登录的接口
     Route::middleware('app.auth')->group(function () {
         // 发表评论
-        Route::post('post/{postId}', [PostCommentController::class, 'store'])->where('postId', '[0-9]+');
+        Route::post('post', [PostCommentController::class, 'store']);
         // 删除评论
         Route::delete('{commentId}', [PostCommentController::class, 'destroy'])->where('commentId', '[0-9]+');
     });

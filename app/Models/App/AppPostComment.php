@@ -26,6 +26,8 @@ class AppPostComment extends Model
         'like_count',
         'reply_count',
         'status',
+        'ip_address',
+        'ip_region',
     ];
 
     protected $casts = [

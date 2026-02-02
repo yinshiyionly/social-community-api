@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * 帖子评论点赞表
  */
-class AppCommentLike extends Model
+class AppPostCommentLike extends Model
 {
     use HasFactory;
 

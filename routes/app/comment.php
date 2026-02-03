@@ -16,8 +16,10 @@ Route::prefix('v1/comment')->group(function () {
         Route::get('post/{postId}', [PostCommentController::class, 'list'])->where('postId', '[0-9]+');
         // 获取帖子评论列表（普通分页）
         Route::get('post/{postId}/page', [PostCommentController::class, 'listPaginate'])->where('postId', '[0-9]+');
-        // 获取评论的回复列表
+        // 获取评论的回复列表（游标分页）
         Route::get('{commentId}/replies', [PostCommentController::class, 'replies'])->where('commentId', '[0-9]+');
+        // 获取评论的回复列表（普通分页）
+        Route::get('{commentId}/replies/page', [PostCommentController::class, 'repliesPaginate'])->where('commentId', '[0-9]+');
     });
 
     // 需要登录的接口

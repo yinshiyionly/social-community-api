@@ -94,7 +94,7 @@ class PostCommentController extends Controller
     }
 
     /**
-     * 获取评论的回复列表
+     * 获取评论的回复列表（游标分页）
      *
      * @param Request $request
      * @param int $commentId 评论ID
@@ -112,6 +112,35 @@ class PostCommentController extends Controller
             PostCommentReplyResource::setLikedCommentIds($result['likedCommentIds']);
 
             return AppApiResponse::cursorPaginate($result['paginator'], PostCommentReplyResource::class);
+        } catch (\Exception $e) {
+            Log::error('获取回复列表失败', [
+                'comment_id' => $commentId,
+                'error' => $e->getMessage()
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 获取评论的回复列表（普通分页）
+     *
+     * @param Request $request
+     * @param int $commentId 评论ID
+     */
+    public function repliesPaginate(Request $request, int $commentId)
+    {
+        $memberId = $this->getMemberId($request);
+        $page = (int) $request->input('page', 1);
+        $pageSize = (int) $request->input('pageSize', 10);
+
+        try {
+            $result = $this->commentService->getReplyListPaginate($commentId, $memberId, $page, $pageSize);
+
+            // 设置点赞状态到 Resource
+            PostCommentReplyResource::setLikedCommentIds($result['likedCommentIds']);
+
+            return AppApiResponse::normalPaginate($result['paginator'], PostCommentReplyResource::class);
         } catch (\Exception $e) {
             Log::error('获取回复列表失败', [
                 'comment_id' => $commentId,

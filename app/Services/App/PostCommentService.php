@@ -164,6 +164,37 @@ class PostCommentService
     }
 
     /**
+     * 获取评论的回复列表（普通分页）
+     *
+     * @param int $commentId 父评论ID
+     * @param int|null $memberId 当前登录会员ID
+     * @param int $page 页码
+     * @param int $pageSize 每页数量
+     * @return array ['paginator' => LengthAwarePaginator, 'likedCommentIds' => array]
+     */
+    public function getReplyListPaginate(int $commentId, ?int $memberId = null, int $page = 1, int $pageSize = 10): array
+    {
+        $paginator = AppPostComment::query()
+            ->with(['member', 'replyToMember'])
+            ->byParent($commentId)
+            ->normal()
+            ->orderBy('created_at')
+            ->paginate($pageSize, ['*'], 'page', $page);
+
+        // 获取当前用户点赞的评论ID列表
+        $likedCommentIds = [];
+        if ($memberId) {
+            $commentIds = $paginator->pluck('comment_id')->toArray();
+            $likedCommentIds = AppPostCommentLike::getLikedCommentIds($memberId, $commentIds);
+        }
+
+        return [
+            'paginator' => $paginator,
+            'likedCommentIds' => $likedCommentIds,
+        ];
+    }
+
+    /**
      * 发表评论
      *
      * @param int $memberId 会员ID

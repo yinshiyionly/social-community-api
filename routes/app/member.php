@@ -24,6 +24,8 @@ Route::prefix('v1/member')->group(function () {
     Route::post('sms/send', [MemberAuthController::class, 'sendSms']);
 
     Route::middleware('app.auth')->group(function () {
+        // 退出登录
+        Route::post('logout', [MemberAuthController::class, 'logout']);
         // 获取个人信息
         Route::get('info', [MemberController::class, 'info']);
         // 更新个人信息

@@ -11,6 +11,7 @@ use App\Http\Resources\App\AppApiResponse;
 use App\Services\App\MemberAuthService;
 use App\Services\App\SmsService;
 use App\Services\App\WeChatService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class MemberAuthController extends Controller
@@ -196,5 +197,20 @@ class MemberAuthController extends Controller
         return AppApiResponse::success(['data' => [
             'expireSeconds' => $result['expire_seconds']
         ]]);
+    }
+
+    /**
+     * 退出登录
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function logout(Request $request)
+    {
+        $memberId = $request->attributes->get('member_id');
+
+        Log::info('Member logout', ['member_id' => $memberId]);
+
+        return AppApiResponse::success();
     }
 }

@@ -418,22 +418,37 @@ protected $casts = [
 
 ## 七、迁移文件清单
 
-| 文件名 | 创建的表 |
-|-------|---------|
-| 2026_01_29_150000_create_app_course_category_table.php | app_course_category |
-| 2026_01_29_150001_create_app_course_base_table.php | app_course_base |
-| 2026_01_29_150002_create_app_course_promotion_table.php | app_course_promotion |
-| 2026_01_29_150003_create_app_course_teacher_table.php | app_course_teacher |
-| 2026_01_29_150004_create_app_course_chapter_table.php | app_course_chapter |
-| 2026_01_29_150005_create_app_chapter_content_tables.php | app_chapter_content_* (4张) |
-| 2026_01_29_150006_create_app_chapter_homework_tables.php | app_chapter_homework, app_member_homework_submit |
-| 2026_01_29_150007_create_app_member_course_tables.php | app_member_course, app_member_schedule, app_member_chapter_progress |
-| 2026_01_29_150008_create_app_course_order_tables.php | app_course_order, app_course_order_pay_log |
-| 2026_01_29_150009_create_app_course_comment_tables.php | app_course_comment, app_course_favorite, app_course_view_log |
-| 2026_01_29_150010_create_app_course_group_tables.php | app_course_group, app_course_group_member |
-| 2026_01_29_150011_create_app_coupon_tables.php | app_coupon_template, app_member_coupon |
-| 2026_01_29_150012_create_app_learning_note_tables.php | app_member_learning_note, app_member_learning_checkin, app_course_qa |
-| 2026_01_29_150013_create_app_certificate_tables.php | app_certificate_template, app_course_certificate, app_member_certificate |
+| 序号 | 文件名 | 创建的表 |
+|-----|-------|---------|
+| 1 | 2026_01_29_150000_create_app_course_category_table.php | app_course_category |
+| 2 | 2026_01_29_150001_create_app_course_base_table.php | app_course_base |
+| 3 | 2026_01_29_150002_create_app_course_promotion_table.php | app_course_promotion |
+| 4 | 2026_01_29_150003_create_app_course_teacher_table.php | app_course_teacher |
+| 5 | 2026_01_29_150004_create_app_course_chapter_table.php | app_course_chapter |
+| 6 | 2026_01_29_150005_create_app_chapter_content_article_table.php | app_chapter_content_article |
+| 7 | 2026_01_29_150006_create_app_chapter_content_video_table.php | app_chapter_content_video |
+| 8 | 2026_01_29_150007_create_app_chapter_content_live_table.php | app_chapter_content_live |
+| 9 | 2026_01_29_150008_create_app_chapter_content_audio_table.php | app_chapter_content_audio |
+| 10 | 2026_01_29_150009_create_app_chapter_homework_table.php | app_chapter_homework |
+| 11 | 2026_01_29_150010_create_app_member_homework_submit_table.php | app_member_homework_submit |
+| 12 | 2026_01_29_150011_create_app_member_course_table.php | app_member_course |
+| 13 | 2026_01_29_150012_create_app_member_schedule_table.php | app_member_schedule |
+| 14 | 2026_01_29_150013_create_app_member_chapter_progress_table.php | app_member_chapter_progress |
+| 15 | 2026_01_29_150014_create_app_course_order_table.php | app_course_order |
+| 16 | 2026_01_29_150015_create_app_course_order_pay_log_table.php | app_course_order_pay_log |
+| 17 | 2026_01_29_150016_create_app_course_comment_table.php | app_course_comment |
+| 18 | 2026_01_29_150017_create_app_course_favorite_table.php | app_course_favorite |
+| 19 | 2026_01_29_150018_create_app_course_view_log_table.php | app_course_view_log |
+| 20 | 2026_01_29_150019_create_app_course_group_table.php | app_course_group |
+| 21 | 2026_01_29_150020_create_app_course_group_member_table.php | app_course_group_member |
+| 22 | 2026_01_29_150021_create_app_coupon_template_table.php | app_coupon_template |
+| 23 | 2026_01_29_150022_create_app_member_coupon_table.php | app_member_coupon |
+| 24 | 2026_01_29_150023_create_app_member_learning_note_table.php | app_member_learning_note |
+| 25 | 2026_01_29_150024_create_app_member_learning_checkin_table.php | app_member_learning_checkin |
+| 26 | 2026_01_29_150025_create_app_course_qa_table.php | app_course_qa |
+| 27 | 2026_01_29_150026_create_app_certificate_template_table.php | app_certificate_template |
+| 28 | 2026_01_29_150027_create_app_course_certificate_table.php | app_course_certificate |
+| 29 | 2026_01_29_150028_create_app_member_certificate_table.php | app_member_certificate |
 
 ---
 

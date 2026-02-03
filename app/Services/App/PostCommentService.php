@@ -73,6 +73,66 @@ class PostCommentService
     }
 
     /**
+     * 获取帖子评论列表（普通分页）
+     *
+     * @param int $postId 帖子ID
+     * @param int|null $memberId 当前登录会员ID
+     * @param int $page 页码
+     * @param int $pageSize 每页数量
+     * @return array ['paginator' => LengthAwarePaginator, 'likedCommentIds' => array]
+     */
+    public function getCommentListPaginate(int $postId, ?int $memberId = null, int $page = 1, int $pageSize = 10): array
+    {
+        $paginator = AppPostComment::query()
+            ->with([
+                'member',
+                'replies' => function ($query) {
+                    $query->with(['member', 'replyToMember'])
+                        ->normal()
+                        ->orderBy('created_at')
+                        ->limit(3);
+                }
+            ])
+            ->byPost($postId)
+            ->topLevel()
+            ->normal()
+            ->orderByDesc('comment_id')
+            ->paginate($pageSize, ['*'], 'page', $page);
+
+        // 获取当前用户点赞的评论ID列表
+        $likedCommentIds = [];
+        if ($memberId) {
+            $commentIds = $this->extractCommentIdsFromPaginator($paginator);
+            $likedCommentIds = AppPostCommentLike::getLikedCommentIds($memberId, $commentIds);
+        }
+
+        return [
+            'paginator' => $paginator,
+            'likedCommentIds' => $likedCommentIds,
+        ];
+    }
+
+    /**
+     * 从普通分页结果中提取所有评论ID（包括回复）
+     *
+     * @param \Illuminate\Pagination\LengthAwarePaginator $paginator
+     * @return array
+     */
+    private function extractCommentIdsFromPaginator($paginator): array
+    {
+        $commentIds = [];
+        foreach ($paginator->items() as $comment) {
+            $commentIds[] = $comment->comment_id;
+            if ($comment->relationLoaded('replies')) {
+                foreach ($comment->replies as $reply) {
+                    $commentIds[] = $reply->comment_id;
+                }
+            }
+        }
+        return $commentIds;
+    }
+
+    /**
      * 获取评论的回复列表（游标分页）
      *
      * @param int $commentId 父评论ID

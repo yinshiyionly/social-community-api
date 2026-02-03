@@ -36,7 +36,7 @@ class PostCommentController extends Controller
     }
 
     /**
-     * 获取帖子评论列表
+     * 获取帖子评论列表（游标分页）
      *
      * @param Request $request
      * @param int $postId 帖子ID
@@ -54,6 +54,35 @@ class PostCommentController extends Controller
             PostCommentResource::setLikedCommentIds($result['likedCommentIds']);
 
             return AppApiResponse::cursorPaginate($result['paginator'], PostCommentResource::class);
+        } catch (\Exception $e) {
+            Log::error('获取评论列表失败', [
+                'post_id' => $postId,
+                'error' => $e->getMessage()
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 获取帖子评论列表（普通分页）
+     *
+     * @param Request $request
+     * @param int $postId 帖子ID
+     */
+    public function listPaginate(Request $request, int $postId)
+    {
+        $memberId = $this->getMemberId($request);
+        $page = (int) $request->input('page', 1);
+        $pageSize = (int) $request->input('pageSize', 10);
+
+        try {
+            $result = $this->commentService->getCommentListPaginate($postId, $memberId, $page, $pageSize);
+
+            // 设置点赞状态到 Resource
+            PostCommentResource::setLikedCommentIds($result['likedCommentIds']);
+
+            return AppApiResponse::normalPaginate($result['paginator'], PostCommentResource::class);
         } catch (\Exception $e) {
             Log::error('获取评论列表失败', [
                 'post_id' => $postId,

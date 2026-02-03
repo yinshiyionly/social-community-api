@@ -221,4 +221,59 @@ class MemberService
             ->where('member_id', $memberId)
             ->update(['nickname' => $nickname]) > 0;
     }
+
+    /**
+     * 个人信息查询字段
+     */
+    private const INFO_COLUMNS = [
+        'member_id',
+        'phone',
+        'nickname',
+        'avatar',
+        'gender',
+        'birthday',
+        'bio',
+        'level',
+        'points',
+        'coin',
+        'fans_count',
+        'following_count',
+        'like_count',
+    ];
+
+    /**
+     * 获取当前登录用户个人信息
+     *
+     * @param int $memberId 用户ID
+     * @return AppMemberBase|null
+     */
+    public function getMemberInfo(int $memberId)
+    {
+        return AppMemberBase::query()
+            ->select(self::INFO_COLUMNS)
+            ->where('member_id', $memberId)
+            ->first();
+    }
+
+    /**
+     * 更新用户个人信息
+     *
+     * @param int $memberId 用户ID
+     * @param array $data 更新数据
+     * @return bool
+     */
+    public function updateMemberInfo(int $memberId, array $data): bool
+    {
+        // 过滤允许更新的字段
+        $allowedFields = ['nickname', 'avatar', 'gender', 'birthday', 'bio'];
+        $updateData = array_intersect_key($data, array_flip($allowedFields));
+
+        if (empty($updateData)) {
+            return true;
+        }
+
+        return AppMemberBase::query()
+            ->where('member_id', $memberId)
+            ->update($updateData) > 0;
+    }
 }

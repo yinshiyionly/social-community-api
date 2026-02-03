@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\App\Member\MemberUpdateRequest;
 use App\Http\Resources\App\AppApiResponse;
 use App\Http\Resources\App\Member\MemberCollectionListResource;
 use App\Http\Resources\App\Member\MemberFansListResource;
 use App\Http\Resources\App\Member\MemberFollowingListResource;
+use App\Http\Resources\App\Member\MemberInfoResource;
 use App\Http\Resources\App\MemberPostListResource;
 use App\Http\Resources\App\MemberProfileResource;
 use App\Services\App\MemberService;
@@ -266,6 +268,59 @@ class MemberController extends Controller
             return AppApiResponse::success();
         } catch (\Exception $e) {
             Log::error('修改昵称失败', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 获取当前登录用户个人信息
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function info(Request $request): JsonResponse
+    {
+        $memberId = $this->getMemberId($request);
+
+        try {
+            $member = $this->memberService->getMemberInfo($memberId);
+
+            if (!$member) {
+                return AppApiResponse::dataNotFound('用户不存在');
+            }
+
+            return AppApiResponse::resource($member, MemberInfoResource::class);
+        } catch (\Exception $e) {
+            Log::error('获取个人信息失败', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 更新当前登录用户个人信息
+     *
+     * @param MemberUpdateRequest $request
+     * @return JsonResponse
+     */
+    public function update(MemberUpdateRequest $request): JsonResponse
+    {
+        $memberId = $this->getMemberId($request);
+        $data = $request->validated();
+
+        try {
+            $this->memberService->updateMemberInfo($memberId, $data);
+
+            return AppApiResponse::success();
+        } catch (\Exception $e) {
+            Log::error('更新个人信息失败', [
                 'member_id' => $memberId,
                 'error' => $e->getMessage(),
             ]);

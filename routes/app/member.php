@@ -24,6 +24,10 @@ Route::prefix('v1/member')->group(function () {
     Route::post('sms/send', [MemberAuthController::class, 'sendSms']);
 
     Route::middleware('app.auth')->group(function () {
+        // 获取个人信息
+        Route::get('info', [MemberController::class, 'info']);
+        // 更新个人信息
+        Route::put('info', [MemberController::class, 'update']);
         // 用户帖子列表
         Route::get('posts', [MemberController::class, 'posts']);
         // 个人收藏帖子列表

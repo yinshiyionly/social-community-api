@@ -51,6 +51,7 @@ trait HasOperator
      */
     protected static function getCurrentOperatorId(): ?int
     {
+        return 0;
         // 从 Request 属性获取（JWT 中间件注入）
         $request = request();
 

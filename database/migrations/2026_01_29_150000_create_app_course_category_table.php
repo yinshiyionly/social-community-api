@@ -51,7 +51,6 @@ class CreateAppCourseCategoryTable extends Migration
         DB::statement("COMMENT ON COLUMN app_course_category.deleted_by IS '删除人'");
 
         // 索引
-        DB::statement('CREATE UNIQUE INDEX uk_app_course_category_code_del ON app_course_category (category_code, del_flag)');
         DB::statement('CREATE INDEX idx_app_course_category_parent_id ON app_course_category (parent_id)');
         DB::statement('CREATE INDEX idx_app_course_category_status ON app_course_category (status)');
 

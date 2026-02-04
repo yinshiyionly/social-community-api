@@ -2,6 +2,7 @@
 
 namespace App\Models\App;
 
+use App\Models\Traits\HasOperator;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class AppCourseCategory extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasOperator;
 
     protected $table = 'app_course_category';
     protected $primaryKey = 'category_id';

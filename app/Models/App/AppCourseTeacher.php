@@ -2,13 +2,14 @@
 
 namespace App\Models\App;
 
+use App\Models\Traits\HasOperator;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppCourseTeacher extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasOperator;
 
     protected $table = 'app_course_teacher';
     protected $primaryKey = 'teacher_id';

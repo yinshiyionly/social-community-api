@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class CourseCategoryUpdateRequest extends FormRequest
 {
@@ -13,10 +14,19 @@ class CourseCategoryUpdateRequest extends FormRequest
 
     public function rules()
     {
+        $categoryId = $this->input('categoryId');
+
         return [
             'categoryId' => 'required|integer|min:1',
             'parentId' => 'nullable|integer|min:0',
-            'categoryName' => 'required|string|max:50',
+            'categoryName' => [
+                'required',
+                'string',
+                'max:50',
+                Rule::unique('app_course_category', 'category_name')
+                    ->whereNull('deleted_at')
+                    ->ignore($categoryId, 'category_id'),
+            ],
             'categoryCode' => 'nullable|string|max:50',
             'icon' => 'nullable|string|max:255',
             'cover' => 'nullable|string|max:255',
@@ -33,6 +43,7 @@ class CourseCategoryUpdateRequest extends FormRequest
             'categoryId.integer' => '分类ID必须是整数',
             'categoryName.required' => '分类名称不能为空',
             'categoryName.max' => '分类名称不能超过50个字符',
+            'categoryName.unique' => '分类名称已存在',
             'categoryCode.max' => '分类编码不能超过50个字符',
             'icon.max' => '图标地址不能超过255个字符',
             'cover.max' => '封面地址不能超过255个字符',

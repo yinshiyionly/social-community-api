@@ -109,8 +109,11 @@ class AppCourseBase extends Model
         'status' => 'integer',
         'publish_time' => 'datetime',
         'created_at' => 'datetime',
+        'created_by' => 'integer',
         'updated_at' => 'datetime',
+        'updated_by' => 'integer',
         'deleted_at' => 'datetime',
+        'deleted_by' => 'integer',
     ];
 
 

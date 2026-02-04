@@ -41,8 +41,11 @@ class AppCourseCategory extends Model
         'sort_order' => 'integer',
         'status' => 'integer',
         'created_at' => 'datetime',
+        'created_by' => 'integer',
         'updated_at' => 'datetime',
+        'updated_by' => 'integer',
         'deleted_at' => 'datetime',
+        'deleted_by' => 'integer',
     ];
 
     /**

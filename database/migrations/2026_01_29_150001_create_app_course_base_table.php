@@ -53,11 +53,12 @@ class CreateAppCourseBaseTable extends Migration
                 is_new int2 NOT NULL DEFAULT 0,
                 status int2 NOT NULL DEFAULT 0,
                 publish_time timestamp(0) NULL,
-                create_by varchar(64) NULL,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                update_by varchar(64) NULL,
-                update_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                del_flag int2 NOT NULL DEFAULT 0,
+                created_at timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_by varchar(64) NULL,
+                updated_at timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_by varchar(64) NULL,
+                deleted_at timestamp(0) NULL,
+                deleted_by varchar(64) NULL,
                 PRIMARY KEY (course_id)
             )
         ");
@@ -102,7 +103,12 @@ class CreateAppCourseBaseTable extends Migration
         DB::statement("COMMENT ON COLUMN app_course_base.is_new IS '是否新课：0=否 1=是'");
         DB::statement("COMMENT ON COLUMN app_course_base.status IS '状态：0=草稿 1=上架 2=下架'");
         DB::statement("COMMENT ON COLUMN app_course_base.publish_time IS '上架时间'");
-        DB::statement("COMMENT ON COLUMN app_course_base.del_flag IS '删除标志：0=正常 1=删除'");
+        DB::statement("COMMENT ON COLUMN app_course_base.created_at IS '创建时间'");
+        DB::statement("COMMENT ON COLUMN app_course_base.created_by IS '创建人'");
+        DB::statement("COMMENT ON COLUMN app_course_base.updated_at IS '更新时间'");
+        DB::statement("COMMENT ON COLUMN app_course_base.updated_by IS '更新人'");
+        DB::statement("COMMENT ON COLUMN app_course_base.deleted_at IS '删除时间'");
+        DB::statement("COMMENT ON COLUMN app_course_base.deleted_by IS '删除人'");
 
         // 索引
         DB::statement('CREATE UNIQUE INDEX uk_app_course_base_course_no_del ON app_course_base (course_no, del_flag)');

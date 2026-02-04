@@ -29,11 +29,12 @@ class CreateAppCourseTeacherTable extends Migration
                 sort_order int4 NOT NULL DEFAULT 0,
                 is_recommend int2 NOT NULL DEFAULT 0,
                 status int2 NOT NULL DEFAULT 1,
-                create_by varchar(64) NULL,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                update_by varchar(64) NULL,
-                update_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                del_flag int2 NOT NULL DEFAULT 0,
+                created_at timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_by varchar(64) NULL,
+                updated_at timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_by varchar(64) NULL,
+                deleted_at timestamp(0) NULL,
+                deleted_by varchar(64) NULL,
                 PRIMARY KEY (teacher_id)
             )
         ");
@@ -54,7 +55,12 @@ class CreateAppCourseTeacherTable extends Migration
         DB::statement("COMMENT ON COLUMN app_course_teacher.sort_order IS '排序'");
         DB::statement("COMMENT ON COLUMN app_course_teacher.is_recommend IS '是否推荐：0=否 1=是'");
         DB::statement("COMMENT ON COLUMN app_course_teacher.status IS '状态：1=启用 2=禁用'");
-        DB::statement("COMMENT ON COLUMN app_course_teacher.del_flag IS '删除标志：0=正常 1=删除'");
+        DB::statement("COMMENT ON COLUMN app_course_teacher.created_at IS '创建时间'");
+        DB::statement("COMMENT ON COLUMN app_course_teacher.created_by IS '创建人'");
+        DB::statement("COMMENT ON COLUMN app_course_teacher.updated_at IS '更新时间'");
+        DB::statement("COMMENT ON COLUMN app_course_teacher.updated_by IS '更新人'");
+        DB::statement("COMMENT ON COLUMN app_course_teacher.deleted_at IS '删除时间'");
+        DB::statement("COMMENT ON COLUMN app_course_teacher.deleted_by IS '删除人'");
 
         // 索引
         DB::statement('CREATE INDEX idx_app_course_teacher_member_id ON app_course_teacher (member_id)');

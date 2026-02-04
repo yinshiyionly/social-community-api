@@ -1,425 +1,501 @@
-# 课程模块数据表设计文档
+# 课程模块数据库设计文档
 
-## 一、数据表总览
+## 概述
 
-### 核心业务表（14张）
+课程模块包含 29 张数据表，支持在线课程的完整生命周期管理，包括课程管理、章节内容、用户学习、订单交易、营销推广等功能。
 
-| 序号 | 表名 | 说明 | 主键 | 主键起始值 |
-|-----|------|------|------|-----------|
-| 1 | app_course_category | 课程分类表 | category_id | 1 |
-| 2 | app_course_base | 课程基础表 | course_id | 100000001 |
-| 3 | app_course_promotion | 课程推广配置表 | promotion_id | 1 |
-| 4 | app_course_teacher | 课程讲师表 | teacher_id | 1 |
-| 5 | app_course_chapter | 课程章节表 | chapter_id | 1 |
-| 6 | app_chapter_content_article | 图文课内容表 | id | 1 |
-| 7 | app_chapter_content_video | 录播课内容表 | id | 1 |
-| 8 | app_chapter_content_live | 直播课内容表 | id | 1 |
-| 9 | app_chapter_content_audio | 音频课内容表 | id | 1 |
-| 10 | app_chapter_homework | 章节作业配置表 | homework_id | 1 |
-| 11 | app_course_order | 课程订单表 | order_id | 100000000001 |
-| 12 | app_course_comment | 课程评价表 | comment_id | 1 |
-| 13 | app_course_group | 课程拼团表 | group_id | 1 |
-| 14 | app_coupon_template | 优惠券模板表 | coupon_id | 1 |
+## 数据表分类
 
-### 用户关联表（11张）
+### 1. 后台管理表（含完整审计字段）
 
-| 序号 | 表名 | 说明 | 主键 |
-|-----|------|------|------|
-| 1 | app_member_course | 用户课程表 | id |
-| 2 | app_member_schedule | 用户课表（解锁计划） | id |
-| 3 | app_member_chapter_progress | 用户章节学习进度表 | id |
-| 4 | app_member_homework_submit | 用户作业提交表 | submit_id |
-| 5 | app_member_coupon | 用户优惠券表 | id |
-| 6 | app_member_learning_note | 学习笔记表 | note_id |
-| 7 | app_member_learning_checkin | 学习打卡记录表 | id |
-| 8 | app_member_certificate | 用户证书表 | cert_id |
-| 9 | app_course_group_member | 拼团成员表 | id |
-| 10 | app_course_favorite | 课程收藏表 | id |
-| 11 | app_course_view_log | 课程浏览记录表 | id |
+这些表由后台管理员操作，包含 `created_at`, `created_by`, `updated_at`, `updated_by`, `deleted_at`, `deleted_by` 六个审计字段。
 
-### 配置/日志表（4张）
+| 表名 | 说明 | 主键 |
+|-----|------|------|
+| app_course_category | 课程分类表 | category_id |
+| app_course_base | 课程基础表 | course_id |
+| app_course_teacher | 课程讲师表 | teacher_id |
+| app_course_chapter | 课程章节表 | chapter_id |
+| app_coupon_template | 优惠券模板表 | coupon_id |
+| app_certificate_template | 证书模板表 | template_id |
 
-| 序号 | 表名 | 说明 | 主键 |
-|-----|------|------|------|
-| 1 | app_certificate_template | 证书模板表 | template_id |
-| 2 | app_course_certificate | 课程证书配置表 | id |
-| 3 | app_course_order_pay_log | 订单支付日志表 | log_id |
-| 4 | app_course_qa | 课程问答表 | qa_id |
+### 2. 用户行为表（Laravel 标准时间戳）
 
----
+这些表记录用户行为，使用 Laravel 标准时间戳字段 `created_at` / `updated_at`，部分表支持软删除 `deleted_at`。
 
-## 二、核心枚举值定义
+| 表名 | 说明 | 主键 | 软删除 |
+|-----|------|------|--------|
+| app_member_course | 用户课程表 | id | ✓ |
+| app_member_schedule | 用户课表 | id | ✓ |
+| app_member_chapter_progress | 章节学习进度表 | id | ✓ |
+| app_member_homework_submit | 作业提交表 | submit_id | ✓ |
+| app_member_coupon | 用户优惠券表 | id | ✓ |
+| app_member_learning_note | 学习笔记表 | note_id | ✓ |
+| app_member_learning_checkin | 学习打卡表 | id | - |
+| app_member_certificate | 用户证书表 | cert_id | - |
 
-### 2.1 课程类型枚举
+### 3. 章节内容表（Laravel 标准时间戳 + 软删除）
 
-#### 付费类型 (pay_type)
-| 值 | 说明 | 特点 |
-|---|------|-----|
-| 1 | 体验课 | 免费或低价，用于引流 |
-| 2 | 小白课 | 入门级，价格适中 |
-| 3 | 进阶课 | 中高级，价格较高 |
-| 4 | 付费课 | 正价课程 |
+| 表名 | 说明 | 主键 |
+|-----|------|------|
+| app_chapter_content_article | 图文课内容表 | id |
+| app_chapter_content_video | 录播课内容表 | id |
+| app_chapter_content_live | 直播课内容表 | id |
+| app_chapter_content_audio | 音频课内容表 | id |
+| app_chapter_homework | 章节作业配置表 | homework_id |
 
-#### 播放类型 (play_type)
-| 值 | 说明 | 内容表 |
-|---|------|-------|
-| 1 | 图文课 | app_chapter_content_article |
-| 2 | 录播课 | app_chapter_content_video |
-| 3 | 直播课 | app_chapter_content_live |
-| 4 | 音频课 | app_chapter_content_audio |
+### 4. 订单交易表（Laravel 标准时间戳 + 软删除）
 
-#### 排课类型 (schedule_type)
-| 值 | 说明 | 解锁逻辑 |
-|---|------|---------|
-| 1 | 固定日期 | 章节按固定日期解锁，所有用户相同 |
-| 2 | 动态解锁 | 根据用户领取/购买日期 + 解锁天数计算 |
+| 表名 | 说明 | 主键 | 软删除 |
+|-----|------|------|--------|
+| app_course_order | 课程订单表 | order_id | ✓ |
+| app_course_order_pay_log | 订单支付日志表 | log_id | - |
 
-### 2.2 章节解锁类型 (unlock_type)
-| 值 | 说明 | 配合字段 |
-|---|------|---------|
-| 1 | 立即解锁 | 购买后立即可看 |
-| 2 | 按天数解锁 | unlock_days |
-| 3 | 按日期解锁 | unlock_date + unlock_time |
+### 5. 互动评价表（Laravel 标准时间戳 + 软删除）
 
-### 2.3 订单状态
+| 表名 | 说明 | 主键 | 软删除 |
+|-----|------|------|--------|
+| app_course_comment | 课程评价表 | comment_id | ✓ |
+| app_course_favorite | 课程收藏表 | id | - |
+| app_course_view_log | 课程浏览记录表 | id | - |
+| app_course_qa | 课程问答表 | qa_id | ✓ |
 
-#### 支付状态 (pay_status)
-| 值 | 说明 |
-|---|------|
-| 0 | 待支付 |
-| 1 | 已支付 |
-| 2 | 已退款 |
-| 3 | 已关闭 |
+### 6. 营销推广表（Laravel 标准时间戳 + 软删除）
 
-#### 退款状态 (refund_status)
-| 值 | 说明 |
-|---|------|
-| 0 | 无退款 |
-| 1 | 申请中 |
-| 2 | 已退款 |
-| 3 | 已拒绝 |
-
-### 2.4 作业类型 (homework_type)
-| 值 | 说明 |
-|---|------|
-| 1 | 图文打卡 |
-| 2 | 视频打卡 |
-| 3 | 问答 |
-| 4 | 文件提交 |
-
-### 2.5 优惠券类型 (coupon_type)
-| 值 | 说明 |
-|---|------|
-| 1 | 满减券 |
-| 2 | 折扣券 |
-| 3 | 无门槛券 |
+| 表名 | 说明 | 主键 | 软删除 |
+|-----|------|------|--------|
+| app_course_promotion | 课程推广配置表 | promotion_id | ✓ |
+| app_course_group | 课程拼团表 | group_id | ✓ |
+| app_course_group_member | 拼团成员表 | id | - |
+| app_course_certificate | 课程证书配置表 | id | ✓ |
 
 ---
 
-## 三、表结构详细设计
+## 核心表结构详解
 
-### 3.1 app_course_category（课程分类表）
+### app_course_category（课程分类表）
 
 ```sql
 CREATE TABLE app_course_category (
-    category_id int4 NOT NULL GENERATED ALWAYS AS IDENTITY,
-    parent_id int4 NOT NULL DEFAULT 0,           -- 父分类ID
-    category_name varchar(50) NOT NULL DEFAULT '',-- 分类名称
-    category_code varchar(50) NOT NULL DEFAULT '',-- 分类编码
-    icon varchar(255) NULL,                       -- 分类图标
-    cover varchar(255) NULL,                      -- 分类封面
-    description varchar(500) NULL,                -- 分类描述
-    sort_order int4 NOT NULL DEFAULT 0,           -- 排序
-    status int2 NOT NULL DEFAULT 1,               -- 状态：1=启用 2=禁用
-    create_by varchar(64) NULL,
-    create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-    update_by varchar(64) NULL,
-    update_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-    del_flag int2 NOT NULL DEFAULT 0,             -- 删除标志
-    PRIMARY KEY (category_id)
+    category_id int4 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    parent_id int4 NOT NULL DEFAULT 0,          -- 父分类ID
+    category_name varchar(50) NOT NULL,         -- 分类名称
+    category_code varchar(50) NOT NULL,         -- 分类编码
+    icon varchar(255),                          -- 分类图标
+    cover varchar(255),                         -- 分类封面
+    description varchar(500),                   -- 分类描述
+    sort_order int4 NOT NULL DEFAULT 0,         -- 排序
+    status int2 NOT NULL DEFAULT 1,             -- 状态：1=启用 2=禁用
+    -- 审计字段
+    created_at timestamp(0),
+    created_by varchar(64),
+    updated_at timestamp(0),
+    updated_by varchar(64),
+    deleted_at timestamp(0),
+    deleted_by varchar(64)
 );
-
--- 索引
-CREATE UNIQUE INDEX uk_app_course_category_code_del ON app_course_category (category_code, del_flag);
-CREATE INDEX idx_app_course_category_parent_id ON app_course_category (parent_id);
-CREATE INDEX idx_app_course_category_status ON app_course_category (status);
 ```
 
-### 3.2 app_course_base（课程基础表）
+**索引**：
+- `uk_app_course_category_code_del (category_code, deleted_at)` - 编码唯一
+- `idx_app_course_category_parent_id (parent_id)` - 父级查询
+- `idx_app_course_category_status (status)` - 状态筛选
+
+### app_course_base（课程基础表）
 
 ```sql
 CREATE TABLE app_course_base (
-    course_id int8 NOT NULL GENERATED ALWAYS AS IDENTITY (START 100000001),
-    course_no varchar(32) NOT NULL DEFAULT '',    -- 课程编号
-    category_id int4 NOT NULL DEFAULT 0,          -- 分类ID
-    course_title varchar(200) NOT NULL DEFAULT '',-- 课程标题
-    course_subtitle varchar(300) NULL,            -- 课程副标题
-    pay_type int2 NOT NULL DEFAULT 1,             -- 付费类型
-    play_type int2 NOT NULL DEFAULT 1,            -- 播放类型
-    schedule_type int2 NOT NULL DEFAULT 1,        -- 排课类型
-    cover_image varchar(500) NULL,                -- 封面图
-    cover_video varchar(500) NULL,                -- 封面视频
-    banner_images jsonb NOT NULL DEFAULT '[]',    -- 轮播图列表
-    intro_video varchar(500) NULL,                -- 课程介绍视频
-    brief text NULL,                              -- 课程简介
-    description text NULL,                        -- 课程详情（富文本）
-    suitable_crowd text NULL,                     -- 适合人群
-    learn_goal text NULL,                         -- 学习目标
-    teacher_id int8 NULL,                         -- 主讲师ID
-    assistant_ids jsonb NOT NULL DEFAULT '[]',    -- 助教ID列表
-    original_price numeric(10,2) NOT NULL DEFAULT 0,-- 原价
-    current_price numeric(10,2) NOT NULL DEFAULT 0, -- 现价
-    point_price int4 NOT NULL DEFAULT 0,          -- 积分价格
-    is_free int2 NOT NULL DEFAULT 0,              -- 是否免费
-    total_chapter int4 NOT NULL DEFAULT 0,        -- 总章节数
-    total_duration int4 NOT NULL DEFAULT 0,       -- 总时长（秒）
-    valid_days int4 NOT NULL DEFAULT 0,           -- 有效期天数（0=永久）
-    allow_download int2 NOT NULL DEFAULT 0,       -- 允许下载
-    allow_comment int2 NOT NULL DEFAULT 1,        -- 允许评论
-    allow_share int2 NOT NULL DEFAULT 1,          -- 允许分享
-    enroll_count int4 NOT NULL DEFAULT 0,         -- 报名人数
-    view_count int4 NOT NULL DEFAULT 0,           -- 浏览次数
-    complete_count int4 NOT NULL DEFAULT 0,       -- 完课人数
-    comment_count int4 NOT NULL DEFAULT 0,        -- 评论数
-    avg_rating numeric(2,1) NOT NULL DEFAULT 5.0, -- 平均评分
-    sort_order int4 NOT NULL DEFAULT 0,           -- 排序
-    is_recommend int2 NOT NULL DEFAULT 0,         -- 是否推荐
-    is_hot int2 NOT NULL DEFAULT 0,               -- 是否热门
-    is_new int2 NOT NULL DEFAULT 0,               -- 是否新课
-    status int2 NOT NULL DEFAULT 0,               -- 状态：0=草稿 1=上架 2=下架
-    publish_time timestamp(0) NULL,               -- 上架时间
-    create_by varchar(64) NULL,
-    create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-    update_by varchar(64) NULL,
-    update_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-    del_flag int2 NOT NULL DEFAULT 0,
-    PRIMARY KEY (course_id)
+    course_id int8 GENERATED ALWAYS AS IDENTITY (START 100000001) PRIMARY KEY,
+    course_no varchar(32) NOT NULL,             -- 课程编号
+    category_id int4 NOT NULL DEFAULT 0,        -- 分类ID
+    course_title varchar(200) NOT NULL,         -- 课程标题
+    course_subtitle varchar(300),               -- 课程副标题
+    pay_type int2 NOT NULL DEFAULT 1,           -- 付费类型：1=体验课 2=小白课 3=进阶课 4=付费课
+    play_type int2 NOT NULL DEFAULT 1,          -- 播放类型：1=图文课 2=录播课 3=直播课 4=音频课
+    schedule_type int2 NOT NULL DEFAULT 1,      -- 排课类型：1=固定日期 2=动态解锁
+    cover_image varchar(500),                   -- 封面图
+    cover_video varchar(500),                   -- 封面视频
+    banner_images jsonb DEFAULT '[]',           -- 轮播图列表
+    intro_video varchar(500),                   -- 课程介绍视频
+    brief text,                                 -- 课程简介
+    description text,                           -- 课程详情（富文本）
+    suitable_crowd text,                        -- 适合人群
+    learn_goal text,                            -- 学习目标
+    teacher_id int8,                            -- 主讲师ID
+    assistant_ids jsonb DEFAULT '[]',           -- 助教ID列表
+    original_price numeric(10,2) DEFAULT 0,     -- 原价
+    current_price numeric(10,2) DEFAULT 0,      -- 现价
+    point_price int4 DEFAULT 0,                 -- 积分价格
+    is_free int2 DEFAULT 0,                     -- 是否免费
+    total_chapter int4 DEFAULT 0,               -- 总章节数
+    total_duration int4 DEFAULT 0,              -- 总时长（秒）
+    valid_days int4 DEFAULT 0,                  -- 有效期天数（0=永久）
+    allow_download int2 DEFAULT 0,              -- 允许下载
+    allow_comment int2 DEFAULT 1,               -- 允许评论
+    allow_share int2 DEFAULT 1,                 -- 允许分享
+    enroll_count int4 DEFAULT 0,                -- 报名人数
+    view_count int4 DEFAULT 0,                  -- 浏览次数
+    complete_count int4 DEFAULT 0,              -- 完课人数
+    comment_count int4 DEFAULT 0,               -- 评论数
+    avg_rating numeric(2,1) DEFAULT 5.0,        -- 平均评分
+    sort_order int4 DEFAULT 0,                  -- 排序
+    is_recommend int2 DEFAULT 0,                -- 是否推荐
+    is_hot int2 DEFAULT 0,                      -- 是否热门
+    is_new int2 DEFAULT 0,                      -- 是否新课
+    status int2 DEFAULT 0,                      -- 状态：0=草稿 1=上架 2=下架
+    publish_time timestamp(0),                  -- 上架时间
+    -- 审计字段
+    created_at timestamp(0),
+    created_by varchar(64),
+    updated_at timestamp(0),
+    updated_by varchar(64),
+    deleted_at timestamp(0),
+    deleted_by varchar(64)
 );
-
--- 索引
-CREATE UNIQUE INDEX uk_app_course_base_course_no_del ON app_course_base (course_no, del_flag);
-CREATE INDEX idx_app_course_base_category_id ON app_course_base (category_id);
-CREATE INDEX idx_app_course_base_pay_type ON app_course_base (pay_type);
-CREATE INDEX idx_app_course_base_play_type ON app_course_base (play_type);
-CREATE INDEX idx_app_course_base_teacher_id ON app_course_base (teacher_id);
-CREATE INDEX idx_app_course_base_status ON app_course_base (status);
-CREATE INDEX idx_app_course_base_list ON app_course_base (status, is_recommend, sort_order);
 ```
 
-### 3.3 app_course_chapter（课程章节表）
+**索引**：
+- `uk_app_course_base_course_no_del (course_no, deleted_at)` - 编号唯一
+- `idx_app_course_base_category_id (category_id)` - 分类查询
+- `idx_app_course_base_teacher_id (teacher_id)` - 讲师查询
+- `idx_app_course_base_status (status)` - 状态筛选
+- `idx_app_course_base_list (status, is_recommend, sort_order)` - 列表排序
+
+### app_course_teacher（课程讲师表）
+
+```sql
+CREATE TABLE app_course_teacher (
+    teacher_id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    member_id int8,                             -- 关联用户ID
+    teacher_name varchar(50) NOT NULL,          -- 讲师姓名
+    avatar varchar(500),                        -- 头像
+    title varchar(100),                         -- 头衔/职称
+    brief varchar(500),                         -- 简介
+    description text,                           -- 详细介绍
+    tags jsonb DEFAULT '[]',                    -- 标签
+    certificates jsonb DEFAULT '[]',            -- 资质证书
+    course_count int4 DEFAULT 0,                -- 课程数
+    student_count int4 DEFAULT 0,               -- 学员数
+    avg_rating numeric(2,1) DEFAULT 5.0,        -- 平均评分
+    sort_order int4 DEFAULT 0,                  -- 排序
+    is_recommend int2 DEFAULT 0,                -- 是否推荐
+    status int2 DEFAULT 1,                      -- 状态：1=启用 2=禁用
+    -- 审计字段
+    created_at timestamp(0),
+    created_by varchar(64),
+    updated_at timestamp(0),
+    updated_by varchar(64),
+    deleted_at timestamp(0),
+    deleted_by varchar(64)
+);
+```
+
+### app_course_chapter（课程章节表）
 
 ```sql
 CREATE TABLE app_course_chapter (
-    chapter_id int8 NOT NULL GENERATED ALWAYS AS IDENTITY,
-    course_id int8 NOT NULL,                      -- 课程ID
-    chapter_no int4 NOT NULL DEFAULT 0,           -- 章节序号
-    chapter_title varchar(200) NOT NULL DEFAULT '',-- 章节标题
-    chapter_subtitle varchar(300) NULL,           -- 章节副标题
-    cover_image varchar(500) NULL,                -- 章节封面
-    brief text NULL,                              -- 章节简介
-    is_free int2 NOT NULL DEFAULT 0,              -- 是否免费试看
-    is_preview int2 NOT NULL DEFAULT 0,           -- 是否先导课
-    unlock_type int2 NOT NULL DEFAULT 1,          -- 解锁类型
-    unlock_days int4 NOT NULL DEFAULT 0,          -- 解锁天数
-    unlock_date date NULL,                        -- 固定解锁日期
-    unlock_time time NULL,                        -- 解锁时间点
-    has_homework int2 NOT NULL DEFAULT 0,         -- 是否有作业
-    homework_required int2 NOT NULL DEFAULT 0,    -- 作业是否必做
-    duration int4 NOT NULL DEFAULT 0,             -- 时长（秒）
-    min_learn_time int4 NOT NULL DEFAULT 0,       -- 最少学习时长
-    allow_skip int2 NOT NULL DEFAULT 0,           -- 允许跳过
-    allow_speed int2 NOT NULL DEFAULT 1,          -- 允许倍速
-    view_count int4 NOT NULL DEFAULT 0,           -- 观看次数
-    complete_count int4 NOT NULL DEFAULT 0,       -- 完成人数
-    homework_count int4 NOT NULL DEFAULT 0,       -- 作业提交数
-    sort_order int4 NOT NULL DEFAULT 0,           -- 排序
-    status int2 NOT NULL DEFAULT 1,               -- 状态
-    create_by varchar(64) NULL,
-    create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-    update_by varchar(64) NULL,
-    update_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-    del_flag int2 NOT NULL DEFAULT 0,
-    PRIMARY KEY (chapter_id)
+    chapter_id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    course_id int8 NOT NULL,                    -- 课程ID
+    chapter_no int4 DEFAULT 0,                  -- 章节序号
+    chapter_title varchar(200) NOT NULL,        -- 章节标题
+    chapter_subtitle varchar(300),              -- 章节副标题
+    cover_image varchar(500),                   -- 章节封面
+    brief text,                                 -- 章节简介
+    is_free int2 DEFAULT 0,                     -- 是否免费试看
+    is_preview int2 DEFAULT 0,                  -- 是否先导课
+    unlock_type int2 DEFAULT 1,                 -- 解锁类型：1=立即 2=按天数 3=按日期
+    unlock_days int4 DEFAULT 0,                 -- 解锁天数
+    unlock_date date,                           -- 固定解锁日期
+    unlock_time time,                           -- 解锁时间点
+    has_homework int2 DEFAULT 0,                -- 是否有作业
+    homework_required int2 DEFAULT 0,           -- 作业是否必做
+    duration int4 DEFAULT 0,                    -- 时长（秒）
+    min_learn_time int4 DEFAULT 0,              -- 最少学习时长
+    allow_skip int2 DEFAULT 0,                  -- 允许跳过
+    allow_speed int2 DEFAULT 1,                 -- 允许倍速
+    view_count int4 DEFAULT 0,                  -- 观看次数
+    complete_count int4 DEFAULT 0,              -- 完成人数
+    homework_count int4 DEFAULT 0,              -- 作业提交数
+    sort_order int4 DEFAULT 0,                  -- 排序
+    status int2 DEFAULT 1,                      -- 状态：0=草稿 1=上架 2=下架
+    -- 审计字段
+    created_at timestamp(0),
+    created_by varchar(64),
+    updated_at timestamp(0),
+    updated_by varchar(64),
+    deleted_at timestamp(0),
+    deleted_by varchar(64)
 );
-
--- 索引
-CREATE INDEX idx_app_course_chapter_course_id ON app_course_chapter (course_id);
-CREATE INDEX idx_app_course_chapter_course_no ON app_course_chapter (course_id, chapter_no);
-CREATE INDEX idx_app_course_chapter_list ON app_course_chapter (course_id, status, sort_order);
 ```
 
-### 3.4 章节内容分表设计
+**索引**：
+- `idx_app_course_chapter_course_id (course_id)` - 课程查询
+- `idx_app_course_chapter_course_no (course_id, chapter_no)` - 章节序号
+- `idx_app_course_chapter_list (course_id, status, sort_order)` - 列表排序
 
-#### 为什么要分表？
-
-不同播放类型的章节，字段差异很大：
-- **图文课**：content_html, images, word_count, read_time
-- **录播课**：video_url, duration, quality_list, subtitles, drm_enabled
-- **直播课**：live_room_id, push_url, pull_url, live_status, playback_url
-- **音频课**：audio_url, transcript, timeline_text, background_play
-
-分表优势：
-1. 避免大量 NULL 字段
-2. 代码中无需 if-else 判断字段
-3. 各类型可独立扩展字段
-4. 查询性能更好
-
-#### 使用方式
-
-```php
-// 获取章节内容
-$chapter = AppCourseChapter::find($chapterId);
-$course = $chapter->course;
-
-switch ($course->play_type) {
-    case 1: // 图文课
-        $content = AppChapterContentArticle::where('chapter_id', $chapterId)->first();
-        break;
-    case 2: // 录播课
-        $content = AppChapterContentVideo::where('chapter_id', $chapterId)->first();
-        break;
-    case 3: // 直播课
-        $content = AppChapterContentLive::where('chapter_id', $chapterId)->first();
-        break;
-    case 4: // 音频课
-        $content = AppChapterContentAudio::where('chapter_id', $chapterId)->first();
-        break;
-}
-```
-
----
-
-## 四、ER 关系图
-
-```
-app_course_category (1) ──< (N) app_course_base
-app_course_teacher (1) ──< (N) app_course_base
-app_course_base (1) ──── (1) app_course_promotion
-app_course_base (1) ──< (N) app_course_chapter
-app_course_chapter (1) ──── (1) app_chapter_content_*
-app_course_chapter (1) ──< (N) app_chapter_homework
-app_member_base (1) ──< (N) app_member_course
-app_member_course (1) ──< (N) app_member_schedule
-app_member_base (1) ──< (N) app_course_order
-app_course_base (1) ──< (N) app_course_comment
-app_course_base (1) ──< (N) app_course_group
-app_coupon_template (1) ──< (N) app_member_coupon
-```
-
----
-
-## 五、索引设计要点
-
-### 5.1 索引命名规范
-
-所有索引必须包含完整表名，避免 PostgreSQL 全局索引名冲突：
+### app_chapter_content_video（录播课内容表）
 
 ```sql
--- ✅ 正确
-CREATE INDEX idx_app_course_base_category_id ON app_course_base (category_id);
-CREATE UNIQUE INDEX uk_app_course_base_course_no_del ON app_course_base (course_no, del_flag);
-
--- ❌ 错误
-CREATE INDEX idx_category_id ON app_course_base (category_id);
+CREATE TABLE app_chapter_content_video (
+    id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    chapter_id int8 NOT NULL,                   -- 章节ID（唯一）
+    video_url varchar(500),                     -- 视频地址
+    video_id varchar(100),                      -- 视频ID（云存储）
+    video_source varchar(50) DEFAULT 'local',   -- 视频来源：local/aliyun/tencent/volcengine
+    duration int4 DEFAULT 0,                    -- 视频时长（秒）
+    width int4 DEFAULT 0,                       -- 视频宽度
+    height int4 DEFAULT 0,                      -- 视频高度
+    file_size int8 DEFAULT 0,                   -- 文件大小（字节）
+    cover_image varchar(500),                   -- 视频封面
+    quality_list jsonb DEFAULT '[]',            -- 清晰度列表
+    subtitles jsonb DEFAULT '[]',               -- 字幕列表
+    attachments jsonb DEFAULT '[]',             -- 课件附件
+    allow_download int2 DEFAULT 0,              -- 允许下载
+    drm_enabled int2 DEFAULT 0,                 -- DRM加密
+    created_at timestamp(0),
+    updated_at timestamp(0),
+    deleted_at timestamp(0)
+);
 ```
 
-### 5.2 核心查询索引
+**索引**：`uk_app_chapter_content_video_chapter_id (chapter_id)` - 章节唯一
 
-| 查询场景 | 索引 |
-|---------|------|
-| 课程列表 | `idx_app_course_base_list (status, is_recommend, sort_order)` |
-| 用户课程 | `idx_app_member_course_recent (member_id, is_expired, last_learn_time)` |
-| 章节列表 | `idx_app_course_chapter_list (course_id, status, sort_order)` |
-| 订单查询 | `idx_app_course_order_member_status (member_id, pay_status)` |
+### app_chapter_content_live（直播课内容表）
+
+```sql
+CREATE TABLE app_chapter_content_live (
+    id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    chapter_id int8 NOT NULL,                   -- 章节ID（唯一）
+    live_platform varchar(50) DEFAULT 'custom', -- 直播平台
+    live_room_id varchar(100),                  -- 直播间ID
+    live_push_url varchar(500),                 -- 推流地址
+    live_pull_url varchar(500),                 -- 拉流地址
+    live_cover varchar(500),                    -- 直播封面
+    live_start_time timestamp(0),               -- 直播开始时间
+    live_end_time timestamp(0),                 -- 直播结束时间
+    live_duration int4 DEFAULT 0,               -- 预计时长（分钟）
+    live_status int2 DEFAULT 0,                 -- 状态：0=未开始 1=直播中 2=已结束 3=已取消
+    has_playback int2 DEFAULT 0,                -- 是否有回放
+    playback_url varchar(500),                  -- 回放地址
+    playback_duration int4 DEFAULT 0,           -- 回放时长（秒）
+    allow_chat int2 DEFAULT 1,                  -- 允许聊天
+    allow_gift int2 DEFAULT 0,                  -- 允许送礼
+    online_count int4 DEFAULT 0,                -- 在线人数
+    max_online_count int4 DEFAULT 0,            -- 最高在线
+    attachments jsonb DEFAULT '[]',             -- 直播资料
+    created_at timestamp(0),
+    updated_at timestamp(0),
+    deleted_at timestamp(0)
+);
+```
+
+### app_member_course（用户课程表）
+
+```sql
+CREATE TABLE app_member_course (
+    id int8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    member_id int8 NOT NULL,                    -- 用户ID
+    course_id int8 NOT NULL,                    -- 课程ID
+    order_no varchar(64),                       -- 订单号
+    source_type int2 DEFAULT 1,                 -- 来源：1=购买 2=免费领取 3=兑换 4=赠送 5=活动
+    paid_amount numeric(10,2) DEFAULT 0,        -- 实付金额
+    paid_points int4 DEFAULT 0,                 -- 使用积分
+    enroll_time timestamp(0),                   -- 报名时间
+    expire_time timestamp(0),                   -- 过期时间
+    is_expired int2 DEFAULT 0,                  -- 是否过期
+    learned_chapters int4 DEFAULT 0,            -- 已学章节数
+    total_chapters int4 DEFAULT 0,              -- 总章节数
+    learned_duration int4 DEFAULT 0,            -- 已学时长（秒）
+    progress numeric(5,2) DEFAULT 0,            -- 学习进度%
+    last_chapter_id int8,                       -- 最后学习章节
+    last_position int4 DEFAULT 0,               -- 最后播放位置（秒）
+    last_learn_time timestamp(0),               -- 最后学习时间
+    is_completed int2 DEFAULT 0,                -- 是否完课
+    complete_time timestamp(0),                 -- 完课时间
+    homework_submitted int4 DEFAULT 0,          -- 已提交作业数
+    homework_total int4 DEFAULT 0,              -- 总作业数
+    checkin_days int4 DEFAULT 0,                -- 打卡天数
+    created_at timestamp(0),
+    updated_at timestamp(0),
+    deleted_at timestamp(0)
+);
+```
+
+**索引**：
+- `uk_app_member_course_member_course (member_id, course_id)` - 用户课程唯一
+- `idx_app_member_course_recent (member_id, is_expired, last_learn_time)` - 最近学习
+
+### app_course_order（课程订单表）
+
+```sql
+CREATE TABLE app_course_order (
+    order_id int8 GENERATED ALWAYS AS IDENTITY (START 100000000001) PRIMARY KEY,
+    order_no varchar(64) NOT NULL,              -- 订单号（唯一）
+    member_id int8 NOT NULL,                    -- 用户ID
+    course_id int8 NOT NULL,                    -- 课程ID
+    course_title varchar(200) NOT NULL,         -- 课程标题（快照）
+    course_cover varchar(500),                  -- 课程封面（快照）
+    original_price numeric(10,2) DEFAULT 0,     -- 原价
+    current_price numeric(10,2) DEFAULT 0,      -- 现价
+    discount_amount numeric(10,2) DEFAULT 0,    -- 优惠金额
+    coupon_amount numeric(10,2) DEFAULT 0,      -- 优惠券抵扣
+    point_deduct int4 DEFAULT 0,                -- 积分抵扣数
+    point_amount numeric(10,2) DEFAULT 0,       -- 积分抵扣金额
+    paid_amount numeric(10,2) DEFAULT 0,        -- 实付金额
+    coupon_id varchar(64),                      -- 优惠券ID
+    promotion_type varchar(50),                 -- 促销类型：seckill/discount/group
+    promotion_id varchar(64),                   -- 促销活动ID
+    pay_status int2 DEFAULT 0,                  -- 支付状态：0=待支付 1=已支付 2=已退款 3=已关闭
+    pay_type int2,                              -- 支付方式：1=微信 2=支付宝 3=余额 4=免费
+    pay_trade_no varchar(100),                  -- 支付流水号
+    pay_time timestamp(0),                      -- 支付时间
+    expire_time timestamp(0),                   -- 订单过期时间
+    refund_status int2 DEFAULT 0,               -- 退款状态
+    refund_amount numeric(10,2) DEFAULT 0,      -- 退款金额
+    refund_reason varchar(500),                 -- 退款原因
+    refund_time timestamp(0),                   -- 退款时间
+    inviter_id int8,                            -- 邀请人ID
+    commission_amount numeric(10,2) DEFAULT 0,  -- 佣金金额
+    commission_status int2 DEFAULT 0,           -- 佣金状态
+    remark varchar(500),                        -- 备注
+    client_ip varchar(50),
+    user_agent varchar(500),
+    created_at timestamp(0),
+    updated_at timestamp(0),
+    deleted_at timestamp(0)
+);
+```
+
+**索引**：
+- `uk_app_course_order_order_no (order_no)` - 订单号唯一
+- `idx_app_course_order_member_status (member_id, pay_status)` - 用户订单查询
+- `idx_app_course_order_create_time (created_at)` - 时间查询
 
 ---
 
-## 六、开发注意事项
+## ER 关系图
 
-### 6.1 主键使用 IDENTITY
-
-所有表主键使用 PostgreSQL IDENTITY 列，禁止手动指定主键值：
-
-```php
-// ✅ 正确
-AppCourseBase::create([
-    'course_title' => '测试课程',
-    'category_id' => 1,
-]);
-
-// ❌ 错误 - 会报错
-AppCourseBase::create([
-    'course_id' => 999,
-    'course_title' => '测试课程',
-]);
 ```
+┌─────────────────────┐
+│ app_course_category │
+│     (课程分类)       │
+└─────────┬───────────┘
+          │ 1:N
+          ▼
+┌─────────────────────┐      1:1      ┌─────────────────────────┐
+│   app_course_base   │──────────────▶│  app_course_promotion   │
+│     (课程基础)       │               │     (推广配置)           │
+└─────────┬───────────┘               └─────────────────────────┘
+          │
+          │ 1:N
+          ▼
+┌─────────────────────┐      1:1      ┌─────────────────────────┐
+│  app_course_chapter │──────────────▶│ app_chapter_content_*   │
+│     (课程章节)       │               │ (video/article/live/    │
+└─────────┬───────────┘               │  audio)                 │
+          │                           └─────────────────────────┘
+          │ 1:N
+          ▼
+┌─────────────────────┐
+│ app_chapter_homework│
+│     (章节作业)       │
+└─────────────────────┘
 
-### 6.2 软删除字段
+┌─────────────────────┐      N:1      ┌─────────────────────────┐
+│  app_course_teacher │◀─────────────│    app_course_base      │
+│     (课程讲师)       │               │                         │
+└─────────────────────┘               └─────────────────────────┘
 
-使用 `del_flag` 字段实现软删除，而非 Laravel 默认的 `deleted_at`：
-
-```php
-// Model 中配置
-class AppCourseBase extends Model
-{
-    // 不使用 SoftDeletes trait
-    
-    // 查询时过滤已删除
-    public function scopeActive($query)
-    {
-        return $query->where('del_flag', 0);
-    }
-    
-    // 软删除
-    public function softDelete()
-    {
-        $this->del_flag = 1;
-        $this->save();
-    }
-}
-```
-
-### 6.3 JSON 字段处理
-
-JSONB 字段在 Model 中配置 cast：
-
-```php
-protected $casts = [
-    'banner_images' => 'array',
-    'assistant_ids' => 'array',
-    'template_config' => 'array',
-];
-```
-
-### 6.4 金额字段精度
-
-金额字段使用 `numeric(10,2)`，Model 中可配置 cast：
-
-```php
-protected $casts = [
-    'original_price' => 'decimal:2',
-    'current_price' => 'decimal:2',
-];
-```
-
-### 6.5 时间字段格式
-
-时间字段统一使用 `timestamp(0)`，精确到秒：
-
-```php
-protected $casts = [
-    'create_time' => 'datetime',
-    'update_time' => 'datetime',
-    'publish_time' => 'datetime',
-];
+┌─────────────────────┐
+│   app_member_base   │
+│     (用户基础)       │
+└─────────┬───────────┘
+          │
+          │ 1:N
+          ▼
+┌─────────────────────┐      N:1      ┌─────────────────────────┐
+│  app_member_course  │──────────────▶│    app_course_base      │
+│     (用户课程)       │               │                         │
+└─────────┬───────────┘               └─────────────────────────┘
+          │
+          │ 1:N
+          ▼
+┌─────────────────────────────┐
+│ app_member_chapter_progress │
+│       (章节学习进度)          │
+└─────────────────────────────┘
 ```
 
 ---
 
-## 七、迁移文件清单
+## 时间戳字段规范
 
-| 序号 | 文件名 | 创建的表 |
-|-----|-------|---------|
+### 所有表统一使用 Laravel 标准时间戳
+
+| 字段 | 类型 | 说明 |
+|-----|------|------|
+| created_at | timestamp(0) | 创建时间（Laravel 自动维护） |
+| updated_at | timestamp(0) | 更新时间（Laravel 自动维护） |
+| deleted_at | timestamp(0) | 删除时间（Laravel SoftDeletes，可选） |
+
+### 后台管理表额外审计字段
+
+| 字段 | 类型 | 说明 |
+|-----|------|------|
+| created_by | int8 | 创建人ID |
+| updated_by | int8 | 更新人ID |
+| deleted_by | int8 | 删除人ID |
+
+**适用表**：app_course_category, app_course_base, app_course_teacher, app_course_chapter, app_coupon_template, app_certificate_template
+
+**自动填充**：使用 `HasOperator` Trait 自动填充操作人ID，无需在 Service 层手动设置。
+
+### 仅有 created_at 的表（日志/记录类）
+
+以下表只记录创建时间，不需要更新时间：
+- app_course_order_pay_log（支付日志）
+- app_course_favorite（收藏记录）
+- app_course_view_log（浏览记录）
+- app_course_group_member（拼团成员）
+- app_member_learning_checkin（学习打卡）
+- app_member_certificate（用户证书）
+
+---
+
+## 状态枚举值
+
+### 课程状态 (app_course_base.status)
+- 0 = 草稿
+- 1 = 上架
+- 2 = 下架
+
+### 章节状态 (app_course_chapter.status)
+- 0 = 草稿
+- 1 = 上架
+- 2 = 下架
+
+### 通用状态 (status)
+- 1 = 启用
+- 2 = 禁用
+
+### 订单支付状态 (app_course_order.pay_status)
+- 0 = 待支付
+- 1 = 已支付
+- 2 = 已退款
+- 3 = 已关闭
+
+### 直播状态 (app_chapter_content_live.live_status)
+- 0 = 未开始
+- 1 = 直播中
+- 2 = 已结束
+- 3 = 已取消
+
+---
+
+## 迁移文件清单
+
+| 序号 | 文件名 | 表名 |
+|-----|--------|------|
 | 1 | 2026_01_29_150000_create_app_course_category_table.php | app_course_category |
 | 2 | 2026_01_29_150001_create_app_course_base_table.php | app_course_base |
 | 3 | 2026_01_29_150002_create_app_course_promotion_table.php | app_course_promotion |
@@ -449,15 +525,3 @@ protected $casts = [
 | 27 | 2026_01_29_150026_create_app_certificate_template_table.php | app_certificate_template |
 | 28 | 2026_01_29_150027_create_app_course_certificate_table.php | app_course_certificate |
 | 29 | 2026_01_29_150028_create_app_member_certificate_table.php | app_member_certificate |
-
----
-
-## 八、后续扩展建议
-
-1. **课程系列/专栏**：多课程打包销售
-2. **学习路径/学习计划**：课程组合推荐
-3. **班级/训练营模式**：带班学习
-4. **直播连麦/互动白板**：直播课增强
-5. **AI 智能推荐**：个性化课程推荐
-6. **学习数据分析报表**：学习行为分析
-7. **企业版/团购版**：B端业务扩展

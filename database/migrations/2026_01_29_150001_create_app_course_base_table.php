@@ -111,7 +111,7 @@ class CreateAppCourseBaseTable extends Migration
         DB::statement("COMMENT ON COLUMN app_course_base.deleted_by IS '删除人'");
 
         // 索引
-        DB::statement('CREATE UNIQUE INDEX uk_app_course_base_course_no_del ON app_course_base (course_no, del_flag)');
+        DB::statement('CREATE UNIQUE INDEX uk_app_course_base_course_no_del ON app_course_base (course_no)');
         DB::statement('CREATE INDEX idx_app_course_base_category_id ON app_course_base (category_id)');
         DB::statement('CREATE INDEX idx_app_course_base_pay_type ON app_course_base (pay_type)');
         DB::statement('CREATE INDEX idx_app_course_base_play_type ON app_course_base (play_type)');

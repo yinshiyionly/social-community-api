@@ -17,7 +17,7 @@ class CreateAppCourseViewLogTable extends Migration
                 user_agent varchar(500) NULL,
                 referer varchar(500) NULL,
                 duration int4 NOT NULL DEFAULT 0,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at timestamp(0) NULL,
                 PRIMARY KEY (id)
             )
         ");
@@ -31,7 +31,7 @@ class CreateAppCourseViewLogTable extends Migration
 
         DB::statement('CREATE INDEX idx_app_course_view_log_member_id ON app_course_view_log (member_id)');
         DB::statement('CREATE INDEX idx_app_course_view_log_course_id ON app_course_view_log (course_id)');
-        DB::statement('CREATE INDEX idx_app_course_view_log_create_time ON app_course_view_log (create_time)');
+        DB::statement('CREATE INDEX idx_app_course_view_log_created_at ON app_course_view_log (created_at)');
         DB::statement("COMMENT ON TABLE app_course_view_log IS '课程浏览记录表'");
     }
 

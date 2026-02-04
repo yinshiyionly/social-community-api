@@ -18,9 +18,9 @@ class CreateAppMemberLearningNoteTable extends Migration
                 images jsonb NOT NULL DEFAULT '[]',
                 is_public int2 NOT NULL DEFAULT 0,
                 like_count int4 NOT NULL DEFAULT 0,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                update_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                del_flag int2 NOT NULL DEFAULT 0,
+                created_at timestamp(0) NULL,
+                updated_at timestamp(0) NULL,
+                deleted_at timestamp(0) NULL,
                 PRIMARY KEY (note_id)
             )
         ");
@@ -34,7 +34,6 @@ class CreateAppMemberLearningNoteTable extends Migration
         DB::statement("COMMENT ON COLUMN app_member_learning_note.images IS '笔记图片'");
         DB::statement("COMMENT ON COLUMN app_member_learning_note.is_public IS '是否公开：0=私密 1=公开'");
         DB::statement("COMMENT ON COLUMN app_member_learning_note.like_count IS '点赞数'");
-        DB::statement("COMMENT ON COLUMN app_member_learning_note.del_flag IS '删除标志：0=正常 1=删除'");
 
         DB::statement('CREATE INDEX idx_app_member_learning_note_member_id ON app_member_learning_note (member_id)');
         DB::statement('CREATE INDEX idx_app_member_learning_note_course ON app_member_learning_note (member_id, course_id)');

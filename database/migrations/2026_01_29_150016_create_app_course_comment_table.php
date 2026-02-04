@@ -25,9 +25,9 @@ class CreateAppCourseCommentTable extends Migration
                 reply_time timestamp(0) NULL,
                 reply_by int8 NULL,
                 client_ip varchar(50) NULL,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                update_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                del_flag int2 NOT NULL DEFAULT 0,
+                created_at timestamp(0) NULL,
+                updated_at timestamp(0) NULL,
+                deleted_at timestamp(0) NULL,
                 PRIMARY KEY (comment_id)
             )
         ");
@@ -47,7 +47,6 @@ class CreateAppCourseCommentTable extends Migration
         DB::statement("COMMENT ON COLUMN app_course_comment.reply_content IS '商家回复'");
         DB::statement("COMMENT ON COLUMN app_course_comment.reply_time IS '回复时间'");
         DB::statement("COMMENT ON COLUMN app_course_comment.reply_by IS '回复人'");
-        DB::statement("COMMENT ON COLUMN app_course_comment.del_flag IS '删除标志：0=正常 1=删除'");
 
         DB::statement('CREATE INDEX idx_app_course_comment_course_id ON app_course_comment (course_id)');
         DB::statement('CREATE INDEX idx_app_course_comment_member_id ON app_course_comment (member_id)');

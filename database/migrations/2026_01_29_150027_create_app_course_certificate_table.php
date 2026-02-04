@@ -18,8 +18,9 @@ class CreateAppCourseCertificateTable extends Migration
                 min_progress numeric(5,2) NOT NULL DEFAULT 100,
                 min_homework int4 NOT NULL DEFAULT 0,
                 status int2 NOT NULL DEFAULT 1,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                update_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at timestamp(0) NULL,
+                updated_at timestamp(0) NULL,
+                deleted_at timestamp(0) NULL,
                 PRIMARY KEY (id)
             )
         ");

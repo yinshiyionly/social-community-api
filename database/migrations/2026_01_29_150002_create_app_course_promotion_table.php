@@ -50,8 +50,9 @@ class CreateAppCoursePromotionTable extends Migration
                 distribute_ratio numeric(5,2) NOT NULL DEFAULT 0,
                 distribute_amount numeric(10,2) NOT NULL DEFAULT 0,
                 coupon_ids jsonb NOT NULL DEFAULT '[]',
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                update_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at timestamp(0) NULL,
+                updated_at timestamp(0) NULL,
+                deleted_at timestamp(0) NULL,
                 PRIMARY KEY (promotion_id)
             )
         ");

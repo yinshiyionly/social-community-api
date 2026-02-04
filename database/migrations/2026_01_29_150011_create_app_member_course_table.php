@@ -31,8 +31,9 @@ class CreateAppMemberCourseTable extends Migration
                 homework_submitted int4 NOT NULL DEFAULT 0,
                 homework_total int4 NOT NULL DEFAULT 0,
                 checkin_days int4 NOT NULL DEFAULT 0,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                update_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at timestamp(0) NULL,
+                updated_at timestamp(0) NULL,
+                deleted_at timestamp(0) NULL,
                 PRIMARY KEY (id)
             )
         ");

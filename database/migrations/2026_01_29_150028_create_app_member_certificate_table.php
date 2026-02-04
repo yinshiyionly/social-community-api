@@ -21,7 +21,7 @@ class CreateAppMemberCertificateTable extends Migration
                 final_homework int4 NOT NULL DEFAULT 0,
                 issue_time timestamp(0) NULL,
                 status int2 NOT NULL DEFAULT 1,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at timestamp(0) NULL,
                 PRIMARY KEY (cert_id)
             )
         ");

@@ -19,8 +19,9 @@ class CreateAppCourseGroupTable extends Migration
                 status int2 NOT NULL DEFAULT 0,
                 expire_time timestamp(0) NULL,
                 success_time timestamp(0) NULL,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                update_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at timestamp(0) NULL,
+                updated_at timestamp(0) NULL,
+                deleted_at timestamp(0) NULL,
                 PRIMARY KEY (group_id)
             )
         ");

@@ -18,8 +18,9 @@ class CreateAppMemberCouponTable extends Migration
                 expire_time timestamp(0) NULL,
                 use_time timestamp(0) NULL,
                 use_order_no varchar(64) NULL,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                update_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at timestamp(0) NULL,
+                updated_at timestamp(0) NULL,
+                deleted_at timestamp(0) NULL,
                 PRIMARY KEY (id)
             )
         ");

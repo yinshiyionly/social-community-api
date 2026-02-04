@@ -19,7 +19,7 @@ class CreateAppMemberLearningCheckinTable extends Migration
                 summary text NULL,
                 images jsonb NOT NULL DEFAULT '[]',
                 point_earned int4 NOT NULL DEFAULT 0,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at timestamp(0) NULL,
                 PRIMARY KEY (id)
             )
         ");

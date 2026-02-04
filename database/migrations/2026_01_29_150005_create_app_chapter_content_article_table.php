@@ -16,8 +16,9 @@ class CreateAppChapterContentArticleTable extends Migration
                 attachments jsonb NOT NULL DEFAULT '[]',
                 word_count int4 NOT NULL DEFAULT 0,
                 read_time int4 NOT NULL DEFAULT 0,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                update_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at timestamp(0) NULL,
+                updated_at timestamp(0) NULL,
+                deleted_at timestamp(0) NULL,
                 PRIMARY KEY (id)
             )
         ");

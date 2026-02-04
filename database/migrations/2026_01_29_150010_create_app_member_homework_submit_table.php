@@ -27,8 +27,9 @@ class CreateAppMemberHomeworkSubmitTable extends Migration
                 comment_count int4 NOT NULL DEFAULT 0,
                 is_excellent int2 NOT NULL DEFAULT 0,
                 client_ip varchar(50) NULL,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                update_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at timestamp(0) NULL,
+                updated_at timestamp(0) NULL,
+                deleted_at timestamp(0) NULL,
                 PRIMARY KEY (submit_id)
             )
         ");

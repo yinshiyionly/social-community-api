@@ -22,8 +22,9 @@ class CreateAppChapterContentAudioTable extends Migration
                 attachments jsonb NOT NULL DEFAULT '[]',
                 allow_download int2 NOT NULL DEFAULT 0,
                 background_play int2 NOT NULL DEFAULT 1,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                update_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at timestamp(0) NULL,
+                updated_at timestamp(0) NULL,
+                deleted_at timestamp(0) NULL,
                 PRIMARY KEY (id)
             )
         ");

@@ -18,7 +18,7 @@ class CreateAppCourseOrderPayLogTable extends Migration
                 pay_result int2 NOT NULL DEFAULT 0,
                 pay_response text NULL,
                 client_ip varchar(50) NULL,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at timestamp(0) NULL,
                 PRIMARY KEY (log_id)
             )
         ");

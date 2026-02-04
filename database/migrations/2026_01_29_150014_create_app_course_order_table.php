@@ -40,8 +40,9 @@ class CreateAppCourseOrderTable extends Migration
                 remark varchar(500) NULL,
                 client_ip varchar(50) NULL,
                 user_agent varchar(500) NULL,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                update_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at timestamp(0) NULL,
+                updated_at timestamp(0) NULL,
+                deleted_at timestamp(0) NULL,
                 PRIMARY KEY (order_id)
             )
         ");
@@ -80,7 +81,7 @@ class CreateAppCourseOrderTable extends Migration
         DB::statement('CREATE INDEX idx_app_course_order_member_id ON app_course_order (member_id)');
         DB::statement('CREATE INDEX idx_app_course_order_course_id ON app_course_order (course_id)');
         DB::statement('CREATE INDEX idx_app_course_order_pay_status ON app_course_order (pay_status)');
-        DB::statement('CREATE INDEX idx_app_course_order_create_time ON app_course_order (create_time)');
+        DB::statement('CREATE INDEX idx_app_course_order_create_time ON app_course_order (created_at)');
         DB::statement('CREATE INDEX idx_app_course_order_member_status ON app_course_order (member_id, pay_status)');
         DB::statement("COMMENT ON TABLE app_course_order IS '课程订单表'");
     }

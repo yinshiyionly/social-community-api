@@ -21,8 +21,9 @@ class CreateAppMemberScheduleTable extends Migration
                 is_learned int2 NOT NULL DEFAULT 0,
                 learn_time timestamp(0) NULL,
                 is_notified int2 NOT NULL DEFAULT 0,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                update_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at timestamp(0) NULL,
+                updated_at timestamp(0) NULL,
+                deleted_at timestamp(0) NULL,
                 PRIMARY KEY (id)
             )
         ");

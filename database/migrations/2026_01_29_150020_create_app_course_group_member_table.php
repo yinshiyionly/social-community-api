@@ -16,7 +16,7 @@ class CreateAppCourseGroupMemberTable extends Migration
                 is_leader int2 NOT NULL DEFAULT 0,
                 status int2 NOT NULL DEFAULT 0,
                 join_time timestamp(0) NULL,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at timestamp(0) NULL,
                 PRIMARY KEY (id)
             )
         ");

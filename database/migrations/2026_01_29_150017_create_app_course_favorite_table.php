@@ -12,7 +12,7 @@ class CreateAppCourseFavoriteTable extends Migration
                 id int8 NOT NULL GENERATED ALWAYS AS IDENTITY (INCREMENT 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1),
                 member_id int8 NOT NULL,
                 course_id int8 NOT NULL,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at timestamp(0) NULL,
                 PRIMARY KEY (id)
             )
         ");

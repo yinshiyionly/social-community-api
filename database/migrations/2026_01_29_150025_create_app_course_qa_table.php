@@ -22,9 +22,9 @@ class CreateAppCourseQaTable extends Migration
                 is_top int2 NOT NULL DEFAULT 0,
                 is_excellent int2 NOT NULL DEFAULT 0,
                 status int2 NOT NULL DEFAULT 1,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                update_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                del_flag int2 NOT NULL DEFAULT 0,
+                created_at timestamp(0) NULL,
+                updated_at timestamp(0) NULL,
+                deleted_at timestamp(0) NULL,
                 PRIMARY KEY (qa_id)
             )
         ");
@@ -42,7 +42,6 @@ class CreateAppCourseQaTable extends Migration
         DB::statement("COMMENT ON COLUMN app_course_qa.is_top IS '是否置顶：0=否 1=是'");
         DB::statement("COMMENT ON COLUMN app_course_qa.is_excellent IS '是否精选：0=否 1=是'");
         DB::statement("COMMENT ON COLUMN app_course_qa.status IS '状态：0=待审核 1=已通过 2=已拒绝'");
-        DB::statement("COMMENT ON COLUMN app_course_qa.del_flag IS '删除标志：0=正常 1=删除'");
 
         DB::statement('CREATE INDEX idx_app_course_qa_course_id ON app_course_qa (course_id)');
         DB::statement('CREATE INDEX idx_app_course_qa_chapter_id ON app_course_qa (chapter_id)');

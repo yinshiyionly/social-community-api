@@ -14,6 +14,9 @@ class CreateAppMemberCourseTable extends Migration
                 course_id int8 NOT NULL,
                 order_no varchar(64) NULL,
                 source_type int2 NOT NULL DEFAULT 1,
+                promotion_id int8 NULL,
+                enroll_phone varchar(20) NULL,
+                enroll_age_range varchar(20) NULL,
                 paid_amount numeric(10,2) NOT NULL DEFAULT 0,
                 paid_points int4 NOT NULL DEFAULT 0,
                 enroll_time timestamp(0) NULL,
@@ -43,6 +46,9 @@ class CreateAppMemberCourseTable extends Migration
         DB::statement("COMMENT ON COLUMN app_member_course.course_id IS '课程ID'");
         DB::statement("COMMENT ON COLUMN app_member_course.order_no IS '订单号'");
         DB::statement("COMMENT ON COLUMN app_member_course.source_type IS '来源：1=购买 2=免费领取 3=兑换 4=赠送 5=活动'");
+        DB::statement("COMMENT ON COLUMN app_member_course.promotion_id IS '来源推广活动ID'");
+        DB::statement("COMMENT ON COLUMN app_member_course.enroll_phone IS '报名手机号'");
+        DB::statement("COMMENT ON COLUMN app_member_course.enroll_age_range IS '报名年龄段'");
         DB::statement("COMMENT ON COLUMN app_member_course.paid_amount IS '实付金额'");
         DB::statement("COMMENT ON COLUMN app_member_course.paid_points IS '使用积分'");
         DB::statement("COMMENT ON COLUMN app_member_course.enroll_time IS '报名时间'");

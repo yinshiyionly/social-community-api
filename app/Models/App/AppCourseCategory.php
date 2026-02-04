@@ -4,18 +4,26 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 
+/**
+ * 课程分类模型
+ */
 class AppCourseCategory extends Model
 {
     use HasFactory;
 
     protected $table = 'app_course_category';
     protected $primaryKey = 'category_id';
-    public $timestamps = false;
 
+    const CREATED_AT = 'create_time';
+    const UPDATED_AT = 'update_time';
+
+    // 状态常量
     const STATUS_ENABLED = 1;
     const STATUS_DISABLED = 2;
 
+    // 删除标志
     const DEL_FLAG_NORMAL = 0;
     const DEL_FLAG_DELETED = 1;
 
@@ -29,9 +37,7 @@ class AppCourseCategory extends Model
         'sort_order',
         'status',
         'create_by',
-        'create_time',
         'update_by',
-        'update_time',
         'del_flag',
     ];
 
@@ -46,15 +52,17 @@ class AppCourseCategory extends Model
     ];
 
     /**
-     * 关联课程
+     * 模型启动时添加全局作用域
      */
-    public function courses()
+    protected static function booted()
     {
-        return $this->hasMany(AppCourseBase::class, 'category_id', 'category_id');
+        static::addGlobalScope('not_deleted', function (Builder $builder) {
+            $builder->where('del_flag', self::DEL_FLAG_NORMAL);
+        });
     }
 
     /**
-     * 关联父分类
+     * 父分类
      */
     public function parent()
     {
@@ -62,7 +70,7 @@ class AppCourseCategory extends Model
     }
 
     /**
-     * 关联子分类
+     * 子分类
      */
     public function children()
     {
@@ -74,8 +82,7 @@ class AppCourseCategory extends Model
      */
     public function scopeEnabled($query)
     {
-        return $query->where('status', self::STATUS_ENABLED)
-                     ->where('del_flag', self::DEL_FLAG_NORMAL);
+        return $query->where('status', self::STATUS_ENABLED);
     }
 
     /**
@@ -84,19 +91,5 @@ class AppCourseCategory extends Model
     public function scopeTopLevel($query)
     {
         return $query->where('parent_id', 0);
-    }
-
-    /**
-     * 获取分类树
-     */
-    public static function getTree()
-    {
-        return self::enabled()
-            ->topLevel()
-            ->with(['children' => function ($query) {
-                $query->enabled()->orderBy('sort_order');
-            }])
-            ->orderBy('sort_order')
-            ->get();
     }
 }

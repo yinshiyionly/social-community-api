@@ -4,14 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppCourseBase extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_course_base';
     protected $primaryKey = 'course_id';
-    public $timestamps = false;
 
     // 付费类型
     const PAY_TYPE_TRIAL = 1;      // 体验课
@@ -33,9 +33,6 @@ class AppCourseBase extends Model
     const STATUS_DRAFT = 0;     // 草稿
     const STATUS_ONLINE = 1;    // 上架
     const STATUS_OFFLINE = 2;   // 下架
-
-    const DEL_FLAG_NORMAL = 0;
-    const DEL_FLAG_DELETED = 1;
 
     protected $fillable = [
         'course_no',
@@ -76,11 +73,9 @@ class AppCourseBase extends Model
         'is_new',
         'status',
         'publish_time',
-        'create_by',
-        'create_time',
-        'update_by',
-        'update_time',
-        'del_flag',
+        'created_by',
+        'updated_by',
+        'deleted_by',
     ];
 
     protected $casts = [
@@ -111,10 +106,10 @@ class AppCourseBase extends Model
         'is_hot' => 'integer',
         'is_new' => 'integer',
         'status' => 'integer',
-        'del_flag' => 'integer',
         'publish_time' => 'datetime',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
 
@@ -163,8 +158,7 @@ class AppCourseBase extends Model
      */
     public function scopeOnline($query)
     {
-        return $query->where('status', self::STATUS_ONLINE)
-                     ->where('del_flag', self::DEL_FLAG_NORMAL);
+        return $query->where('status', self::STATUS_ONLINE);
     }
 
     /**

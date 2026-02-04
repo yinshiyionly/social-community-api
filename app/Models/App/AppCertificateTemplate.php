@@ -4,14 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppCertificateTemplate extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_certificate_template';
     protected $primaryKey = 'template_id';
-    public $timestamps = false;
 
     const STATUS_ENABLED = 1;
     const STATUS_DISABLED = 2;
@@ -21,16 +21,18 @@ class AppCertificateTemplate extends Model
         'template_image',
         'template_config',
         'status',
-        'create_time',
-        'update_time',
+        'created_by',
+        'updated_by',
+        'deleted_by',
     ];
 
     protected $casts = [
         'template_id' => 'integer',
         'template_config' => 'array',
         'status' => 'integer',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     /**

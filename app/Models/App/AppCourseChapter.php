@@ -4,14 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppCourseChapter extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_course_chapter';
     protected $primaryKey = 'chapter_id';
-    public $timestamps = false;
 
     // 解锁类型
     const UNLOCK_TYPE_IMMEDIATE = 1;  // 立即解锁
@@ -22,9 +22,6 @@ class AppCourseChapter extends Model
     const STATUS_DRAFT = 0;
     const STATUS_ONLINE = 1;
     const STATUS_OFFLINE = 2;
-
-    const DEL_FLAG_NORMAL = 0;
-    const DEL_FLAG_DELETED = 1;
 
     protected $fillable = [
         'course_id',
@@ -50,11 +47,9 @@ class AppCourseChapter extends Model
         'homework_count',
         'sort_order',
         'status',
-        'create_by',
-        'create_time',
-        'update_by',
-        'update_time',
-        'del_flag',
+        'created_by',
+        'updated_by',
+        'deleted_by',
     ];
 
     protected $casts = [
@@ -77,9 +72,9 @@ class AppCourseChapter extends Model
         'homework_count' => 'integer',
         'sort_order' => 'integer',
         'status' => 'integer',
-        'del_flag' => 'integer',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     /**
@@ -159,8 +154,7 @@ class AppCourseChapter extends Model
      */
     public function scopeOnline($query)
     {
-        return $query->where('status', self::STATUS_ONLINE)
-                     ->where('del_flag', self::DEL_FLAG_NORMAL);
+        return $query->where('status', self::STATUS_ONLINE);
     }
 
     /**

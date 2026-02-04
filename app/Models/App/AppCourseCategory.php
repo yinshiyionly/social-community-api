@@ -4,28 +4,21 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * 课程分类模型
  */
 class AppCourseCategory extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_course_category';
     protected $primaryKey = 'category_id';
 
-    const CREATED_AT = 'create_time';
-    const UPDATED_AT = 'update_time';
-
     // 状态常量
     const STATUS_ENABLED = 1;
     const STATUS_DISABLED = 2;
-
-    // 删除标志
-    const DEL_FLAG_NORMAL = 0;
-    const DEL_FLAG_DELETED = 1;
 
     protected $fillable = [
         'parent_id',
@@ -36,9 +29,9 @@ class AppCourseCategory extends Model
         'description',
         'sort_order',
         'status',
-        'create_by',
-        'update_by',
-        'del_flag',
+        'created_by',
+        'updated_by',
+        'deleted_by',
     ];
 
     protected $casts = [
@@ -46,20 +39,10 @@ class AppCourseCategory extends Model
         'parent_id' => 'integer',
         'sort_order' => 'integer',
         'status' => 'integer',
-        'del_flag' => 'integer',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
-
-    /**
-     * 模型启动时添加全局作用域
-     */
-    protected static function booted()
-    {
-        static::addGlobalScope('not_deleted', function (Builder $builder) {
-            $builder->where('del_flag', self::DEL_FLAG_NORMAL);
-        });
-    }
 
     /**
      * 父分类

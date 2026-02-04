@@ -4,20 +4,17 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppCourseTeacher extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_course_teacher';
     protected $primaryKey = 'teacher_id';
-    public $timestamps = false;
 
     const STATUS_ENABLED = 1;
     const STATUS_DISABLED = 2;
-
-    const DEL_FLAG_NORMAL = 0;
-    const DEL_FLAG_DELETED = 1;
 
     protected $fillable = [
         'member_id',
@@ -34,11 +31,9 @@ class AppCourseTeacher extends Model
         'sort_order',
         'is_recommend',
         'status',
-        'create_by',
-        'create_time',
-        'update_by',
-        'update_time',
-        'del_flag',
+        'created_by',
+        'updated_by',
+        'deleted_by',
     ];
 
     protected $casts = [
@@ -52,9 +47,9 @@ class AppCourseTeacher extends Model
         'sort_order' => 'integer',
         'is_recommend' => 'integer',
         'status' => 'integer',
-        'del_flag' => 'integer',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     /**
@@ -78,8 +73,7 @@ class AppCourseTeacher extends Model
      */
     public function scopeEnabled($query)
     {
-        return $query->where('status', self::STATUS_ENABLED)
-                     ->where('del_flag', self::DEL_FLAG_NORMAL);
+        return $query->where('status', self::STATUS_ENABLED);
     }
 
     /**
@@ -100,7 +94,6 @@ class AppCourseTeacher extends Model
             'course_id',
             $this->courses()->online()->pluck('course_id')
         )->distinct('member_id')->count('member_id');
-        $this->update_time = now();
         $this->save();
     }
 }

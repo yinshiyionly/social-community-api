@@ -4,14 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppCouponTemplate extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_coupon_template';
     protected $primaryKey = 'coupon_id';
-    public $timestamps = false;
 
     // 优惠券类型
     const TYPE_FULL_REDUCE = 1;   // 满减券
@@ -35,9 +35,6 @@ class AppCouponTemplate extends Model
     const STATUS_ENABLED = 1;
     const STATUS_DISABLED = 2;
 
-    const DEL_FLAG_NORMAL = 0;
-    const DEL_FLAG_DELETED = 1;
-
     protected $fillable = [
         'coupon_name',
         'coupon_type',
@@ -60,11 +57,9 @@ class AppCouponTemplate extends Model
         'receive_end_time',
         'sort_order',
         'status',
-        'create_by',
-        'create_time',
-        'update_by',
-        'update_time',
-        'del_flag',
+        'created_by',
+        'updated_by',
+        'deleted_by',
     ];
 
     protected $casts = [
@@ -89,9 +84,9 @@ class AppCouponTemplate extends Model
         'receive_end_time' => 'datetime',
         'sort_order' => 'integer',
         'status' => 'integer',
-        'del_flag' => 'integer',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     /**
@@ -99,8 +94,7 @@ class AppCouponTemplate extends Model
      */
     public function scopeEnabled($query)
     {
-        return $query->where('status', self::STATUS_ENABLED)
-                     ->where('del_flag', self::DEL_FLAG_NORMAL);
+        return $query->where('status', self::STATUS_ENABLED);
     }
 
     /**

@@ -4,14 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppMemberCourse extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_member_course';
     protected $primaryKey = 'id';
-    public $timestamps = false;
 
     // 来源类型
     const SOURCE_TYPE_PURCHASE = 1;   // 购买
@@ -42,8 +42,6 @@ class AppMemberCourse extends Model
         'homework_submitted',
         'homework_total',
         'checkin_days',
-        'create_time',
-        'update_time',
     ];
 
     protected $casts = [
@@ -68,8 +66,8 @@ class AppMemberCourse extends Model
         'homework_submitted' => 'integer',
         'homework_total' => 'integer',
         'checkin_days' => 'integer',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
@@ -173,7 +171,6 @@ class AppMemberCourse extends Model
             $this->complete_time = now();
         }
 
-        $this->update_time = now();
         $this->save();
     }
 
@@ -185,7 +182,6 @@ class AppMemberCourse extends Model
         $this->last_chapter_id = $chapterId;
         $this->last_position = $position;
         $this->last_learn_time = now();
-        $this->update_time = now();
         $this->save();
     }
 
@@ -196,7 +192,6 @@ class AppMemberCourse extends Model
     {
         if ($this->expire_time && $this->expire_time < now()) {
             $this->is_expired = 1;
-            $this->update_time = now();
             $this->save();
             return true;
         }

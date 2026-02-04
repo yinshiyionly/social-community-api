@@ -4,14 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppCourseCertificate extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_course_certificate';
     protected $primaryKey = 'id';
-    public $timestamps = false;
 
     // 发放条件
     const ISSUE_CONDITION_COMPLETE = 1;      // 完课即发
@@ -30,8 +30,6 @@ class AppCourseCertificate extends Model
         'min_progress',
         'min_homework',
         'status',
-        'create_time',
-        'update_time',
     ];
 
     protected $casts = [
@@ -42,8 +40,8 @@ class AppCourseCertificate extends Model
         'min_progress' => 'decimal:2',
         'min_homework' => 'integer',
         'status' => 'integer',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**

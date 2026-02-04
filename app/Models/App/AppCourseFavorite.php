@@ -13,17 +13,19 @@ class AppCourseFavorite extends Model
     protected $primaryKey = 'id';
     public $timestamps = false;
 
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = null;
+
     protected $fillable = [
         'member_id',
         'course_id',
-        'create_time',
     ];
 
     protected $casts = [
         'id' => 'integer',
         'member_id' => 'integer',
         'course_id' => 'integer',
-        'create_time' => 'datetime',
+        'created_at' => 'datetime',
     ];
 
     /**
@@ -77,7 +79,6 @@ class AppCourseFavorite extends Model
         self::create([
             'member_id' => $memberId,
             'course_id' => $courseId,
-            'create_time' => now(),
         ]);
 
         return true;

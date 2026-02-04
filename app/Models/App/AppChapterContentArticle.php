@@ -4,14 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppChapterContentArticle extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_chapter_content_article';
     protected $primaryKey = 'id';
-    public $timestamps = false;
 
     protected $fillable = [
         'chapter_id',
@@ -20,8 +20,6 @@ class AppChapterContentArticle extends Model
         'attachments',
         'word_count',
         'read_time',
-        'create_time',
-        'update_time',
     ];
 
     protected $casts = [
@@ -31,8 +29,8 @@ class AppChapterContentArticle extends Model
         'attachments' => 'array',
         'word_count' => 'integer',
         'read_time' => 'integer',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**

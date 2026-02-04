@@ -4,14 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppCourseGroup extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_course_group';
     protected $primaryKey = 'group_id';
-    public $timestamps = false;
 
     // 拼团状态
     const STATUS_GROUPING = 0;    // 拼团中
@@ -29,8 +29,6 @@ class AppCourseGroup extends Model
         'status',
         'expire_time',
         'success_time',
-        'create_time',
-        'update_time',
     ];
 
     protected $casts = [
@@ -43,8 +41,8 @@ class AppCourseGroup extends Model
         'status' => 'integer',
         'expire_time' => 'datetime',
         'success_time' => 'datetime',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
@@ -119,7 +117,6 @@ class AppCourseGroup extends Model
     public function addMember(): void
     {
         $this->current_size++;
-        $this->update_time = now();
 
         if ($this->current_size >= $this->group_size) {
             $this->status = self::STATUS_SUCCESS;
@@ -135,7 +132,6 @@ class AppCourseGroup extends Model
     public function markFailed(): bool
     {
         $this->status = self::STATUS_FAILED;
-        $this->update_time = now();
         return $this->save();
     }
 }

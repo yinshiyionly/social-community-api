@@ -4,14 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppChapterContentAudio extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_chapter_content_audio';
     protected $primaryKey = 'id';
-    public $timestamps = false;
 
     // 音频来源
     const SOURCE_LOCAL = 'local';
@@ -31,8 +31,6 @@ class AppChapterContentAudio extends Model
         'attachments',
         'allow_download',
         'background_play',
-        'create_time',
-        'update_time',
     ];
 
     protected $casts = [
@@ -44,8 +42,8 @@ class AppChapterContentAudio extends Model
         'attachments' => 'array',
         'allow_download' => 'integer',
         'background_play' => 'integer',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**

@@ -4,14 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppMemberSchedule extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_member_schedule';
     protected $primaryKey = 'id';
-    public $timestamps = false;
 
     protected $fillable = [
         'member_id',
@@ -25,8 +25,6 @@ class AppMemberSchedule extends Model
         'is_learned',
         'learn_time',
         'is_notified',
-        'create_time',
-        'update_time',
     ];
 
     protected $casts = [
@@ -41,8 +39,8 @@ class AppMemberSchedule extends Model
         'is_learned' => 'integer',
         'learn_time' => 'datetime',
         'is_notified' => 'integer',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
@@ -125,7 +123,6 @@ class AppMemberSchedule extends Model
     {
         $this->is_unlocked = 1;
         $this->unlock_time = now();
-        $this->update_time = now();
         return $this->save();
     }
 
@@ -136,7 +133,6 @@ class AppMemberSchedule extends Model
     {
         $this->is_learned = 1;
         $this->learn_time = now();
-        $this->update_time = now();
         return $this->save();
     }
 
@@ -180,8 +176,6 @@ class AppMemberSchedule extends Model
                 'schedule_time' => $chapter->unlock_time,
                 'is_unlocked' => $scheduleDate <= date('Y-m-d') ? 1 : 0,
                 'unlock_time' => $scheduleDate <= date('Y-m-d') ? now() : null,
-                'create_time' => now(),
-                'update_time' => now(),
             ]);
         }
     }

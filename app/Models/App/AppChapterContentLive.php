@@ -4,14 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppChapterContentLive extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_chapter_content_live';
     protected $primaryKey = 'id';
-    public $timestamps = false;
 
     // 直播平台
     const PLATFORM_CUSTOM = 'custom';
@@ -44,8 +44,6 @@ class AppChapterContentLive extends Model
         'online_count',
         'max_online_count',
         'attachments',
-        'create_time',
-        'update_time',
     ];
 
     protected $casts = [
@@ -62,8 +60,8 @@ class AppChapterContentLive extends Model
         'online_count' => 'integer',
         'max_online_count' => 'integer',
         'attachments' => 'array',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
@@ -128,7 +126,6 @@ class AppChapterContentLive extends Model
     {
         $this->live_status = self::LIVE_STATUS_LIVING;
         $this->live_start_time = now();
-        $this->update_time = now();
         return $this->save();
     }
 
@@ -139,7 +136,6 @@ class AppChapterContentLive extends Model
     {
         $this->live_status = self::LIVE_STATUS_ENDED;
         $this->live_end_time = now();
-        $this->update_time = now();
         return $this->save();
     }
 }

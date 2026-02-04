@@ -4,14 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppMemberCoupon extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_member_coupon';
     protected $primaryKey = 'id';
-    public $timestamps = false;
 
     // 状态
     const STATUS_UNUSED = 0;     // 未使用
@@ -27,8 +27,6 @@ class AppMemberCoupon extends Model
         'expire_time',
         'use_time',
         'use_order_no',
-        'create_time',
-        'update_time',
     ];
 
     protected $casts = [
@@ -39,8 +37,8 @@ class AppMemberCoupon extends Model
         'receive_time' => 'datetime',
         'expire_time' => 'datetime',
         'use_time' => 'datetime',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
@@ -101,7 +99,6 @@ class AppMemberCoupon extends Model
         $this->status = self::STATUS_USED;
         $this->use_time = now();
         $this->use_order_no = $orderNo;
-        $this->update_time = now();
         return $this->save();
     }
 
@@ -111,7 +108,6 @@ class AppMemberCoupon extends Model
     public function markExpired(): bool
     {
         $this->status = self::STATUS_EXPIRED;
-        $this->update_time = now();
         return $this->save();
     }
 
@@ -148,8 +144,6 @@ class AppMemberCoupon extends Model
             'status' => self::STATUS_UNUSED,
             'receive_time' => now(),
             'expire_time' => $expireTime,
-            'create_time' => now(),
-            'update_time' => now(),
         ]);
 
         // 更新已发放数量

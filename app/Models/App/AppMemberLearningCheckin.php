@@ -13,6 +13,9 @@ class AppMemberLearningCheckin extends Model
     protected $primaryKey = 'id';
     public $timestamps = false;
 
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = null;
+
     protected $fillable = [
         'member_id',
         'course_id',
@@ -23,7 +26,6 @@ class AppMemberLearningCheckin extends Model
         'summary',
         'images',
         'point_earned',
-        'create_time',
     ];
 
     protected $casts = [
@@ -36,7 +38,7 @@ class AppMemberLearningCheckin extends Model
         'chapters_learned' => 'integer',
         'images' => 'array',
         'point_earned' => 'integer',
-        'create_time' => 'datetime',
+        'created_at' => 'datetime',
     ];
 
     /**

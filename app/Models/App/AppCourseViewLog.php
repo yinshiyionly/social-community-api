@@ -13,6 +13,9 @@ class AppCourseViewLog extends Model
     protected $primaryKey = 'id';
     public $timestamps = false;
 
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = null;
+
     protected $fillable = [
         'member_id',
         'course_id',
@@ -21,7 +24,6 @@ class AppCourseViewLog extends Model
         'user_agent',
         'referer',
         'duration',
-        'create_time',
     ];
 
     protected $casts = [
@@ -29,7 +31,7 @@ class AppCourseViewLog extends Model
         'member_id' => 'integer',
         'course_id' => 'integer',
         'duration' => 'integer',
-        'create_time' => 'datetime',
+        'created_at' => 'datetime',
     ];
 
     /**
@@ -56,7 +58,6 @@ class AppCourseViewLog extends Model
         return self::create(array_merge([
             'course_id' => $courseId,
             'member_id' => $memberId,
-            'create_time' => now(),
         ], $extra));
     }
 }

@@ -4,14 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppMemberChapterProgress extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_member_chapter_progress';
     protected $primaryKey = 'id';
-    public $timestamps = false;
 
     protected $fillable = [
         'member_id',
@@ -26,8 +26,6 @@ class AppMemberChapterProgress extends Model
         'view_count',
         'first_view_time',
         'last_view_time',
-        'create_time',
-        'update_time',
     ];
 
     protected $casts = [
@@ -44,8 +42,8 @@ class AppMemberChapterProgress extends Model
         'view_count' => 'integer',
         'first_view_time' => 'datetime',
         'last_view_time' => 'datetime',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
@@ -113,8 +111,6 @@ class AppMemberChapterProgress extends Model
                 'chapter_id' => $chapterId,
                 'total_duration' => $chapter ? $chapter->duration : 0,
                 'first_view_time' => now(),
-                'create_time' => now(),
-                'update_time' => now(),
             ]);
         }
 
@@ -130,7 +126,6 @@ class AppMemberChapterProgress extends Model
         $this->learned_duration += $duration;
         $this->view_count++;
         $this->last_view_time = now();
-        $this->update_time = now();
 
         // 计算进度百分比
         if ($this->total_duration > 0) {
@@ -154,7 +149,6 @@ class AppMemberChapterProgress extends Model
         $this->is_completed = 1;
         $this->complete_time = now();
         $this->progress = 100;
-        $this->update_time = now();
         return $this->save();
     }
 }

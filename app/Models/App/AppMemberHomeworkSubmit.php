@@ -4,14 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppMemberHomeworkSubmit extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_member_homework_submit';
     protected $primaryKey = 'submit_id';
-    public $timestamps = false;
 
     // 批改状态
     const REVIEW_STATUS_PENDING = 0;   // 待批改
@@ -36,8 +36,6 @@ class AppMemberHomeworkSubmit extends Model
         'comment_count',
         'is_excellent',
         'client_ip',
-        'create_time',
-        'update_time',
     ];
 
     protected $casts = [
@@ -56,8 +54,8 @@ class AppMemberHomeworkSubmit extends Model
         'like_count' => 'integer',
         'comment_count' => 'integer',
         'is_excellent' => 'integer',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
@@ -141,7 +139,6 @@ class AppMemberHomeworkSubmit extends Model
         $this->review_content = $content;
         $this->reviewer_id = $reviewerId;
         $this->review_time = now();
-        $this->update_time = now();
         return $this->save();
     }
 
@@ -154,7 +151,6 @@ class AppMemberHomeworkSubmit extends Model
         $this->review_content = $content;
         $this->reviewer_id = $reviewerId;
         $this->review_time = now();
-        $this->update_time = now();
         return $this->save();
     }
 }

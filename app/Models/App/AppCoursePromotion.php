@@ -4,14 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppCoursePromotion extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_course_promotion';
     protected $primaryKey = 'promotion_id';
-    public $timestamps = false;
 
     // 倒计时类型
     const COUNTDOWN_TYPE_FIXED = 1;    // 固定结束时间
@@ -53,8 +53,6 @@ class AppCoursePromotion extends Model
         'distribute_ratio',
         'distribute_amount',
         'coupon_ids',
-        'create_time',
-        'update_time',
     ];
 
     protected $casts = [
@@ -89,8 +87,8 @@ class AppCoursePromotion extends Model
         'distribute_ratio' => 'decimal:2',
         'distribute_amount' => 'decimal:2',
         'coupon_ids' => 'array',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
@@ -154,7 +152,7 @@ class AppCoursePromotion extends Model
             return 0;
         }
 
-        $daysSinceCreate = now()->diffInDays($this->create_time);
+        $daysSinceCreate = now()->diffInDays($this->created_at);
         $randomIncrement = $daysSinceCreate * mt_rand(0, $this->fake_enroll_increment);
 
         return $this->fake_enroll_base + $randomIncrement;

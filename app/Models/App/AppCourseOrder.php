@@ -4,14 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppCourseOrder extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_course_order';
     protected $primaryKey = 'order_id';
-    public $timestamps = false;
 
     // 支付状态
     const PAY_STATUS_PENDING = 0;    // 待支付
@@ -66,8 +66,6 @@ class AppCourseOrder extends Model
         'remark',
         'client_ip',
         'user_agent',
-        'create_time',
-        'update_time',
     ];
 
     protected $casts = [
@@ -91,8 +89,8 @@ class AppCourseOrder extends Model
         'inviter_id' => 'integer',
         'commission_amount' => 'decimal:2',
         'commission_status' => 'integer',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
@@ -176,7 +174,6 @@ class AppCourseOrder extends Model
         $this->pay_type = $payType;
         $this->pay_trade_no = $tradeNo;
         $this->pay_time = now();
-        $this->update_time = now();
         return $this->save();
     }
 
@@ -186,7 +183,6 @@ class AppCourseOrder extends Model
     public function close(): bool
     {
         $this->pay_status = self::PAY_STATUS_CLOSED;
-        $this->update_time = now();
         return $this->save();
     }
 

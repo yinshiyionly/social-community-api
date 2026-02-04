@@ -4,14 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppChapterContentVideo extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_chapter_content_video';
     protected $primaryKey = 'id';
-    public $timestamps = false;
 
     // 视频来源
     const SOURCE_LOCAL = 'local';
@@ -34,8 +34,6 @@ class AppChapterContentVideo extends Model
         'attachments',
         'allow_download',
         'drm_enabled',
-        'create_time',
-        'update_time',
     ];
 
     protected $casts = [
@@ -50,8 +48,8 @@ class AppChapterContentVideo extends Model
         'attachments' => 'array',
         'allow_download' => 'integer',
         'drm_enabled' => 'integer',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**

@@ -4,22 +4,19 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppCourseComment extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_course_comment';
     protected $primaryKey = 'comment_id';
-    public $timestamps = false;
 
     // 状态
     const STATUS_PENDING = 0;    // 待审核
     const STATUS_APPROVED = 1;   // 已通过
     const STATUS_REJECTED = 2;   // 已拒绝
-
-    const DEL_FLAG_NORMAL = 0;
-    const DEL_FLAG_DELETED = 1;
 
     protected $fillable = [
         'course_id',
@@ -37,9 +34,6 @@ class AppCourseComment extends Model
         'reply_time',
         'reply_by',
         'client_ip',
-        'create_time',
-        'update_time',
-        'del_flag',
     ];
 
     protected $casts = [
@@ -56,9 +50,8 @@ class AppCourseComment extends Model
         'status' => 'integer',
         'reply_time' => 'datetime',
         'reply_by' => 'integer',
-        'del_flag' => 'integer',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
@@ -82,8 +75,7 @@ class AppCourseComment extends Model
      */
     public function scopeApproved($query)
     {
-        return $query->where('status', self::STATUS_APPROVED)
-                     ->where('del_flag', self::DEL_FLAG_NORMAL);
+        return $query->where('status', self::STATUS_APPROVED);
     }
 
     /**
@@ -110,7 +102,6 @@ class AppCourseComment extends Model
         $this->reply_content = $content;
         $this->reply_by = $replyBy;
         $this->reply_time = now();
-        $this->update_time = now();
         return $this->save();
     }
 }

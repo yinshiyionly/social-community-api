@@ -4,14 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppChapterHomework extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_chapter_homework';
     protected $primaryKey = 'homework_id';
-    public $timestamps = false;
 
     // 作业类型
     const TYPE_IMAGE_TEXT = 1;   // 图文打卡
@@ -36,8 +36,6 @@ class AppChapterHomework extends Model
         'submit_count',
         'sort_order',
         'status',
-        'create_time',
-        'update_time',
     ];
 
     protected $casts = [
@@ -53,8 +51,8 @@ class AppChapterHomework extends Model
         'submit_count' => 'integer',
         'sort_order' => 'integer',
         'status' => 'integer',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**

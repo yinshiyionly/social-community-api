@@ -13,6 +13,9 @@ class AppMemberCertificate extends Model
     protected $primaryKey = 'cert_id';
     public $timestamps = false;
 
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = null;
+
     // 状态
     const STATUS_VALID = 1;      // 有效
     const STATUS_REVOKED = 2;    // 已撤销
@@ -29,7 +32,6 @@ class AppMemberCertificate extends Model
         'final_homework',
         'issue_time',
         'status',
-        'create_time',
     ];
 
     protected $casts = [
@@ -41,7 +43,7 @@ class AppMemberCertificate extends Model
         'final_homework' => 'integer',
         'issue_time' => 'datetime',
         'status' => 'integer',
-        'create_time' => 'datetime',
+        'created_at' => 'datetime',
     ];
 
     /**
@@ -134,7 +136,6 @@ class AppMemberCertificate extends Model
             'final_homework' => $memberCourse->homework_submitted,
             'issue_time' => now(),
             'status' => self::STATUS_VALID,
-            'create_time' => now(),
         ]);
     }
 

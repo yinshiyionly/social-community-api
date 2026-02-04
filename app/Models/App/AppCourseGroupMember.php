@@ -13,6 +13,9 @@ class AppCourseGroupMember extends Model
     protected $primaryKey = 'id';
     public $timestamps = false;
 
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = null;
+
     // 状态
     const STATUS_PENDING = 0;    // 待支付
     const STATUS_PAID = 1;       // 已支付
@@ -25,7 +28,6 @@ class AppCourseGroupMember extends Model
         'is_leader',
         'status',
         'join_time',
-        'create_time',
     ];
 
     protected $casts = [
@@ -35,7 +37,7 @@ class AppCourseGroupMember extends Model
         'is_leader' => 'integer',
         'status' => 'integer',
         'join_time' => 'datetime',
-        'create_time' => 'datetime',
+        'created_at' => 'datetime',
     ];
 
     /**

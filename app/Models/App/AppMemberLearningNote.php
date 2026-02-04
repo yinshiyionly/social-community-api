@@ -4,17 +4,14 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppMemberLearningNote extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_member_learning_note';
     protected $primaryKey = 'note_id';
-    public $timestamps = false;
-
-    const DEL_FLAG_NORMAL = 0;
-    const DEL_FLAG_DELETED = 1;
 
     protected $fillable = [
         'member_id',
@@ -25,9 +22,6 @@ class AppMemberLearningNote extends Model
         'images',
         'is_public',
         'like_count',
-        'create_time',
-        'update_time',
-        'del_flag',
     ];
 
     protected $casts = [
@@ -39,9 +33,8 @@ class AppMemberLearningNote extends Model
         'images' => 'array',
         'is_public' => 'integer',
         'like_count' => 'integer',
-        'del_flag' => 'integer',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
@@ -73,8 +66,7 @@ class AppMemberLearningNote extends Model
      */
     public function scopeByMember($query, int $memberId)
     {
-        return $query->where('member_id', $memberId)
-                     ->where('del_flag', self::DEL_FLAG_NORMAL);
+        return $query->where('member_id', $memberId);
     }
 
     /**
@@ -82,8 +74,7 @@ class AppMemberLearningNote extends Model
      */
     public function scopePublic($query)
     {
-        return $query->where('is_public', 1)
-                     ->where('del_flag', self::DEL_FLAG_NORMAL);
+        return $query->where('is_public', 1);
     }
 
     /**

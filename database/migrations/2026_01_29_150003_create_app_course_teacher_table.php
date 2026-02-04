@@ -30,11 +30,11 @@ class CreateAppCourseTeacherTable extends Migration
                 is_recommend int2 NOT NULL DEFAULT 0,
                 status int2 NOT NULL DEFAULT 1,
                 created_at timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                created_by varchar(64) NULL,
+                created_by int8 NULL,
                 updated_at timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_by varchar(64) NULL,
+                updated_by int8 NULL,
                 deleted_at timestamp(0) NULL,
-                deleted_by varchar(64) NULL,
+                deleted_by int8 NULL,
                 PRIMARY KEY (teacher_id)
             )
         ");

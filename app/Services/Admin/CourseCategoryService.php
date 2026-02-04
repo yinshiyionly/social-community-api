@@ -44,10 +44,10 @@ class CourseCategoryService
 
         // 时间范围筛选
         if (!empty($filters['beginTime'])) {
-            $query->where('create_time', '>=', $filters['beginTime']);
+            $query->where('created_at', '>=', $filters['beginTime']);
         }
         if (!empty($filters['endTime'])) {
-            $query->where('create_time', '<=', $filters['endTime']);
+            $query->where('created_at', '<=', $filters['endTime']);
         }
 
         // 排序
@@ -149,10 +149,7 @@ class CourseCategoryService
     {
         return AppCourseCategory::query()
             ->whereIn('category_id', $categoryIds)
-            ->update([
-                'del_flag' => AppCourseCategory::DEL_FLAG_DELETED,
-                'update_time' => now(),
-            ]);
+            ->delete();
     }
 
     /**
@@ -192,7 +189,7 @@ class CourseCategoryService
     public function getTreeList(): Collection
     {
         return AppCourseCategory::query()
-            ->select(['category_id', 'parent_id', 'category_name', 'category_code', 'icon', 'sort_order', 'status', 'create_time'])
+            ->select(['category_id', 'parent_id', 'category_name', 'category_code', 'icon', 'sort_order', 'status', 'created_at'])
             ->orderByDesc('sort_order')
             ->orderByDesc('category_id')
             ->get();

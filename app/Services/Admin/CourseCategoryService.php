@@ -5,6 +5,7 @@ namespace App\Services\Admin;
 use App\Models\App\AppCourseCategory;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -149,7 +150,34 @@ class CourseCategoryService
     {
         return AppCourseCategory::query()
             ->whereIn('category_id', $categoryIds)
-            ->delete();
+            ->whereNull('deleted_at')
+            ->update([
+                'deleted_at' => now(),
+                'deleted_by' => $this->getCurrentOperatorId(),
+            ]);
+    }
+
+    /**
+     * 获取当前操作人ID
+     *
+     * @return int|null
+     */
+    protected function getCurrentOperatorId(): ?int
+    {
+        return 0;
+        $request = request();
+
+        // System 端用户（后台管理员）
+        if ($request && $request->attributes->has('system_user_id')) {
+            return (int)$request->attributes->get('system_user_id');
+        }
+
+        // Admin guard 登录用户
+        if (Auth::guard('admin')->check()) {
+            return (int)Auth::guard('admin')->id();
+        }
+
+        return null;
     }
 
     /**

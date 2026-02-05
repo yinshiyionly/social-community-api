@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\App\CourseEnrollRequest;
 use App\Http\Resources\App\AppApiResponse;
 use App\Http\Resources\App\CourseCategoryResource;
+use App\Http\Resources\App\CourseDetailResource;
 use App\Http\Resources\App\CourseListResource;
 use App\Http\Resources\App\NewCourseListResource;
 use App\Services\App\CourseService;
@@ -22,6 +23,44 @@ class CourseController extends Controller
     public function __construct(CourseService $courseService)
     {
         $this->courseService = $courseService;
+    }
+
+    /**
+     * 获取课程详情
+     */
+    public function detail(Request $request)
+    {
+        $courseId = (int) $request->input('id', 0);
+
+        if ($courseId <= 0) {
+            return AppApiResponse::error('课程ID不能为空');
+        }
+
+        try {
+            $course = $this->courseService->getCourseFullDetail($courseId);
+
+            if (!$course) {
+                return AppApiResponse::dataNotFound('课程不存在');
+            }
+
+            // 检查用户是否已拥有该课程
+            $memberId = $request->attributes->get('member_id');
+            $hasOwned = false;
+            if ($memberId) {
+                $hasOwned = $this->courseService->checkUserHasCourse($memberId, $courseId);
+            }
+
+            return AppApiResponse::resource($course, CourseDetailResource::class, 'success', [
+                'hasOwned' => $hasOwned,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('获取课程详情失败', [
+                'course_id' => $courseId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
     }
 
     /**

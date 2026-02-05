@@ -73,7 +73,7 @@ class CourseService
     }
 
     /**
-     * 获取课程详情
+     * 获取课程详情（简单版，用于领取/购买校验）
      *
      * @param int $courseId
      * @return AppCourseBase|null
@@ -93,6 +93,43 @@ class CourseService
             ->online()
             ->where('course_id', $courseId)
             ->first();
+    }
+
+    /**
+     * 获取课程完整详情
+     *
+     * @param int $courseId
+     * @return AppCourseBase|null
+     */
+    public function getCourseFullDetail(int $courseId): ?AppCourseBase
+    {
+        $course = AppCourseBase::query()
+            ->with([
+                'teacher:teacher_id,teacher_name,avatar,title,brief',
+                'category:category_id,category_name',
+            ])
+            ->online()
+            ->where('course_id', $courseId)
+            ->first();
+
+        if ($course) {
+            // 增加浏览次数
+            AppCourseBase::where('course_id', $courseId)->increment('view_count');
+        }
+
+        return $course;
+    }
+
+    /**
+     * 检查用户是否已拥有课程
+     *
+     * @param int $memberId
+     * @param int $courseId
+     * @return bool
+     */
+    public function checkUserHasCourse(int $memberId, int $courseId): bool
+    {
+        return AppMemberCourse::hasCourse($memberId, $courseId);
     }
 
     /**

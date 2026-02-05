@@ -324,4 +324,61 @@ class SearchService
             'hasMore' => $hasMore,
         ];
     }
+
+    /**
+     * 搜索课程（分页）
+     *
+     * @param string $keyword 搜索关键词
+     * @param int $page 页码
+     * @param int $pageSize 每页数量
+     * @param int|null $currentMemberId 当前登录用户ID
+     * @return array
+     */
+    public function searchCourse(string $keyword, int $page, int $pageSize, ?int $currentMemberId = null): array
+    {
+        $query = AppCourseBase::online()
+            ->select(['course_id', 'course_title', 'course_subtitle', 'current_price', 'original_price', 'cover_image', 'total_chapter'])
+            ->where('course_title', 'ILIKE', '%' . $keyword . '%')
+            ->orderByDesc('enroll_count')
+            ->orderByDesc('course_id');
+
+        $total = $query->count();
+        $offset = ($page - 1) * $pageSize;
+
+        $courses = $query->offset($offset)->limit($pageSize)->get();
+
+        if ($courses->isEmpty()) {
+            return [
+                'list' => [],
+                'total' => $total,
+                'hasMore' => false,
+            ];
+        }
+
+        // 批量查询学习状态
+        $learningIds = [];
+        if ($currentMemberId) {
+            $courseIds = $courses->pluck('course_id')->toArray();
+            $learningIds = AppMemberCourse::byMember($currentMemberId)
+                ->notExpired()
+                ->whereIn('course_id', $courseIds)
+                ->pluck('course_id')
+                ->toArray();
+        }
+
+        $list = [];
+        foreach ($courses as $course) {
+            $resource = new SearchAllCourseResource($course);
+            $resource->setIsLearning(in_array($course->course_id, $learningIds));
+            $list[] = $resource->resolve();
+        }
+
+        $hasMore = ($offset + $pageSize) < $total;
+
+        return [
+            'list' => $list,
+            'total' => $total,
+            'hasMore' => $hasMore,
+        ];
+    }
 }

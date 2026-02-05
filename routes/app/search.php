@@ -18,4 +18,7 @@ Route::prefix('v1/search')->group(function () {
 
     // 搜索用户（支持可选登录）
     Route::get('user', [SearchController::class, 'searchUser'])->middleware('app.auth.optional');
+
+    // 搜索课程（支持可选登录）
+    Route::get('course', [SearchController::class, 'searchCourse'])->middleware('app.auth.optional');
 });

@@ -106,4 +106,33 @@ class SearchController extends Controller
             return AppApiResponse::serverError();
         }
     }
+
+    /**
+     * 搜索课程
+     *
+     * @param SearchAllRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function searchCourse(SearchAllRequest $request)
+    {
+        $keyword = $request->getKeyword();
+        $page = $request->getPage();
+        $pageSize = $request->getPageSize();
+
+        // 获取当前登录用户ID（可选）
+        $memberId = $request->attributes->get('member_id');
+
+        try {
+            $result = $this->searchService->searchCourse($keyword, $page, $pageSize, $memberId);
+            return AppApiResponse::success(['data' => $result]);
+        } catch (\Exception $e) {
+            Log::error('搜索课程失败', [
+                'keyword' => $keyword,
+                'page' => $page,
+                'pageSize' => $pageSize,
+                'error' => $e->getMessage(),
+            ]);
+            return AppApiResponse::serverError();
+        }
+    }
 }

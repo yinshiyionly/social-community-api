@@ -524,4 +524,58 @@ class PostService
     {
         return AppPostLike::getLikedPostIds($memberId, $postIds);
     }
+
+    /**
+     * 视频流查询字段
+     */
+    private const VIDEO_FEED_COLUMNS = [
+        'post_id',
+        'member_id',
+        'title',
+        'content',
+        'media_data',
+        'cover',
+        'created_at',
+    ];
+
+    /**
+     * 获取视频流列表（游标分页）- 用于刷视频场景
+     *
+     * @param string|null $cursor 游标
+     * @param int $pageSize 每页数量
+     * @return CursorPaginator
+     */
+    public function getVideoFeed(?string $cursor = null, int $pageSize = 10): CursorPaginator
+    {
+        return AppPostBase::query()
+            ->select(self::VIDEO_FEED_COLUMNS)
+            ->with([self::MEMBER_COLUMNS, self::STAT_RELATION])
+            ->byType(AppPostBase::POST_TYPE_VIDEO)
+            ->approved()
+            ->visible()
+            ->orderByDesc('sort_score')
+            ->orderByDesc('post_id')
+            ->cursorPaginate($pageSize, ['*'], 'cursor', $cursor);
+    }
+
+    /**
+     * 批量获取用户关注状态
+     *
+     * @param int $memberId 当前用户ID
+     * @param array $targetMemberIds 目标用户ID数组
+     * @return array 已关注的用户ID数组
+     */
+    public function getFollowedMemberIds(int $memberId, array $targetMemberIds): array
+    {
+        if (empty($targetMemberIds)) {
+            return [];
+        }
+
+        return \App\Models\App\AppMemberFollow::query()
+            ->byMember($memberId)
+            ->whereIn('follow_member_id', $targetMemberIds)
+            ->normal()
+            ->pluck('follow_member_id')
+            ->toArray();
+    }
 }

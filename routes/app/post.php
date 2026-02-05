@@ -18,6 +18,8 @@ Route::prefix('v1/post')->group(function () {
         Route::get('list', [PostController::class, 'list']);
         // 动态列表（普通分页）
         Route::get('page', [PostController::class, 'page']);
+        // 视频流列表（游标分页）- 刷视频场景
+        Route::get('video/feed', [PostController::class, 'videoFeed']);
         // 动态详情（通用）
         Route::get('detail/{id}', [PostController::class, 'detail']);
         // 图文动态详情

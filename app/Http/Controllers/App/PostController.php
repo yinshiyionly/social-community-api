@@ -14,6 +14,7 @@ use App\Http\Resources\App\ArticlePostResource;
 use App\Http\Resources\App\ImageTextPostResource;
 use App\Http\Resources\App\PostListResource;
 use App\Http\Resources\App\PostResource;
+use App\Http\Resources\App\VideoFeedResource;
 use App\Http\Resources\App\VideoPostResource;
 use App\Models\App\AppPostBase;
 use App\Services\App\PostService;
@@ -226,6 +227,51 @@ class PostController extends Controller
         } catch (\Exception $e) {
             Log::error('获取帖子列表失败', [
                 'page' => $page,
+                'pageSize' => $pageSize,
+                'error' => $e->getMessage()
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 获取视频流列表（游标分页）- 用于刷视频场景
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function videoFeed(Request $request): JsonResponse
+    {
+        $cursor = $request->input('cursor');
+        $pageSize = $request->input('pageSize', 10);
+        $memberId = $this->getMemberId($request);
+
+        try {
+            $videos = $this->postService->getVideoFeed($cursor, $pageSize);
+
+            // 如果用户已登录，获取交互状态
+            if ($memberId) {
+                $postIds = $videos->pluck('post_id')->toArray();
+                $memberIds = $videos->pluck('member_id')->unique()->toArray();
+
+                $collectedPostIds = $this->postService->getCollectedPostIds($memberId, $postIds);
+                $likedPostIds = $this->postService->getLikedPostIds($memberId, $postIds);
+                $followedMemberIds = $this->postService->getFollowedMemberIds($memberId, $memberIds);
+
+                VideoFeedResource::setCollectedPostIds($collectedPostIds);
+                VideoFeedResource::setLikedPostIds($likedPostIds);
+                VideoFeedResource::setFollowedMemberIds($followedMemberIds);
+            } else {
+                VideoFeedResource::setCollectedPostIds([]);
+                VideoFeedResource::setLikedPostIds([]);
+                VideoFeedResource::setFollowedMemberIds([]);
+            }
+
+            return AppApiResponse::cursorPaginate($videos, VideoFeedResource::class);
+        } catch (\Exception $e) {
+            Log::error('获取视频流失败', [
+                'cursor' => $cursor,
                 'pageSize' => $pageSize,
                 'error' => $e->getMessage()
             ]);

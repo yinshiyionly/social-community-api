@@ -267,4 +267,61 @@ class SearchService
 
         return $result;
     }
+
+    /**
+     * 搜索用户（分页）
+     *
+     * @param string $keyword 搜索关键词
+     * @param int $page 页码
+     * @param int $pageSize 每页数量
+     * @param int|null $currentMemberId 当前登录用户ID
+     * @return array
+     */
+    public function searchUser(string $keyword, int $page, int $pageSize, ?int $currentMemberId = null): array
+    {
+        $query = AppMemberBase::normal()
+            ->select(['member_id', 'nickname', 'avatar', 'fans_count'])
+            ->where('nickname', 'ILIKE', '%' . $keyword . '%')
+            ->orderByDesc('fans_count')
+            ->orderByDesc('member_id');
+
+        $total = $query->count();
+        $offset = ($page - 1) * $pageSize;
+
+        $users = $query->offset($offset)->limit($pageSize)->get();
+
+        if ($users->isEmpty()) {
+            return [
+                'list' => [],
+                'total' => $total,
+                'hasMore' => false,
+            ];
+        }
+
+        // 批量查询关注状态
+        $followedIds = [];
+        if ($currentMemberId) {
+            $userIds = $users->pluck('member_id')->toArray();
+            $followedIds = AppMemberFollow::normal()
+                ->byMember($currentMemberId)
+                ->whereIn('follow_member_id', $userIds)
+                ->pluck('follow_member_id')
+                ->toArray();
+        }
+
+        $list = [];
+        foreach ($users as $user) {
+            $resource = new SearchAllUserResource($user);
+            $resource->setIsFollowed(in_array($user->member_id, $followedIds));
+            $list[] = $resource->resolve();
+        }
+
+        $hasMore = ($offset + $pageSize) < $total;
+
+        return [
+            'list' => $list,
+            'total' => $total,
+            'hasMore' => $hasMore,
+        ];
+    }
 }

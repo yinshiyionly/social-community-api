@@ -54,8 +54,9 @@ class FollowPostListResource extends JsonResource
     {
         $mediaData = $this->media_data ?? [];
         $member = $this->member;
+        $postType = $this->post_type;
 
-        return [
+        $data = [
             'id' => $this->post_id,
             'author' => [
                 'id' => $member ? $member->member_id : null,
@@ -63,7 +64,6 @@ class FollowPostListResource extends JsonResource
                 'nickname' => $member ? ($member->nickname ?? '') : '',
             ],
             'content' => $this->content ?? '',
-            'images' => $this->extractImages($mediaData),
             'commentCount' => $this->stat ? $this->stat->comment_count : 0,
             'favoriteCount' => $this->stat ? $this->stat->collection_count : 0,
             'likeCount' => $this->stat ? $this->stat->like_count : 0,
@@ -72,6 +72,18 @@ class FollowPostListResource extends JsonResource
             'isFavorited' => in_array($this->post_id, self::$collectedIds),
             'createTime' => $this->created_at ? $this->created_at->toISOString() : null,
         ];
+
+        // 视频动态使用 videoCover，图文/文章动态使用 images
+        if ($postType === 2) {
+            // 视频动态
+            $cover = $this->cover ?? [];
+            $data['videoCover'] = isset($cover['url']) ? $cover['url'] : '';
+        } else {
+            // 图文/文章动态
+            $data['images'] = $this->extractImages($mediaData);
+        }
+
+        return $data;
     }
 
     /**

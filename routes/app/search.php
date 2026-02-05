@@ -12,4 +12,7 @@ use App\Http\Controllers\App\SearchController;
 Route::prefix('v1/search')->group(function () {
     // 搜索接口（公开）
     Route::get('', [SearchController::class, 'search']);
+
+    // 搜索全部（用户+课程混合，支持可选登录）
+    Route::get('all', [SearchController::class, 'searchAll'])->middleware('app.auth.optional');
 });

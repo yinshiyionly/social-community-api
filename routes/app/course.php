@@ -12,4 +12,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('app/course')->group(function () {
     // 好课上新列表
     Route::get('/new', [CourseController::class, 'newCourses']);
+
+    // 名师好课列表
+    Route::get('/recommend', [CourseController::class, 'recommendCourses']);
 });

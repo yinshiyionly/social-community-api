@@ -40,4 +40,24 @@ class CourseController extends Controller
             return AppApiResponse::serverError();
         }
     }
+
+    /**
+     * 获取名师好课列表
+     */
+    public function recommendCourses(Request $request)
+    {
+        $limit = $request->input('limit', 10);
+
+        try {
+            $courses = $this->courseService->getRecommendCourses($limit);
+
+            return AppApiResponse::collection($courses, NewCourseListResource::class);
+        } catch (\Exception $e) {
+            Log::error('获取名师好课列表失败', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
 }

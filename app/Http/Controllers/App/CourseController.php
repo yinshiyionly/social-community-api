@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\App\CourseEnrollRequest;
 use App\Http\Resources\App\AppApiResponse;
 use App\Http\Resources\App\CourseCategoryResource;
 use App\Http\Resources\App\CourseListResource;
@@ -68,6 +69,62 @@ class CourseController extends Controller
             ]);
 
             return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 免费领取课程
+     */
+    public function claim(CourseEnrollRequest $request)
+    {
+        $memberId = $request->attributes->get('member_id');
+        $courseId = (int) $request->input('courseId');
+        $phone = $request->input('phone');
+        $ageRange = $request->input('ageRange');
+
+        try {
+            $memberCourse = $this->courseService->claimFreeCourse($memberId, $courseId, $phone, $ageRange);
+
+            return AppApiResponse::success([
+                'data' => [
+                    'id' => $memberCourse->id,
+                    'courseId' => $memberCourse->course_id,
+                    'enrollTime' => $memberCourse->enroll_time->format('Y-m-d H:i:s'),
+                ],
+            ], '领取成功');
+        } catch (\Exception $e) {
+            Log::error('免费领取课程失败', [
+                'member_id' => $memberId,
+                'course_id' => $courseId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::error($e->getMessage());
+        }
+    }
+
+    /**
+     * 购买课程（获取支付信息）
+     */
+    public function purchase(CourseEnrollRequest $request)
+    {
+        $memberId = $request->attributes->get('member_id');
+        $courseId = (int) $request->input('courseId');
+        $phone = $request->input('phone');
+        $ageRange = $request->input('ageRange');
+
+        try {
+            $paymentInfo = $this->courseService->preparePurchase($memberId, $courseId, $phone, $ageRange);
+
+            return AppApiResponse::success(['data' => $paymentInfo]);
+        } catch (\Exception $e) {
+            Log::error('购买课程失败', [
+                'member_id' => $memberId,
+                'course_id' => $courseId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::error($e->getMessage());
         }
     }
 

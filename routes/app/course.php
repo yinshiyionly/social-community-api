@@ -21,4 +21,10 @@ Route::prefix('app/course')->group(function () {
 
     // 名师好课列表
     Route::get('/recommend', [CourseController::class, 'recommendCourses']);
+
+    // 免费领取课程（需登录）
+    Route::post('/claim', [CourseController::class, 'claim'])->middleware('app.jwt');
+
+    // 购买课程（需登录）
+    Route::post('/purchase', [CourseController::class, 'purchase'])->middleware('app.jwt');
 });

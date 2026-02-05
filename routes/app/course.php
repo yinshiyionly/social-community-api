@@ -10,6 +10,12 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('app/course')->group(function () {
+    // 课程分类列表
+    Route::get('/categories', [CourseController::class, 'categories']);
+
+    // 选课中心 - 按分类获取课程列表
+    Route::get('/list', [CourseController::class, 'listByCategory']);
+
     // 好课上新列表
     Route::get('/new', [CourseController::class, 'newCourses']);
 

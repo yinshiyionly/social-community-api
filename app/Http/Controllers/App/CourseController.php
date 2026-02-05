@@ -4,6 +4,8 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\App\AppApiResponse;
+use App\Http\Resources\App\CourseCategoryResource;
+use App\Http\Resources\App\CourseListResource;
 use App\Http\Resources\App\NewCourseListResource;
 use App\Services\App\CourseService;
 use Illuminate\Http\Request;
@@ -19,6 +21,54 @@ class CourseController extends Controller
     public function __construct(CourseService $courseService)
     {
         $this->courseService = $courseService;
+    }
+
+    /**
+     * 获取课程分类列表
+     */
+    public function categories()
+    {
+        try {
+            $categories = $this->courseService->getCategories();
+
+            return AppApiResponse::collection($categories, CourseCategoryResource::class);
+        } catch (\Exception $e) {
+            Log::error('获取课程分类列表失败', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 选课中心 - 按分类获取课程列表
+     */
+    public function listByCategory(Request $request)
+    {
+        $categoryId = (int) $request->input('categoryId', 0);
+
+        if ($categoryId <= 0) {
+            return AppApiResponse::error('请选择课程分类');
+        }
+
+        try {
+            $groups = $this->courseService->getCoursesByCategory($categoryId);
+
+            // 格式化课程数据
+            foreach ($groups as &$group) {
+                $group['courses'] = CourseListResource::collection($group['courses'])->resolve();
+            }
+
+            return AppApiResponse::success(['data' => $groups]);
+        } catch (\Exception $e) {
+            Log::error('获取选课中心课程列表失败', [
+                'category_id' => $categoryId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
     }
 
     /**

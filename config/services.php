@@ -69,4 +69,16 @@ return [
             'template_login' => env('VOLCENGINE_SMS_SIGN_TEMPLATE_LOGIN')
         ]
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | 百家云直播服务配置
+    |--------------------------------------------------------------------------
+    */
+    'baijiayun' => [
+        'partner_id' => env('BAIJIAYUN_PARTNER_ID', ''),
+        'partner_key' => env('BAIJIAYUN_PARTNER_KEY', ''),
+        'base_url' => env('BAIJIAYUN_BASE_URL', 'https://api.baijiayun.com'),
+        'default_room_type' => env('BAIJIAYUN_DEFAULT_ROOM_TYPE', 2),
+    ],
 ];

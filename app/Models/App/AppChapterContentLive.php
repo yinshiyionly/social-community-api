@@ -18,6 +18,7 @@ class AppChapterContentLive extends Model
     const PLATFORM_ALIYUN = 'aliyun';
     const PLATFORM_TENCENT = 'tencent';
     const PLATFORM_AGORA = 'agora';
+    const PLATFORM_BAIJIAYUN = 'baijiayun';
 
     // 直播状态
     const LIVE_STATUS_NOT_STARTED = 0;  // 未开始

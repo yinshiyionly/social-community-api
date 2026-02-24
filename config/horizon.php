@@ -194,19 +194,28 @@ return [
                 'tries' => 3,
                 'timeout' => 60,
             ],
-            // 视频封面生成
-            'video-cover' => [
-                'connection' => 'redis',
-                'queue' => ['video-cover'],
-                'maxProcesses' => 2,
-                'memory' => 64,
-                'tries' => 3,
-                'timeout' => 120,
-            ],
             // 填充帖子媒体信息
             'post-media' => [
                 'connection' => 'redis',
                 'queue' => ['post-media'],
+                'maxProcesses' => 2,
+                'memory' => 64,
+                'tries' => 3,
+                'timeout' => 120
+            ],
+            // App模块-用户互动消息
+            'user-message' => [
+                'connection' => 'redis',
+                'queue' => ['user-message'],
+                'maxProcesses' => 2,
+                'memory' => 64,
+                'tries' => 3,
+                'timeout' => 120
+            ],
+            // App模块-系统通知消息
+            'system-message' => [
+                'connection' => 'redis',
+                'queue' => ['system-message'],
                 'maxProcesses' => 2,
                 'memory' => 64,
                 'tries' => 3,
@@ -224,19 +233,28 @@ return [
                 'tries' => 3,
                 'timeout' => 60,
             ],
-            // 视频封面生成
-            'video-cover' => [
-                'connection' => 'redis',
-                'queue' => ['video-cover'],
-                'maxProcesses' => 2,
-                'memory' => 64,
-                'tries' => 3,
-                'timeout' => 120,
-            ],
             // 填充帖子媒体信息
             'post-media' => [
                 'connection' => 'redis',
                 'queue' => ['post-media'],
+                'maxProcesses' => 4,
+                'memory' => 64,
+                'tries' => 3,
+                'timeout' => 120
+            ],
+            // App模块-用户互动消息
+            'user-message' => [
+                'connection' => 'redis',
+                'queue' => ['user-message'],
+                'maxProcesses' => 4,
+                'memory' => 64,
+                'tries' => 3,
+                'timeout' => 120
+            ],
+            // App模块-系统通知消息
+            'system-message' => [
+                'connection' => 'redis',
+                'queue' => ['system-message'],
                 'maxProcesses' => 4,
                 'memory' => 64,
                 'tries' => 3,
@@ -254,19 +272,28 @@ return [
                 'tries' => 3,
                 'timeout' => 60,
             ],
-            // 视频封面生成
-            'video-cover' => [
-                'connection' => 'redis',
-                'queue' => ['video-cover'],
-                'maxProcesses' => 2,
-                'memory' => 64,
-                'tries' => 3,
-                'timeout' => 120,
-            ],
             // 填充帖子媒体信息
             'post-media' => [
                 'connection' => 'redis',
                 'queue' => ['post-media'],
+                'maxProcesses' => 2,
+                'memory' => 64,
+                'tries' => 3,
+                'timeout' => 120
+            ],
+            // App模块-用户互动消息
+            'user-message' => [
+                'connection' => 'redis',
+                'queue' => ['user-message'],
+                'maxProcesses' => 2,
+                'memory' => 64,
+                'tries' => 3,
+                'timeout' => 120
+            ],
+            // App模块-系统通知消息
+            'system-message' => [
+                'connection' => 'redis',
+                'queue' => ['system-message'],
                 'maxProcesses' => 2,
                 'memory' => 64,
                 'tries' => 3,

@@ -8,6 +8,7 @@ use App\Models\App\AppMemberBase;
 use App\Models\App\AppMessageInteraction;
 use App\Models\App\AppMessageSystem;
 use App\Models\App\AppMessageUnreadCount;
+use App\Models\App\AppMessageSystemUnread;
 use App\Models\App\AppMemberFollow;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -48,69 +49,137 @@ class MessageService
      * @param int $memberId
      * @return array
      */
-    public function getMessageOverview(int $memberId): array
-    {
-        $unreadCount = AppMessageUnreadCount::getOrCreate($memberId);
+    
+        /**
+         * 获取消息总列表（互动分类 + 官方账号会话列表）
+         *
+         * @param int $memberId
+         * @return array
+         */
+        public function getMessageOverview(int $memberId): array
+        {
+            $unreadCount = AppMessageUnreadCount::getOrCreate($memberId);
 
-        // 获取各分类最新一条消息
-        $latestLikeCollect = AppMessageInteraction::byReceiver($memberId)
-            ->likeAndCollect()
-            ->with('sender:member_id,nickname,avatar')
-            ->orderBy('message_id', 'desc')
-            ->first();
+            // 获取互动分类最新一条消息
+            $latestLikeCollect = AppMessageInteraction::byReceiver($memberId)
+                ->likeAndCollect()
+                ->with('sender:member_id,nickname,avatar')
+                ->orderBy('message_id', 'desc')
+                ->first();
 
-        $latestComment = AppMessageInteraction::byReceiver($memberId)
-            ->byType(MessageType::COMMENT)
-            ->with('sender:member_id,nickname,avatar')
-            ->orderBy('message_id', 'desc')
-            ->first();
+            $latestComment = AppMessageInteraction::byReceiver($memberId)
+                ->byType(MessageType::COMMENT)
+                ->with('sender:member_id,nickname,avatar')
+                ->orderBy('message_id', 'desc')
+                ->first();
 
-        $latestFollow = AppMessageInteraction::byReceiver($memberId)
-            ->byType(MessageType::FOLLOW)
-            ->with('sender:member_id,nickname,avatar')
-            ->orderBy('message_id', 'desc')
-            ->first();
+            $latestFollow = AppMessageInteraction::byReceiver($memberId)
+                ->byType(MessageType::FOLLOW)
+                ->with('sender:member_id,nickname,avatar')
+                ->orderBy('message_id', 'desc')
+                ->first();
 
-        $latestSystem = AppMessageSystem::forReceiver($memberId)
-            ->orderBy('message_id', 'desc')
-            ->first();
+            // 互动分类
+            $interactions = [];
 
-        $categories = [];
+            $interactions[] = [
+                'type' => 'likeAndCollect',
+                'title' => '赞和收藏',
+                'unreadCount' => $unreadCount->getLikeAndCollectCount(),
+                'latestMessage' => $latestLikeCollect ? $this->formatInteractionSummary($latestLikeCollect) : null,
+            ];
 
-        // 赞和收藏
-        $categories[] = [
-            'type' => 'likeAndCollect',
-            'title' => '赞和收藏',
-            'unreadCount' => $unreadCount->getLikeAndCollectCount(),
-            'latestMessage' => $latestLikeCollect ? $this->formatInteractionSummary($latestLikeCollect) : null,
-        ];
+            $interactions[] = [
+                'type' => 'comment',
+                'title' => '评论我的',
+                'unreadCount' => $unreadCount->comment_count,
+                'latestMessage' => $latestComment ? $this->formatInteractionSummary($latestComment) : null,
+            ];
 
-        // 评论
-        $categories[] = [
-            'type' => 'comment',
-            'title' => '评论我的',
-            'unreadCount' => $unreadCount->comment_count,
-            'latestMessage' => $latestComment ? $this->formatInteractionSummary($latestComment) : null,
-        ];
+            $interactions[] = [
+                'type' => 'follow',
+                'title' => '关注我的',
+                'unreadCount' => $unreadCount->follow_count,
+                'latestMessage' => $latestFollow ? $this->formatFollowSummary($latestFollow) : null,
+            ];
 
-        // 关注
-        $categories[] = [
-            'type' => 'follow',
-            'title' => '关注我的',
-            'unreadCount' => $unreadCount->follow_count,
-            'latestMessage' => $latestFollow ? $this->formatFollowSummary($latestFollow) : null,
-        ];
+            // 官方账号会话列表：查询给当前用户发过消息的所有官方账号
+            $officialConversations = $this->getOfficialConversations($memberId);
 
-        // 系统消息
-        $categories[] = [
-            'type' => 'system',
-            'title' => '系统消息',
-            'unreadCount' => $unreadCount->system_count,
-            'latestMessage' => $latestSystem ? $this->formatSystemSummary($latestSystem) : null,
-        ];
+            return [
+                'interactions' => $interactions,
+                'officialAccounts' => $officialConversations,
+            ];
+        }
 
-        return $categories;
-    }
+        /**
+         * 获取官方账号会话列表（每个官方账号的最新消息 + 未读数）
+         *
+         * @param int $memberId
+         * @return array
+         */
+        protected function getOfficialConversations(int $memberId): array
+        {
+            // 查询给当前用户发过系统消息的所有 sender_id（去重）
+            $senderIds = AppMessageSystem::forReceiver($memberId)
+                ->whereNotNull('sender_id')
+                ->select('sender_id')
+                ->distinct()
+                ->pluck('sender_id')
+                ->toArray();
+
+            if (empty($senderIds)) {
+                return [];
+            }
+
+            // 批量获取官方账号信息
+            $senders = AppMemberBase::whereIn('member_id', $senderIds)
+                ->select(['member_id', 'nickname', 'avatar', 'is_official', 'official_label'])
+                ->get()
+                ->keyBy('member_id');
+
+            // 批量获取每个发送者的未读数
+            $unreadMap = AppMessageSystemUnread::where('member_id', $memberId)
+                ->whereIn('sender_id', $senderIds)
+                ->pluck('unread_count', 'sender_id')
+                ->toArray();
+
+            // 获取每个发送者的最新一条消息
+            $conversations = [];
+            foreach ($senderIds as $senderId) {
+                $latestMessage = AppMessageSystem::forReceiver($memberId)
+                    ->bySender($senderId)
+                    ->orderBy('message_id', 'desc')
+                    ->first();
+
+                if (!$latestMessage) {
+                    continue;
+                }
+
+                $sender = $senders->get($senderId);
+                if (!$sender) {
+                    continue;
+                }
+
+                $conversations[] = [
+                    'senderId' => $senderId,
+                    'senderName' => $sender->nickname,
+                    'senderAvatar' => $sender->avatar,
+                    'isOfficial' => $sender->is_official,
+                    'officialLabel' => $sender->official_label,
+                    'unreadCount' => $unreadMap[$senderId] ?? 0,
+                    'latestMessage' => $this->formatSystemSummary($latestMessage),
+                ];
+            }
+
+            // 按最新消息时间倒序排列
+            usort($conversations, function ($a, $b) {
+                return strcmp($b['latestMessage']['time'], $a['latestMessage']['time']);
+            });
+
+            return $conversations;
+        }
+
 
     /**
      * 格式化互动消息摘要
@@ -254,6 +323,55 @@ class MessageService
     }
 
     /**
+     * 获取指定官方账号的消息列表（游标分页）
+     *
+     * @param int $memberId
+     * @param int $senderId 官方账号的会员ID
+     * @param string|null $cursor
+     * @param int $pageSize
+     * @return \Illuminate\Pagination\CursorPaginator
+     */
+    public function getSystemMessagesBySender(int $memberId, int $senderId, ?string $cursor, int $pageSize)
+    {
+        $query = AppMessageSystem::forReceiver($memberId)
+            ->bySender($senderId)
+            ->orderBy('message_id', 'desc');
+
+        return $query->cursorPaginate($pageSize, ['*'], 'cursor', $cursor);
+    }
+
+    /**
+     * 标记指定官方账号的消息为已读
+     *
+     * @param int $memberId
+     * @param int $senderId
+     * @return void
+     */
+    public function markSystemReadBySender(int $memberId, int $senderId): void
+    {
+        DB::beginTransaction();
+
+        try {
+            AppMessageSystem::byReceiver($memberId)
+                ->bySender($senderId)
+                ->unread()
+                ->update(['is_read' => AppMessageSystem::READ_YES]);
+
+            AppMessageUnreadCount::clearSystem($memberId, $senderId);
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('标记官方账号消息已读失败', [
+                'member_id' => $memberId,
+                'sender_id' => $senderId,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
      * 获取系统消息详情
      *
      * @param int $memberId
@@ -337,6 +455,7 @@ class MessageService
                         'follow_count' => 0,
                         'system_count' => 0,
                     ]);
+                    AppMessageSystemUnread::clearAll($memberId);
                     break;
             }
 
@@ -478,4 +597,41 @@ class MessageService
             'cover_url' => null,
         ]);
     }
+
+    /**
+     * 创建系统消息（官方账号发送给用户）
+     *
+     * @param int $senderId 发送者会员ID（官方账号）
+     * @param int $receiverId 接收者会员ID（NULL表示全员广播）
+     * @param string $title 消息标题
+     * @param string $content 消息内容
+     * @param array $options 可选参数 [cover_url, link_type, link_url]
+     * @return AppMessageSystem
+     */
+    public static function createSystemMessage(
+        int $senderId,
+        ?int $receiverId,
+        string $title,
+        string $content,
+        array $options = []
+    ): AppMessageSystem {
+        $message = AppMessageSystem::create([
+            'sender_id' => $senderId,
+            'receiver_id' => $receiverId,
+            'title' => $title,
+            'content' => $content,
+            'cover_url' => $options['cover_url'] ?? null,
+            'link_type' => $options['link_type'] ?? null,
+            'link_url' => $options['link_url'] ?? null,
+            'is_read' => AppMessageSystem::READ_NO,
+        ]);
+
+        // 更新未读数
+        if ($receiverId) {
+            AppMessageUnreadCount::incrementSystem($receiverId, 1, $senderId);
+        }
+
+        return $message;
+    }
+
 }

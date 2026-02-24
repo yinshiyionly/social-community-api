@@ -200,6 +200,38 @@ class MessageController extends Controller
     }
 
     /**
+     * 获取指定官方账号的消息列表（会话详情）
+     *
+     * @param Request $request
+     * @param int $senderId 官方账号的会员ID
+     * @return JsonResponse
+     */
+    public function systemBySender(Request $request, int $senderId): JsonResponse
+    {
+        $memberId = $this->getMemberId($request);
+        $cursor = $request->input('cursor');
+        $pageSize = $request->input('pageSize', 20);
+
+        try {
+            // 进入会话时标记该发送者的消息为已读
+            $this->messageService->markSystemReadBySender($memberId, $senderId);
+
+            $messages = $this->messageService->getSystemMessagesBySender($memberId, $senderId, $cursor, $pageSize);
+
+            return AppApiResponse::cursorPaginate($messages, MessageSystemResource::class);
+        } catch (\Exception $e) {
+            Log::error('获取官方账号消息列表失败', [
+                'member_id' => $memberId,
+                'sender_id' => $senderId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+
+    /**
      * 获取系统消息详情
      *
      * @param Request $request

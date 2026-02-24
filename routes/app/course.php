@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('app/course')->group(function () {
+Route::prefix('v1/course')->group(function () {
     // 课程分类列表
     Route::get('/categories', [CourseController::class, 'categories']);
 

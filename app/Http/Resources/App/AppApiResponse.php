@@ -207,7 +207,7 @@ class AppApiResponse
         return response()->json([
             'code' => AppResponseCode::UNAUTHORIZED,
             'msg' => $message,
-        ]);
+        ], 401);
     }
 
     /**
@@ -218,7 +218,7 @@ class AppApiResponse
         return response()->json([
             'code' => AppResponseCode::TOKEN_INVALID,
             'msg' => $message,
-        ]);
+        ], 401);
     }
 
     /**
@@ -229,7 +229,7 @@ class AppApiResponse
         return response()->json([
             'code' => AppResponseCode::TOKEN_EXPIRED,
             'msg' => $message,
-        ]);
+        ], 401);
     }
 
     /**
@@ -240,7 +240,7 @@ class AppApiResponse
         return response()->json([
             'code' => AppResponseCode::FORBIDDEN,
             'msg' => $message,
-        ]);
+        ], 403);
     }
 
     /**
@@ -251,7 +251,7 @@ class AppApiResponse
         return response()->json([
             'code' => AppResponseCode::NOT_FOUND,
             'msg' => $message,
-        ]);
+        ], 404);
     }
 
     /**
@@ -262,7 +262,7 @@ class AppApiResponse
         return response()->json([
             'code' => AppResponseCode::DATA_NOT_FOUND,
             'msg' => $message,
-        ]);
+        ], 404);
     }
 
     /**
@@ -273,7 +273,7 @@ class AppApiResponse
         return response()->json([
             'code' => AppResponseCode::SERVER_ERROR,
             'msg' => $message,
-        ]);
+        ], 500);
     }
 
     /**
@@ -284,7 +284,7 @@ class AppApiResponse
         return response()->json([
             'code' => AppResponseCode::TOO_MANY_REQUESTS,
             'msg' => $message,
-        ]);
+        ], 500);
     }
 
     /**
@@ -295,7 +295,7 @@ class AppApiResponse
         return response()->json([
             'code' => AppResponseCode::TOKEN_INVALID,
             'msg' => $message,
-        ]);
+        ], 500);
     }
 
     /**
@@ -306,7 +306,7 @@ class AppApiResponse
         return response()->json([
             'code' => AppResponseCode::ACCOUNT_DISABLED,
             'msg' => $message,
-        ]);
+        ], 500);
     }
 
     /**

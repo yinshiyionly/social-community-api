@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\App\CourseController;
+use App\Http\Controllers\App\LearningCenterController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -30,4 +31,22 @@ Route::prefix('app/course')->group(function () {
 
     // 购买课程（需登录）
     Route::post('/purchase', [CourseController::class, 'purchase'])->middleware('app.jwt');
+});
+
+
+/*
+|--------------------------------------------------------------------------
+| App 学习中心路由
+|--------------------------------------------------------------------------
+*/
+
+Route::prefix('app/learning')->middleware('app.jwt')->group(function () {
+    // 我的课程列表
+    Route::get('/courses', [LearningCenterController::class, 'myCourses']);
+
+    // 课表日视图
+    Route::get('/schedule', [LearningCenterController::class, 'dailySchedule']);
+
+    // 课表周概览
+    Route::get('/week', [LearningCenterController::class, 'weekOverview']);
 });

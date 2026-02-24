@@ -5,6 +5,7 @@ namespace App\Services\App;
 use App\Models\App\AppCourseBase;
 use App\Models\App\AppCourseCategory;
 use App\Models\App\AppMemberCourse;
+use App\Services\App\LearningCenterService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -178,6 +179,15 @@ class CourseService
 
             // 更新课程报名人数
             AppCourseBase::where('course_id', $courseId)->increment('enroll_count');
+
+            // 生成用户课表
+            $learningCenterService = new LearningCenterService();
+            $learningCenterService->generateSchedule(
+                $memberId,
+                $courseId,
+                $memberCourse->id,
+                now()->toDateTime()
+            );
 
             return $memberCourse;
         });

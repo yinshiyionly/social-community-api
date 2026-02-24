@@ -98,7 +98,7 @@ class CourseController extends Controller
 
             // 格式化课程数据
             foreach ($groups as &$group) {
-                $group['courses'] = CourseListResource::collection($group['courses'])->resolve();
+                $group['list'] = CourseListResource::collection($group['list'])->resolve();
             }
 
             return AppApiResponse::success(['data' => $groups]);

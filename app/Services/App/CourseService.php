@@ -41,6 +41,12 @@ class CourseService
      * @param int $categoryId
      * @return array
      */
+    /**
+     * 获取选课中心课程列表（按付费类型分组）
+     *
+     * @param int $categoryId
+     * @return array
+     */
     public function getCoursesByCategory(int $categoryId): array
     {
         $courses = AppCourseBase::query()
@@ -61,21 +67,12 @@ class CourseService
         // 按付费类型分组
         $grouped = $courses->groupBy('pay_type');
 
-        $payTypeNames = [
-            AppCourseBase::PAY_TYPE_TRIAL => '招生0元课',
-            AppCourseBase::PAY_TYPE_BEGINNER => '进阶课',
-            AppCourseBase::PAY_TYPE_ADVANCED => '高阶课',
-            AppCourseBase::PAY_TYPE_PAID => '付费课',
-        ];
-
         $result = [];
-        foreach ($payTypeNames as $payType => $name) {
+        foreach (AppCourseBase::PAY_TYPE_CONFIG as $payType => $config) {
             if ($grouped->has($payType)) {
-                $result[] = [
-                    'payType' => $payType,
-                    'payTypeName' => $name,
-                    'courses' => $grouped->get($payType)->values(),
-                ];
+                $result[] = array_merge($config, [
+                    'list' => $grouped->get($payType)->values(),
+                ]);
             }
         }
 

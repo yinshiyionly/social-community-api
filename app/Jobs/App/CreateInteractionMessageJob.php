@@ -58,7 +58,7 @@ class CreateInteractionMessageJob implements ShouldQueue
         $this->data = $data;
 
         // 设置队列名称
-        $this->onQueue('app-message');
+        $this->onQueue('user-message');
     }
 
     /**

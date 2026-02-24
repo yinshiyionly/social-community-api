@@ -16,8 +16,17 @@ class CourseService
      *
      * @return Collection
      */
-    public function getCategories(): Collection
+    public function getCategories($limit = 0): Collection
     {
+        if (!empty($limit)) {
+            return AppCourseCategory::query()
+                ->select(['category_id', 'category_name', 'icon'])
+                ->enabled()
+                ->topLevel()
+                ->orderByDesc('sort_order')
+                ->limit($limit)
+                ->get();
+        }
         return AppCourseCategory::query()
             ->select(['category_id', 'category_name', 'icon'])
             ->enabled()

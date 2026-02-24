@@ -66,10 +66,11 @@ class CourseController extends Controller
     /**
      * 获取课程分类列表
      */
-    public function categories()
+    public function categories(Request $request)
     {
         try {
-            $categories = $this->courseService->getCategories();
+            $limit = $request->get('limit', 0);
+            $categories = $this->courseService->getCategories($limit);
 
             return AppApiResponse::collection($categories, CourseCategoryResource::class);
         } catch (\Exception $e) {

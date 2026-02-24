@@ -282,27 +282,43 @@ class MemberController extends Controller
      * @param Request $request
      * @return JsonResponse
      */
-    public function info(Request $request): JsonResponse
-    {
-        $memberId = $this->getMemberId($request);
+    
+        /**
+         * 获取当前登录用户个人信息
+         *
+         * @param Request $request
+         * @return JsonResponse
+         */
+        
+            /**
+             * 获取当前登录用户个人信息
+             *
+             * @param Request $request
+             * @return JsonResponse
+             */
+            public function info(Request $request): JsonResponse
+            {
+                $memberId = $this->getMemberId($request);
 
-        try {
-            $member = $this->memberService->getMemberInfo($memberId);
+                try {
+                    $member = $this->memberService->getMemberInfo($memberId);
 
-            if (!$member) {
-                return AppApiResponse::dataNotFound('用户不存在');
+                    if (!$member) {
+                        return AppApiResponse::dataNotFound('用户不存在');
+                    }
+
+                    return AppApiResponse::resource($member, MemberInfoResource::class);
+                } catch (\Exception $e) {
+                    Log::error('获取个人信息失败', [
+                        'member_id' => $memberId,
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    return AppApiResponse::serverError();
+                }
             }
 
-            return AppApiResponse::resource($member, MemberInfoResource::class);
-        } catch (\Exception $e) {
-            Log::error('获取个人信息失败', [
-                'member_id' => $memberId,
-                'error' => $e->getMessage(),
-            ]);
 
-            return AppApiResponse::serverError();
-        }
-    }
 
     /**
      * 更新当前登录用户个人信息

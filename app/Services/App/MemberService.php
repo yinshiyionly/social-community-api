@@ -239,6 +239,8 @@ class MemberService
         'fans_count',
         'following_count',
         'like_count',
+        'creation_count',
+        'favorite_count',
     ];
 
     /**

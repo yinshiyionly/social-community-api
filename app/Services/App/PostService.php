@@ -4,6 +4,7 @@ namespace App\Services\App;
 
 use App\Constant\MessageType;
 use App\Jobs\App\FillPostMediaInfoJob;
+use App\Models\App\AppMemberBase;
 use App\Models\App\AppPostBase;
 use App\Models\App\AppPostCollection;
 use App\Models\App\AppPostLike;
@@ -47,6 +48,9 @@ class PostService
             }
 
             DB::commit();
+
+            // 增加用户创作数
+            AppMemberBase::where('member_id', $memberId)->increment('creation_count');
 
             // 派发异步任务填充媒体信息
             FillPostMediaInfoJob::dispatch($post->post_id, (int)$data['post_type']);
@@ -267,6 +271,9 @@ class PostService
             // 增加帖子收藏数
             $post->getOrCreateStat()->incrementCollectionCount();
 
+            // 增加用户收藏数
+            AppMemberBase::where('member_id', $memberId)->increment('favorite_count');
+
             DB::commit();
 
             // 创建收藏消息（异步，不影响主流程）
@@ -335,6 +342,9 @@ class PostService
 
             // 减少帖子收藏数
             $post->getOrCreateStat()->decrementCollectionCount();
+
+            // 减少用户收藏数
+            AppMemberBase::where('member_id', $memberId)->decrement('favorite_count');
 
             DB::commit();
 

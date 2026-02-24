@@ -22,15 +22,23 @@ class MemberInfoResource extends JsonResource
             'phone' => $this->phone ?? '',
             'nickname' => $this->nickname ?? '',
             'avatar' => $this->avatar ?? '',
-            'gender' => $this->gender ?? 0,
-            'birthday' => $this->birthday ? $this->birthday->format('Y-m-d') : null,
-            'bio' => $this->bio ?? '',
-            'level' => $this->level ?? 1,
+            // 'gender' => $this->gender ?? 0,
+            // 'birthday' => $this->birthday ? $this->birthday->format('Y-m-d') : null,
+            // 'bio' => $this->bio ?? '',
+            // 'level' => $this->level ?? 1,
+            // 学分
             'points' => $this->points ?? 0,
-            'coin' => $this->coin ?? 0,
+            // 'coin' => $this->coin ?? 0,
+            // 粉丝数量
             'fansCount' => $this->fans_count ?? 0,
+            // 关注者数量
             'followingCount' => $this->following_count ?? 0,
-            'likeCount' => $this->like_count ?? 0,
+            // 点赞数量
+            // 'likeCount' => $this->like_count ?? 0,
+            // 创作数量
+            'creationCount' => $this->creation_count ?? 0,
+            // 收藏数量
+            'favoriteCount' => $this->favorite_count ?? 0,
         ];
     }
 

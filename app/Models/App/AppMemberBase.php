@@ -39,6 +39,8 @@ class AppMemberBase extends Model
         'invite_code',
         'inviter_id',
         'status',
+        'is_official',
+        'official_label',
     ];
 
     protected $casts = [
@@ -53,6 +55,7 @@ class AppMemberBase extends Model
         'like_count' => 'integer',
         'inviter_id' => 'integer',
         'status' => 'integer',
+        'is_official' => 'integer',
     ];
 
     protected $hidden = [
@@ -67,6 +70,10 @@ class AppMemberBase extends Model
     // 状态常量
     const STATUS_NORMAL = 1;
     const STATUS_DISABLED = 2;
+
+    // 官方账号标识
+    const OFFICIAL_NO = 0;
+    const OFFICIAL_YES = 1;
 
     /**
      * 关联第三方账号
@@ -130,6 +137,22 @@ class AppMemberBase extends Model
     public function isDisabled(): bool
     {
         return $this->status === self::STATUS_DISABLED;
+    }
+
+    /**
+     * 判断是否为官方账号
+     */
+    public function isOfficial(): bool
+    {
+        return $this->is_official === self::OFFICIAL_YES;
+    }
+
+    /**
+     * 查询作用域 - 官方账号
+     */
+    public function scopeOfficial($query)
+    {
+        return $query->where('is_official', self::OFFICIAL_YES);
     }
 
     /**

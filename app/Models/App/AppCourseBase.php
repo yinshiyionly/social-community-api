@@ -296,4 +296,27 @@ class AppCourseBase extends Model
     {
         return $this->getTosUrl($value);
     }
+
+    /**
+     * 获取 banner_images - 将相对路径转为绝对路径
+     *
+     * @param string|null $value
+     * @return array
+     */
+    public function getBannerImagesAttribute($value): array
+    {
+        $images = is_string($value) ? json_decode($value, true) : $value;
+
+        if (empty($images) || !is_array($images)) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($images as $image) {
+            $result[] = $this->getTosUrl($image);
+        }
+
+        return $result;
+    }
+
 }

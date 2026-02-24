@@ -2,6 +2,7 @@
 
 namespace App\Models\App;
 
+use App\Models\Traits\HasTosUrl;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class AppMessageInteraction extends Model
 {
-    use HasFactory;
+    use HasFactory, HasTosUrl;
 
     protected $table = 'app_message_interaction';
 
@@ -194,5 +195,15 @@ class AppMessageInteraction extends Model
         }
 
         return $query->update(['is_read' => self::READ_YES]);
+    }
+
+    public function getCoverUrlAttribute($value): ?string
+    {
+        return $this->getTosUrl($value);
+    }
+
+    public function setCoverUrlAttribute($value): void
+    {
+        $this->attributes['cover_url'] = $this->extractTosPath($value);
     }
 }

@@ -287,4 +287,42 @@ class CourseService
             ->limit($limit)
             ->get();
     }
+
+    /**
+     * 获取大咖直播列表
+     *
+     * @param int $limit
+     * @return Collection
+     */
+    public function getLiveCourses(int $limit = 10): Collection
+    {
+        return AppCourseBase::query()
+            ->select([
+                'course_id',
+                'course_title',
+                'cover_image',
+                'view_count',
+            ])
+            ->with(['chapters' => function ($query) {
+                $query->select(['chapter_id', 'course_id'])
+                    ->online()
+                    ->orderBy('chapter_no')
+                    ->with(['liveContent' => function ($q) {
+                        $q->select([
+                            'id',
+                            'chapter_id',
+                            'live_start_time',
+                            'playback_url',
+                            'has_playback',
+                        ]);
+                    }]);
+            }])
+            ->online()
+            ->where('play_type', AppCourseBase::PLAY_TYPE_LIVE)
+            ->orderByDesc('sort_order')
+            ->orderByDesc('publish_time')
+            ->limit($limit)
+            ->get();
+    }
+
 }

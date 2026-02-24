@@ -8,6 +8,7 @@ use App\Http\Resources\App\AppApiResponse;
 use App\Http\Resources\App\CourseCategoryResource;
 use App\Http\Resources\App\CourseDetailResource;
 use App\Http\Resources\App\CourseListResource;
+use App\Http\Resources\App\LiveCourseListResource;
 use App\Http\Resources\App\NewCourseListResource;
 use App\Services\App\CourseService;
 use Illuminate\Http\Request;
@@ -207,4 +208,25 @@ class CourseController extends Controller
             return AppApiResponse::serverError();
         }
     }
+
+    /**
+     * 获取大咖直播列表
+     */
+    public function liveCourses(Request $request)
+    {
+        $limit = $request->input('limit', 10);
+
+        try {
+            $courses = $this->courseService->getLiveCourses($limit);
+
+            return AppApiResponse::collection($courses, LiveCourseListResource::class);
+        } catch (\Exception $e) {
+            Log::error('获取大咖直播列表失败', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
 }

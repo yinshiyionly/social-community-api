@@ -27,6 +27,9 @@ Route::prefix('v1/course')->group(function () {
     // 名师好课列表
     Route::get('/recommend', [CourseController::class, 'recommendCourses']);
 
+    // 大咖直播列表
+    Route::get('/live', [CourseController::class, 'liveCourses']);
+
     // 免费领取课程（需登录）
     Route::post('/claim', [CourseController::class, 'claim'])->middleware('app.jwt');
 

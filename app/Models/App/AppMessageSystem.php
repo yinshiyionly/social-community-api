@@ -17,6 +17,7 @@ class AppMessageSystem extends Model
     protected $primaryKey = 'message_id';
 
     protected $fillable = [
+        'sender_id',
         'receiver_id',
         'title',
         'content',
@@ -28,6 +29,7 @@ class AppMessageSystem extends Model
 
     protected $casts = [
         'message_id' => 'integer',
+        'sender_id' => 'integer',
         'receiver_id' => 'integer',
         'link_type' => 'integer',
         'is_read' => 'integer',
@@ -46,6 +48,14 @@ class AppMessageSystem extends Model
     const READ_YES = 1;  // 已读
 
     // ==================== 关联关系 ====================
+
+    /**
+     * 关联发送者（官方账号）
+     */
+    public function sender()
+    {
+        return $this->belongsTo(AppMemberBase::class, 'sender_id', 'member_id');
+    }
 
     /**
      * 关联接收者
@@ -93,6 +103,18 @@ class AppMessageSystem extends Model
     public function scopeBroadcast($query)
     {
         return $query->whereNull('receiver_id');
+    }
+
+    /**
+     * 按发送者筛选
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int $senderId
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeBySender($query, int $senderId)
+    {
+        return $query->where('sender_id', $senderId);
     }
 
     /**

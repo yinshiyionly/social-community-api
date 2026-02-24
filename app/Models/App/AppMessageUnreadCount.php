@@ -123,11 +123,17 @@ class AppMessageUnreadCount extends Model
      *
      * @param int $memberId
      * @param int $count
+     * @param int|null $senderId 发送者会员ID（官方账号）
      * @return void
      */
-    public static function incrementSystem(int $memberId, int $count = 1): void
+    public static function incrementSystem(int $memberId, int $count = 1, ?int $senderId = null): void
     {
         self::getOrCreate($memberId)->increment('system_count', $count);
+
+        // 同步按发送者维度的未读数
+        if ($senderId) {
+            AppMessageSystemUnread::incrementUnread($memberId, $senderId, $count);
+        }
     }
 
     /**
@@ -178,11 +184,29 @@ class AppMessageUnreadCount extends Model
      * 清空系统消息未读数
      *
      * @param int $memberId
+     * @param int|null $senderId 指定发送者ID，为空则清空全部
      * @return void
      */
-    public static function clearSystem(int $memberId): void
+    public static function clearSystem(int $memberId, ?int $senderId = null): void
     {
-        self::where('member_id', $memberId)->update(['system_count' => 0]);
+        if ($senderId) {
+            // 清空指定发送者的未读数，同步减少总数
+            $record = AppMessageSystemUnread::where('member_id', $memberId)
+                ->where('sender_id', $senderId)
+                ->first();
+
+            if ($record && $record->unread_count > 0) {
+                $count = $record->unread_count;
+                $record->update(['unread_count' => 0]);
+
+                self::where('member_id', $memberId)
+                    ->where('system_count', '>=', $count)
+                    ->decrement('system_count', $count);
+            }
+        } else {
+            self::where('member_id', $memberId)->update(['system_count' => 0]);
+            AppMessageSystemUnread::clearAll($memberId);
+        }
     }
 
     /**

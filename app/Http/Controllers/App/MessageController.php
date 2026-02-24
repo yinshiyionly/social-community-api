@@ -66,6 +66,31 @@ class MessageController extends Controller
     }
 
     /**
+     * 获取消息总列表（各分类概览）
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function overview(Request $request): JsonResponse
+    {
+        $memberId = $this->getMemberId($request);
+
+        try {
+            $data = $this->messageService->getMessageOverview($memberId);
+
+            return AppApiResponse::success(['data' => $data]);
+        } catch (\Exception $e) {
+            Log::error('获取消息总列表失败', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+
+    /**
      * 获取赞和收藏消息列表
      *
      * @param Request $request

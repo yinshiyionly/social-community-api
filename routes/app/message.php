@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('v1/message')->middleware('app.auth')->group(function () {
+    // 获取消息总列表（各分类概览）
+    Route::get('/overview', [MessageController::class, 'overview']);
+
     // 获取消息未读数统计
     Route::get('/unreadCount', [MessageController::class, 'unreadCount']);
 

@@ -43,6 +43,128 @@ class MessageService
     }
 
     /**
+     * 获取消息总列表（各分类最新一条 + 未读数）
+     *
+     * @param int $memberId
+     * @return array
+     */
+    public function getMessageOverview(int $memberId): array
+    {
+        $unreadCount = AppMessageUnreadCount::getOrCreate($memberId);
+
+        // 获取各分类最新一条消息
+        $latestLikeCollect = AppMessageInteraction::byReceiver($memberId)
+            ->likeAndCollect()
+            ->with('sender:member_id,nickname,avatar')
+            ->orderBy('message_id', 'desc')
+            ->first();
+
+        $latestComment = AppMessageInteraction::byReceiver($memberId)
+            ->byType(MessageType::COMMENT)
+            ->with('sender:member_id,nickname,avatar')
+            ->orderBy('message_id', 'desc')
+            ->first();
+
+        $latestFollow = AppMessageInteraction::byReceiver($memberId)
+            ->byType(MessageType::FOLLOW)
+            ->with('sender:member_id,nickname,avatar')
+            ->orderBy('message_id', 'desc')
+            ->first();
+
+        $latestSystem = AppMessageSystem::forReceiver($memberId)
+            ->orderBy('message_id', 'desc')
+            ->first();
+
+        $categories = [];
+
+        // 赞和收藏
+        $categories[] = [
+            'type' => 'likeAndCollect',
+            'title' => '赞和收藏',
+            'unreadCount' => $unreadCount->getLikeAndCollectCount(),
+            'latestMessage' => $latestLikeCollect ? $this->formatInteractionSummary($latestLikeCollect) : null,
+        ];
+
+        // 评论
+        $categories[] = [
+            'type' => 'comment',
+            'title' => '评论我的',
+            'unreadCount' => $unreadCount->comment_count,
+            'latestMessage' => $latestComment ? $this->formatInteractionSummary($latestComment) : null,
+        ];
+
+        // 关注
+        $categories[] = [
+            'type' => 'follow',
+            'title' => '关注我的',
+            'unreadCount' => $unreadCount->follow_count,
+            'latestMessage' => $latestFollow ? $this->formatFollowSummary($latestFollow) : null,
+        ];
+
+        // 系统消息
+        $categories[] = [
+            'type' => 'system',
+            'title' => '系统消息',
+            'unreadCount' => $unreadCount->system_count,
+            'latestMessage' => $latestSystem ? $this->formatSystemSummary($latestSystem) : null,
+        ];
+
+        return $categories;
+    }
+
+    /**
+     * 格式化互动消息摘要
+     *
+     * @param AppMessageInteraction $message
+     * @return array
+     */
+    protected function formatInteractionSummary(AppMessageInteraction $message): array
+    {
+        $sender = $message->sender;
+
+        return [
+            'content' => $sender ? ($sender->nickname . MessageType::getTypeName($message->message_type) . '了您') : '',
+            'time' => $message->created_at ? $message->created_at->format('Y-m-d H:i:s') : null,
+        ];
+    }
+
+    /**
+     * 格式化关注消息摘要
+     *
+     * @param AppMessageInteraction $message
+     * @return array
+     */
+    protected function formatFollowSummary(AppMessageInteraction $message): array
+    {
+        $sender = $message->sender;
+
+        return [
+            'content' => $sender ? ($sender->nickname . '关注了您') : '',
+            'time' => $message->created_at ? $message->created_at->format('Y-m-d H:i:s') : null,
+        ];
+    }
+
+    /**
+     * 格式化系统消息摘要
+     *
+     * @param AppMessageSystem $message
+     * @return array
+     */
+    protected function formatSystemSummary(AppMessageSystem $message): array
+    {
+        $content = strip_tags($message->content);
+        if (mb_strlen($content) > 50) {
+            $content = mb_substr($content, 0, 50) . '...';
+        }
+
+        return [
+            'content' => $message->title . '：' . $content,
+            'time' => $message->created_at ? $message->created_at->format('Y-m-d H:i:s') : null,
+        ];
+    }
+
+
+    /**
      * 获取赞和收藏消息列表（游标分页）
      *
      * @param int $memberId

@@ -28,6 +28,10 @@ Route::prefix('v1/message')->middleware('app.auth')->group(function () {
     // 获取系统消息列表
     Route::get('/system', [MessageController::class, 'system']);
 
+    // 获取指定官方账号的消息列表（会话详情）
+    Route::get('/system/sender/{senderId}', [MessageController::class, 'systemBySender'])
+        ->where('senderId', '[0-9]+');
+
     // 获取系统消息详情
     Route::get('/system/{id}', [MessageController::class, 'systemDetail'])
         ->where('id', '[0-9]+');

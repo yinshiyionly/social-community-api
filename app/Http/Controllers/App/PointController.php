@@ -7,6 +7,7 @@ use App\Http\Resources\App\AppApiResponse;
 use App\Http\Resources\App\PointLogListResource;
 use App\Models\App\AppMemberPoint;
 use App\Models\App\AppMemberPointLog;
+use App\Services\App\TaskService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -68,6 +69,31 @@ class PointController extends Controller
             return AppApiResponse::paginate($paginator, PointLogListResource::class);
         } catch (\Exception $e) {
             Log::error('获取积分明细失败', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 新人任务列表（成长任务）
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function growthTasks(Request $request): JsonResponse
+    {
+        $memberId = $request->attributes->get('member_id');
+
+        try {
+            $taskService = new TaskService();
+            $list = $taskService->getGrowthTaskList($memberId);
+
+            return AppApiResponse::success(['data' => $list]);
+        } catch (\Exception $e) {
+            Log::error('获取新人任务列表失败', [
                 'member_id' => $memberId,
                 'error' => $e->getMessage(),
             ]);

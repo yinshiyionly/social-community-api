@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\App;
 
+use Carbon\Carbon;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
@@ -43,15 +44,47 @@ class MessageFollowResource extends JsonResource
         }
 
         return [
-            'messageId' => $this->message_id,
-            'sender' => $sender ? [
-                'memberId' => $sender->member_id,
-                'nickname' => $sender->nickname,
-                'avatar' => $sender->avatar,
-                'isFollowed' => $isFollowed,
-            ] : null,
-            'isRead' => $this->is_read,
-            'createdAt' => $this->created_at ? $this->created_at->format('Y-m-d H:i:s') : null,
+            'id' => $this->sender_id,
+            'nickname' => $sender ? $sender->nickname : '',
+            'avatar' => $sender ? $sender->avatar : '',
+            'title' => '关注了我',
+            'content' => '',
+            'time' => $this->created_at ? $this->formatRelativeTime($this->created_at) : '',
+            'actionText' => $isFollowed ? '已关注' : '关注',
+            'read' => $this->is_read === 1,
         ];
+    }
+
+    /**
+     * 格式化相对时间
+     *
+     * @param Carbon $time
+     * @return string
+     */
+    protected function formatRelativeTime(Carbon $time): string
+    {
+        $now = Carbon::now();
+        $diffInSeconds = $now->diffInSeconds($time);
+
+        if ($diffInSeconds < 60) {
+            return '刚刚';
+        }
+
+        $diffInMinutes = $now->diffInMinutes($time);
+        if ($diffInMinutes < 60) {
+            return $diffInMinutes . '分钟前';
+        }
+
+        $diffInHours = $now->diffInHours($time);
+        if ($diffInHours < 24) {
+            return $diffInHours . '小时前';
+        }
+
+        $diffInDays = $now->diffInDays($time);
+        if ($diffInDays < 30) {
+            return $diffInDays . '天前';
+        }
+
+        return $time->format('Y-m-d');
     }
 }

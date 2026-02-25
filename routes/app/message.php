@@ -25,7 +25,8 @@ Route::prefix('v1/message')->middleware('app.auth')->group(function () {
     Route::get('/commentMe', [MessageController::class, 'comment']);
 
     // 获取关注消息列表
-    Route::get('/follow', [MessageController::class, 'follow']);
+    // Route::get('/follow', [MessageController::class, 'follow']);
+    Route::get('/followMe', [MessageController::class, 'follow']);
 
     // 获取系统消息列表
     Route::get('/system', [MessageController::class, 'system']);

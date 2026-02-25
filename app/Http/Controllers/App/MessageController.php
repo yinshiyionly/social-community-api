@@ -137,12 +137,6 @@ class MessageController extends Controller
      * @param Request $request
      * @return JsonResponse
      */
-    /**
-     * 获取评论消息列表
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
     public function comment(Request $request): JsonResponse
     {
         $memberId = $this->getMemberId($request);
@@ -178,21 +172,36 @@ class MessageController extends Controller
      * @param Request $request
      * @return JsonResponse
      */
+    /**
+     * 获取关注消息列表
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
     public function follow(Request $request): JsonResponse
     {
         $memberId = $this->getMemberId($request);
-        $pageNum = (int) $request->input('pageNum', 1);
-        $pageSize = (int) $request->input('pageSize', 20);
+        $page = (int) $request->input('page', 1);
+        $pageSize = (int) $request->input('pageSize', 10);
 
         try {
-            $messages = $this->messageService->getFollowMessages($memberId, $pageNum, $pageSize);
+            $messages = $this->messageService->getFollowMessages($memberId, $page, $pageSize);
 
             // 获取发送者ID列表，检查当前用户是否已关注这些用户
             $senderIds = collect($messages->items())->pluck('sender_id')->unique()->toArray();
             $followedIds = $this->messageService->getFollowedMemberIds($memberId, $senderIds);
             MessageFollowResource::setFollowedMemberIds($followedIds);
 
-            return AppApiResponse::paginate($messages, MessageFollowResource::class);
+            $items = MessageFollowResource::collection(collect($messages->items()))->resolve();
+
+            return AppApiResponse::success([
+                'data' => [
+                    'list' => $items,
+                    'total' => $messages->total(),
+                    'page' => $messages->currentPage(),
+                    'pageSize' => $messages->perPage(),
+                ],
+            ]);
         } catch (\Exception $e) {
             Log::error('获取关注消息列表失败', [
                 'member_id' => $memberId,

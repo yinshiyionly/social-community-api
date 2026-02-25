@@ -4,14 +4,29 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * 用户任务完成记录表
+ *
+ * @property int $record_id
+ * @property int $member_id
+ * @property int $task_id
+ * @property string $task_code
+ * @property int $task_type
+ * @property int $point_value
+ * @property string $complete_date
+ * @property int $complete_count
+ * @property string|null $biz_id
+ * @property \Carbon\Carbon|null $created_at
+ * @property \Carbon\Carbon|null $updated_at
+ */
 class AppMemberTaskRecord extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_member_task_record';
     protected $primaryKey = 'record_id';
-    public $timestamps = false;
 
     protected $fillable = [
         'member_id',
@@ -22,7 +37,6 @@ class AppMemberTaskRecord extends Model
         'complete_date',
         'complete_count',
         'biz_id',
-        'create_time',
     ];
 
     protected $casts = [
@@ -33,13 +47,10 @@ class AppMemberTaskRecord extends Model
         'point_value' => 'integer',
         'complete_count' => 'integer',
         'complete_date' => 'date',
-        'create_time' => 'datetime',
     ];
 
     /**
      * 关联用户
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function member()
     {
@@ -48,8 +59,6 @@ class AppMemberTaskRecord extends Model
 
     /**
      * 关联任务
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function task()
     {
@@ -58,10 +67,6 @@ class AppMemberTaskRecord extends Model
 
     /**
      * 查询作用域：按用户筛选
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $memberId
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeByMember($query, int $memberId)
     {
@@ -70,10 +75,6 @@ class AppMemberTaskRecord extends Model
 
     /**
      * 查询作用域：按任务编码筛选
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $taskCode
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeByTaskCode($query, string $taskCode)
     {
@@ -82,10 +83,6 @@ class AppMemberTaskRecord extends Model
 
     /**
      * 查询作用域：按日期筛选
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $date
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeByDate($query, string $date)
     {
@@ -94,9 +91,6 @@ class AppMemberTaskRecord extends Model
 
     /**
      * 查询作用域：今日记录
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeToday($query)
     {
@@ -105,10 +99,6 @@ class AppMemberTaskRecord extends Model
 
     /**
      * 获取用户今日某任务完成次数
-     *
-     * @param int $memberId
-     * @param string $taskCode
-     * @return int
      */
     public static function getTodayCount(int $memberId, string $taskCode): int
     {
@@ -120,10 +110,6 @@ class AppMemberTaskRecord extends Model
 
     /**
      * 获取用户某任务总完成次数
-     *
-     * @param int $memberId
-     * @param string $taskCode
-     * @return int
      */
     public static function getTotalCount(int $memberId, string $taskCode): int
     {
@@ -134,11 +120,6 @@ class AppMemberTaskRecord extends Model
 
     /**
      * 检查用户今日某任务是否已完成指定业务
-     *
-     * @param int $memberId
-     * @param string $taskCode
-     * @param string $bizId
-     * @return bool
      */
     public static function hasCompletedBiz(int $memberId, string $taskCode, string $bizId): bool
     {

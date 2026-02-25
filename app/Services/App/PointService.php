@@ -149,7 +149,6 @@ class PointService
                 'complete_date' => date('Y-m-d'),
                 'complete_count' => $todayCount + 1,
                 'biz_id' => $bizId,
-                'create_time' => now(),
             ]);
 
             // 创建积分日志
@@ -228,7 +227,6 @@ class PointService
                 'complete_date' => date('Y-m-d'),
                 'complete_count' => 1,
                 'biz_id' => $bizId,
-                'create_time' => now(),
             ]);
 
             // 创建积分日志

@@ -1,8 +1,6 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 
 class CreateAppMemberTaskRecordTable extends Migration
@@ -14,25 +12,46 @@ class CreateAppMemberTaskRecordTable extends Migration
      */
     public function up()
     {
-        Schema::create('app_member_task_record', function (Blueprint $table) {
-            $table->bigIncrements('record_id')->comment('记录ID');
-            $table->bigInteger('member_id')->comment('用户ID');
-            $table->integer('task_id')->comment('任务ID');
-            $table->string('task_code', 50)->comment('任务编码');
-            $table->smallInteger('task_type')->comment('任务类型');
-            $table->integer('point_value')->comment('获得积分');
-            $table->date('complete_date')->comment('完成日期');
-            $table->integer('complete_count')->default(1)->comment('当日完成次数');
-            $table->string('biz_id', 64)->nullable()->comment('业务ID');
-            $table->timestamp('create_time')->nullable()->default(DB::raw('CURRENT_TIMESTAMP'));
+        DB::statement("
+            CREATE TABLE app_member_task_record (
+                record_id int8 NOT NULL GENERATED ALWAYS AS IDENTITY (INCREMENT 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1),
+                member_id int8 NOT NULL,
+                task_id int4 NOT NULL,
+                task_code varchar(50) NOT NULL DEFAULT '',
+                task_type int2 NOT NULL,
+                point_value int4 NOT NULL DEFAULT 0,
+                complete_date date NOT NULL,
+                complete_count int4 NOT NULL DEFAULT 1,
+                biz_id varchar(64) NULL,
+                created_at timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                deleted_at timestamp(0) NULL,
+                PRIMARY KEY (record_id)
+            )
+        ");
 
-            $table->unique(['member_id', 'task_code', 'complete_date', 'biz_id'], 'uk_member_task_date_biz');
-            $table->index('member_id', 'idx_task_record_member_id');
-            $table->index('task_code', 'idx_task_record_task_code');
-            $table->index('complete_date', 'idx_task_record_complete_date');
-            $table->index(['member_id', 'task_code', 'complete_date'], 'idx_task_record_member_task_date');
-        });
+        // 列注释
+        DB::statement("COMMENT ON COLUMN app_member_task_record.record_id IS '记录ID'");
+        DB::statement("COMMENT ON COLUMN app_member_task_record.member_id IS '用户ID'");
+        DB::statement("COMMENT ON COLUMN app_member_task_record.task_id IS '任务ID'");
+        DB::statement("COMMENT ON COLUMN app_member_task_record.task_code IS '任务编码'");
+        DB::statement("COMMENT ON COLUMN app_member_task_record.task_type IS '任务类型'");
+        DB::statement("COMMENT ON COLUMN app_member_task_record.point_value IS '获得积分'");
+        DB::statement("COMMENT ON COLUMN app_member_task_record.complete_date IS '完成日期'");
+        DB::statement("COMMENT ON COLUMN app_member_task_record.complete_count IS '当日完成次数'");
+        DB::statement("COMMENT ON COLUMN app_member_task_record.biz_id IS '业务ID'");
+        DB::statement("COMMENT ON COLUMN app_member_task_record.created_at IS '创建时间'");
+        DB::statement("COMMENT ON COLUMN app_member_task_record.updated_at IS '更新时间'");
+        DB::statement("COMMENT ON COLUMN app_member_task_record.deleted_at IS '删除时间'");
 
+        // 索引
+        DB::statement('CREATE UNIQUE INDEX uk_app_member_task_record_member_task_date_biz ON app_member_task_record (member_id, task_code, complete_date, biz_id)');
+        DB::statement('CREATE INDEX idx_app_member_task_record_member_id ON app_member_task_record (member_id)');
+        DB::statement('CREATE INDEX idx_app_member_task_record_task_code ON app_member_task_record (task_code)');
+        DB::statement('CREATE INDEX idx_app_member_task_record_complete_date ON app_member_task_record (complete_date)');
+        DB::statement('CREATE INDEX idx_app_member_task_record_member_task_date ON app_member_task_record (member_id, task_code, complete_date)');
+
+        // 表注释
         DB::statement("COMMENT ON TABLE app_member_task_record IS '用户任务完成记录表'");
     }
 
@@ -43,6 +62,6 @@ class CreateAppMemberTaskRecordTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('app_member_task_record');
+        DB::statement('DROP TABLE IF EXISTS app_member_task_record');
     }
 }

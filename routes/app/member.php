@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\App\MemberAuthController;
 use App\Http\Controllers\App\MemberController;
+use App\Http\Controllers\App\PointController;
 
 /*
 |--------------------------------------------------------------------------
@@ -42,6 +43,10 @@ Route::prefix('v1/member')->group(function () {
         Route::put('avatar', [MemberController::class, 'updateAvatar']);
         // 修改昵称
         Route::put('nickname', [MemberController::class, 'updateNickname']);
+        // 积分总览
+        Route::get('point/overview', [PointController::class, 'overview']);
+        // 积分明细列表
+        Route::get('point/logs', [PointController::class, 'logs']);
     });
 
     // 用户主页详情（可选鉴权）

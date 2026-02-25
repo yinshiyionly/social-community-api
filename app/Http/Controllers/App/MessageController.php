@@ -100,18 +100,27 @@ class MessageController extends Controller
     public function likeAndCollect(Request $request): JsonResponse
     {
         $memberId = $this->getMemberId($request);
-        $pageNum = (int) $request->input('pageNum', 1);
-        $pageSize = (int) $request->input('pageSize', 20);
+        $page = (int) $request->input('page', 1);
+        $pageSize = (int) $request->input('pageSize', 10);
 
         try {
-            $messages = $this->messageService->getLikeAndCollectMessages($memberId, $pageNum, $pageSize);
+            $messages = $this->messageService->getLikeAndCollectMessages($memberId, $page, $pageSize);
 
             // 首页时标记赞和收藏消息为已读
-            if ($pageNum <= 1) {
+            if ($page <= 1) {
                 $this->messageService->markAsRead($memberId, 'likeAndCollect');
             }
 
-            return AppApiResponse::paginate($messages, MessageLikeCollectResource::class);
+            $items = MessageLikeCollectResource::collection(collect($messages->items()))->resolve();
+
+            return AppApiResponse::success([
+                'data' => [
+                    'list' => $items,
+                    'total' => $messages->total(),
+                    'page' => $messages->currentPage(),
+                    'pageSize' => $messages->perPage(),
+                ],
+            ]);
         } catch (\Exception $e) {
             Log::error('获取赞和收藏消息列表失败', [
                 'member_id' => $memberId,

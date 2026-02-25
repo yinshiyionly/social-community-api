@@ -17,7 +17,8 @@ Route::prefix('v1/message')->middleware('app.auth')->group(function () {
     Route::get('/unreadCount', [MessageController::class, 'unreadCount']);
 
     // 获取赞和收藏消息列表
-    Route::get('/likeAndCollect', [MessageController::class, 'likeAndCollect']);
+    // Route::get('/likeAndCollect', [MessageController::class, 'likeAndCollect']);
+    Route::get('/likeMe', [MessageController::class, 'likeAndCollect']);
 
     // 获取评论消息列表
     Route::get('/comment', [MessageController::class, 'comment']);

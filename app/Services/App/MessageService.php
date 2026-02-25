@@ -49,14 +49,14 @@ class MessageService
      * @param int $memberId
      * @return array
      */
-    
+
         /**
          * 获取消息总列表（互动分类 + 官方账号会话列表）
          *
          * @param int $memberId
          * @return array
          */
-        
+
             /**
              * 获取消息总列表（互动分类 + 官方账号统一列表，按最新消息时间倒序）
              *
@@ -149,7 +149,7 @@ class MessageService
          * @param int $memberId
          * @return array
          */
-        
+
             /**
              * 获取官方账号会话列表项（统一格式）
              *
@@ -272,7 +272,7 @@ class MessageService
 
 
     /**
-     * 获取赞和收藏消息列表（游标分页）
+     * 获取赞和收藏消息列表
      *
      * @param int $memberId
      * @param string|null $cursor
@@ -283,14 +283,14 @@ class MessageService
     {
         $query = AppMessageInteraction::byReceiver($memberId)
             ->likeAndCollect()
-            ->with('sender')
+            ->with(['sender', 'post'])
             ->orderBy('message_id', 'desc');
 
         return $query->paginate($pageSize, ['*'], 'page', $pageNum);
     }
 
     /**
-     * 获取评论消息列表（游标分页）
+     * 获取评论消息列表
      *
      * @param int $memberId
      * @param string|null $cursor
@@ -308,7 +308,7 @@ class MessageService
     }
 
     /**
-     * 获取关注消息列表（游标分页）
+     * 获取关注消息列表
      *
      * @param int $memberId
      * @param string|null $cursor
@@ -345,7 +345,7 @@ class MessageService
     }
 
     /**
-     * 获取系统消息列表（游标分页）
+     * 获取系统消息列表
      *
      * @param int $memberId
      * @param string|null $cursor
@@ -361,7 +361,7 @@ class MessageService
     }
 
     /**
-     * 获取指定官方账号的消息列表（游标分页）
+     * 获取指定官方账号的消息列表
      *
      * @param int $memberId
      * @param int $senderId 官方账号的会员ID

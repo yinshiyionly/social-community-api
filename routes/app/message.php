@@ -38,5 +38,8 @@ Route::prefix('v1/message')->middleware('app.auth')->group(function () {
 
     // 标记消息为已读
     Route::post('/markRead', [MessageController::class, 'markRead']);
+
+    // 全部已读
+    Route::post('/markAllRead', [MessageController::class, 'markAllRead']);
 });
 

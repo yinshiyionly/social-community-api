@@ -92,6 +92,7 @@ class MessageController extends Controller
 
     /**
      * 获取赞和收藏消息列表
+     * 进入列表时自动标记赞和收藏消息为已读
      *
      * @param Request $request
      * @return JsonResponse
@@ -104,6 +105,11 @@ class MessageController extends Controller
 
         try {
             $messages = $this->messageService->getLikeAndCollectMessages($memberId, $cursor, $pageSize);
+
+            // 首次进入列表（无 cursor）时，标记赞和收藏消息为已读
+            if (!$cursor) {
+                $this->messageService->markAsRead($memberId, 'likeAndCollect');
+            }
 
             return AppApiResponse::cursorPaginate($messages, MessageLikeCollectResource::class);
         } catch (\Exception $e) {
@@ -175,6 +181,7 @@ class MessageController extends Controller
 
     /**
      * 获取系统消息列表
+     * 进入列表时自动标记系统消息为已读
      *
      * @param Request $request
      * @return JsonResponse
@@ -187,6 +194,11 @@ class MessageController extends Controller
 
         try {
             $messages = $this->messageService->getSystemMessages($memberId, $cursor, $pageSize);
+
+            // 首次进入列表（无 cursor）时，标记系统消息为已读
+            if (!$cursor) {
+                $this->messageService->markAsRead($memberId, 'system');
+            }
 
             return AppApiResponse::cursorPaginate($messages, MessageSystemResource::class);
         } catch (\Exception $e) {
@@ -280,6 +292,30 @@ class MessageController extends Controller
             Log::error('标记消息已读失败', [
                 'member_id' => $memberId,
                 'type' => $type,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 全部已读
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function markAllRead(Request $request): JsonResponse
+    {
+        $memberId = $this->getMemberId($request);
+
+        try {
+            $this->messageService->markAsRead($memberId, 'all');
+
+            return AppApiResponse::success();
+        } catch (\Exception $e) {
+            Log::error('全部已读失败', [
+                'member_id' => $memberId,
                 'error' => $e->getMessage(),
             ]);
 

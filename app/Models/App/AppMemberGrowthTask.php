@@ -4,14 +4,27 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * 用户成长任务状态表
+ *
+ * @property int $id
+ * @property int $member_id
+ * @property int $task_id
+ * @property string $task_code
+ * @property int $is_completed
+ * @property \Carbon\Carbon|null $complete_time
+ * @property int $point_value
+ * @property \Carbon\Carbon|null $created_at
+ * @property \Carbon\Carbon|null $updated_at
+ */
 class AppMemberGrowthTask extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_member_growth_task';
     protected $primaryKey = 'id';
-    public $timestamps = false;
 
     // 完成状态
     const NOT_COMPLETED = 0;
@@ -24,8 +37,6 @@ class AppMemberGrowthTask extends Model
         'is_completed',
         'complete_time',
         'point_value',
-        'create_time',
-        'update_time',
     ];
 
     protected $casts = [
@@ -35,14 +46,10 @@ class AppMemberGrowthTask extends Model
         'is_completed' => 'integer',
         'point_value' => 'integer',
         'complete_time' => 'datetime',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
     ];
 
     /**
      * 关联用户
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function member()
     {
@@ -51,8 +58,6 @@ class AppMemberGrowthTask extends Model
 
     /**
      * 关联任务
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function task()
     {
@@ -61,10 +66,6 @@ class AppMemberGrowthTask extends Model
 
     /**
      * 查询作用域：按用户筛选
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $memberId
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeByMember($query, int $memberId)
     {
@@ -73,10 +74,6 @@ class AppMemberGrowthTask extends Model
 
     /**
      * 查询作用域：按任务编码筛选
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $taskCode
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeByTaskCode($query, string $taskCode)
     {
@@ -85,9 +82,6 @@ class AppMemberGrowthTask extends Model
 
     /**
      * 查询作用域：已完成
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeCompleted($query)
     {
@@ -96,9 +90,6 @@ class AppMemberGrowthTask extends Model
 
     /**
      * 查询作用域：未完成
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeNotCompleted($query)
     {
@@ -107,10 +98,6 @@ class AppMemberGrowthTask extends Model
 
     /**
      * 检查用户是否已完成某成长任务
-     *
-     * @param int $memberId
-     * @param string $taskCode
-     * @return bool
      */
     public static function isCompleted(int $memberId, string $taskCode): bool
     {
@@ -122,10 +109,6 @@ class AppMemberGrowthTask extends Model
 
     /**
      * 获取或创建用户成长任务状态
-     *
-     * @param int $memberId
-     * @param AppPointTask $task
-     * @return self
      */
     public static function getOrCreate(int $memberId, AppPointTask $task): self
     {
@@ -140,8 +123,6 @@ class AppMemberGrowthTask extends Model
                 'task_code' => $task->task_code,
                 'is_completed' => self::NOT_COMPLETED,
                 'point_value' => 0,
-                'create_time' => now(),
-                'update_time' => now(),
             ]);
         }
 
@@ -150,25 +131,18 @@ class AppMemberGrowthTask extends Model
 
     /**
      * 标记任务完成
-     *
-     * @param int $pointValue 获得积分
-     * @return bool
      */
     public function markCompleted(int $pointValue): bool
     {
         $this->is_completed = self::COMPLETED;
         $this->complete_time = now();
         $this->point_value = $pointValue;
-        $this->update_time = now();
 
         return $this->save();
     }
 
     /**
      * 获取用户所有成长任务状态
-     *
-     * @param int $memberId
-     * @return \Illuminate\Database\Eloquent\Collection
      */
     public static function getMemberGrowthTasks(int $memberId)
     {

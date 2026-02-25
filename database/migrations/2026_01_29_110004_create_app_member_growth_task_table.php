@@ -1,8 +1,6 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 
 class CreateAppMemberGrowthTaskTable extends Migration
@@ -14,21 +12,40 @@ class CreateAppMemberGrowthTaskTable extends Migration
      */
     public function up()
     {
-        Schema::create('app_member_growth_task', function (Blueprint $table) {
-            $table->bigIncrements('id')->comment('ID');
-            $table->bigInteger('member_id')->comment('用户ID');
-            $table->integer('task_id')->comment('任务ID');
-            $table->string('task_code', 50)->comment('任务编码');
-            $table->smallInteger('is_completed')->default(0)->comment('是否完成：0未完成 1已完成');
-            $table->timestamp('complete_time')->nullable()->comment('完成时间');
-            $table->integer('point_value')->default(0)->comment('获得积分');
-            $table->timestamp('create_time')->nullable()->default(DB::raw('CURRENT_TIMESTAMP'));
-            $table->timestamp('update_time')->nullable()->default(DB::raw('CURRENT_TIMESTAMP'));
+        DB::statement("
+            CREATE TABLE app_member_growth_task (
+                id int8 NOT NULL GENERATED ALWAYS AS IDENTITY (INCREMENT 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1),
+                member_id int8 NOT NULL,
+                task_id int4 NOT NULL,
+                task_code varchar(50) NOT NULL DEFAULT '',
+                is_completed int2 NOT NULL DEFAULT 0,
+                complete_time timestamp(0) NULL,
+                point_value int4 NOT NULL DEFAULT 0,
+                created_at timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                deleted_at timestamp(0) NULL,
+                PRIMARY KEY (id)
+            )
+        ");
 
-            $table->unique(['member_id', 'task_code'], 'uk_member_growth_task');
-            $table->index('member_id', 'idx_growth_task_member_id');
-        });
+        // 列注释
+        DB::statement("COMMENT ON COLUMN app_member_growth_task.id IS 'ID'");
+        DB::statement("COMMENT ON COLUMN app_member_growth_task.member_id IS '用户ID'");
+        DB::statement("COMMENT ON COLUMN app_member_growth_task.task_id IS '任务ID'");
+        DB::statement("COMMENT ON COLUMN app_member_growth_task.task_code IS '任务编码'");
+        DB::statement("COMMENT ON COLUMN app_member_growth_task.is_completed IS '是否完成：0未完成 1已完成'");
+        DB::statement("COMMENT ON COLUMN app_member_growth_task.complete_time IS '完成时间'");
+        DB::statement("COMMENT ON COLUMN app_member_growth_task.point_value IS '获得积分'");
+        DB::statement("COMMENT ON COLUMN app_member_growth_task.created_at IS '创建时间'");
+        DB::statement("COMMENT ON COLUMN app_member_growth_task.updated_at IS '更新时间'");
+        DB::statement("COMMENT ON COLUMN app_member_growth_task.deleted_at IS '删除时间'");
 
+        // 索引
+        DB::statement('CREATE UNIQUE INDEX uk_app_member_growth_task_member_task ON app_member_growth_task (member_id, task_code) WHERE deleted_at IS NULL');
+        DB::statement('CREATE INDEX idx_app_member_growth_task_member_id ON app_member_growth_task (member_id)');
+        DB::statement('CREATE INDEX idx_app_member_growth_task_task_code ON app_member_growth_task (task_code)');
+
+        // 表注释
         DB::statement("COMMENT ON TABLE app_member_growth_task IS '用户成长任务状态表'");
     }
 
@@ -39,6 +56,6 @@ class CreateAppMemberGrowthTaskTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('app_member_growth_task');
+        DB::statement('DROP TABLE IF EXISTS app_member_growth_task');
     }
 }

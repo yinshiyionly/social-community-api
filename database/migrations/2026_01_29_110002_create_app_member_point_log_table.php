@@ -30,7 +30,9 @@ class CreateAppMemberPointLogTable extends Migration
                 operator_name varchar(64) NULL,
                 expire_time timestamp(0) NULL,
                 client_ip varchar(50) NULL,
-                create_time timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at timestamp(0) NULL DEFAULT CURRENT_TIMESTAMP,
+                deleted_at timestamp(0) NULL,
                 PRIMARY KEY (log_id)
             )
         ");
@@ -52,15 +54,17 @@ class CreateAppMemberPointLogTable extends Migration
         DB::statement("COMMENT ON COLUMN app_member_point_log.operator_name IS '操作人名称'");
         DB::statement("COMMENT ON COLUMN app_member_point_log.expire_time IS '积分过期时间'");
         DB::statement("COMMENT ON COLUMN app_member_point_log.client_ip IS '客户端IP'");
-        DB::statement("COMMENT ON COLUMN app_member_point_log.create_time IS '创建时间'");
+        DB::statement("COMMENT ON COLUMN app_member_point_log.created_at IS '创建时间'");
+        DB::statement("COMMENT ON COLUMN app_member_point_log.updated_at IS '更新时间'");
+        DB::statement("COMMENT ON COLUMN app_member_point_log.deleted_at IS '删除时间'");
 
         // 索引
         DB::statement('CREATE INDEX idx_app_member_point_log_member_id ON app_member_point_log (member_id)');
         DB::statement('CREATE INDEX idx_app_member_point_log_change_type ON app_member_point_log (change_type)');
         DB::statement('CREATE INDEX idx_app_member_point_log_source_type ON app_member_point_log (source_type)');
         DB::statement('CREATE INDEX idx_app_member_point_log_task_code ON app_member_point_log (task_code)');
-        DB::statement('CREATE INDEX idx_app_member_point_log_create_time ON app_member_point_log (create_time)');
-        DB::statement('CREATE INDEX idx_app_member_point_log_member_time ON app_member_point_log (member_id, create_time)');
+        DB::statement('CREATE INDEX idx_app_member_point_log_created_at ON app_member_point_log (created_at)');
+        DB::statement('CREATE INDEX idx_app_member_point_log_member_time ON app_member_point_log (member_id, created_at)');
 
         // 表注释
         DB::statement("COMMENT ON TABLE app_member_point_log IS '用户积分流水日志表'");

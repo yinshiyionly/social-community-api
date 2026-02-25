@@ -1,8 +1,6 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 
 class CreateAppTopicPostRelationTable extends Migration
@@ -14,20 +12,33 @@ class CreateAppTopicPostRelationTable extends Migration
      */
     public function up()
     {
-        Schema::create('app_topic_post_relation', function (Blueprint $table) {
-            $table->bigIncrements('id');
-            $table->bigInteger('topic_id')->comment('话题ID');
-            $table->bigInteger('post_id')->comment('帖子ID');
-            $table->bigInteger('member_id')->comment('发帖人ID');
-            $table->smallInteger('is_featured')->default(0)->comment('是否精选 0否 1是');
-            $table->timestamp('created_at')->useCurrent();
+        DB::statement("
+            CREATE TABLE app_topic_post_relation (
+                id int8 NOT NULL GENERATED ALWAYS AS IDENTITY (INCREMENT 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1),
+                topic_id int8 NOT NULL,
+                post_id int8 NOT NULL,
+                member_id int8 NOT NULL,
+                is_featured int2 NOT NULL DEFAULT 0,
+                created_at timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id)
+            )
+        ");
 
-            $table->unique(['topic_id', 'post_id'], 'uk_topic_post');
-            $table->index(['topic_id', 'created_at'], 'idx_topic_posts');
-            $table->index('post_id', 'idx_post_topics');
-            $table->index(['topic_id', 'member_id'], 'idx_topic_member');
-        });
+        // 列注释
+        DB::statement("COMMENT ON COLUMN app_topic_post_relation.id IS 'ID'");
+        DB::statement("COMMENT ON COLUMN app_topic_post_relation.topic_id IS '话题ID'");
+        DB::statement("COMMENT ON COLUMN app_topic_post_relation.post_id IS '帖子ID'");
+        DB::statement("COMMENT ON COLUMN app_topic_post_relation.member_id IS '发帖人ID'");
+        DB::statement("COMMENT ON COLUMN app_topic_post_relation.is_featured IS '是否精选 0否 1是'");
+        DB::statement("COMMENT ON COLUMN app_topic_post_relation.created_at IS '创建时间'");
 
+        // 索引
+        DB::statement('CREATE UNIQUE INDEX uk_app_topic_post_relation_topic_post ON app_topic_post_relation (topic_id, post_id)');
+        DB::statement('CREATE INDEX idx_app_topic_post_relation_topic_created ON app_topic_post_relation (topic_id, created_at)');
+        DB::statement('CREATE INDEX idx_app_topic_post_relation_post_id ON app_topic_post_relation (post_id)');
+        DB::statement('CREATE INDEX idx_app_topic_post_relation_topic_member ON app_topic_post_relation (topic_id, member_id)');
+
+        // 表注释
         DB::statement("COMMENT ON TABLE app_topic_post_relation IS '帖子话题关联表'");
     }
 
@@ -38,6 +49,6 @@ class CreateAppTopicPostRelationTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('app_topic_post_relation');
+        DB::statement('DROP TABLE IF EXISTS app_topic_post_relation');
     }
 }

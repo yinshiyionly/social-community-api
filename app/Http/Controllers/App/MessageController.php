@@ -100,18 +100,18 @@ class MessageController extends Controller
     public function likeAndCollect(Request $request): JsonResponse
     {
         $memberId = $this->getMemberId($request);
-        $cursor = $request->input('cursor');
-        $pageSize = $request->input('pageSize', 20);
+        $pageNum = (int) $request->input('pageNum', 1);
+        $pageSize = (int) $request->input('pageSize', 20);
 
         try {
-            $messages = $this->messageService->getLikeAndCollectMessages($memberId, $cursor, $pageSize);
+            $messages = $this->messageService->getLikeAndCollectMessages($memberId, $pageNum, $pageSize);
 
-            // 首次进入列表（无 cursor）时，标记赞和收藏消息为已读
-            if (!$cursor) {
+            // 首页时标记赞和收藏消息为已读
+            if ($pageNum <= 1) {
                 $this->messageService->markAsRead($memberId, 'likeAndCollect');
             }
 
-            return AppApiResponse::cursorPaginate($messages, MessageLikeCollectResource::class);
+            return AppApiResponse::paginate($messages, MessageLikeCollectResource::class);
         } catch (\Exception $e) {
             Log::error('获取赞和收藏消息列表失败', [
                 'member_id' => $memberId,
@@ -131,13 +131,13 @@ class MessageController extends Controller
     public function comment(Request $request): JsonResponse
     {
         $memberId = $this->getMemberId($request);
-        $cursor = $request->input('cursor');
-        $pageSize = $request->input('pageSize', 20);
+        $pageNum = (int) $request->input('pageNum', 1);
+        $pageSize = (int) $request->input('pageSize', 20);
 
         try {
-            $messages = $this->messageService->getCommentMessages($memberId, $cursor, $pageSize);
+            $messages = $this->messageService->getCommentMessages($memberId, $pageNum, $pageSize);
 
-            return AppApiResponse::cursorPaginate($messages, MessageCommentResource::class);
+            return AppApiResponse::paginate($messages, MessageCommentResource::class);
         } catch (\Exception $e) {
             Log::error('获取评论消息列表失败', [
                 'member_id' => $memberId,
@@ -157,18 +157,18 @@ class MessageController extends Controller
     public function follow(Request $request): JsonResponse
     {
         $memberId = $this->getMemberId($request);
-        $cursor = $request->input('cursor');
-        $pageSize = $request->input('pageSize', 20);
+        $pageNum = (int) $request->input('pageNum', 1);
+        $pageSize = (int) $request->input('pageSize', 20);
 
         try {
-            $messages = $this->messageService->getFollowMessages($memberId, $cursor, $pageSize);
+            $messages = $this->messageService->getFollowMessages($memberId, $pageNum, $pageSize);
 
             // 获取发送者ID列表，检查当前用户是否已关注这些用户
-            $senderIds = $messages->pluck('sender_id')->unique()->toArray();
+            $senderIds = collect($messages->items())->pluck('sender_id')->unique()->toArray();
             $followedIds = $this->messageService->getFollowedMemberIds($memberId, $senderIds);
             MessageFollowResource::setFollowedMemberIds($followedIds);
 
-            return AppApiResponse::cursorPaginate($messages, MessageFollowResource::class);
+            return AppApiResponse::paginate($messages, MessageFollowResource::class);
         } catch (\Exception $e) {
             Log::error('获取关注消息列表失败', [
                 'member_id' => $memberId,
@@ -189,18 +189,18 @@ class MessageController extends Controller
     public function system(Request $request): JsonResponse
     {
         $memberId = $this->getMemberId($request);
-        $cursor = $request->input('cursor');
-        $pageSize = $request->input('pageSize', 20);
+        $pageNum = (int) $request->input('pageNum', 1);
+        $pageSize = (int) $request->input('pageSize', 20);
 
         try {
-            $messages = $this->messageService->getSystemMessages($memberId, $cursor, $pageSize);
+            $messages = $this->messageService->getSystemMessages($memberId, $pageNum, $pageSize);
 
-            // 首次进入列表（无 cursor）时，标记系统消息为已读
-            if (!$cursor) {
+            // 首页时标记系统消息为已读
+            if ($pageNum <= 1) {
                 $this->messageService->markAsRead($memberId, 'system');
             }
 
-            return AppApiResponse::cursorPaginate($messages, MessageSystemResource::class);
+            return AppApiResponse::paginate($messages, MessageSystemResource::class);
         } catch (\Exception $e) {
             Log::error('获取系统消息列表失败', [
                 'member_id' => $memberId,
@@ -221,16 +221,16 @@ class MessageController extends Controller
     public function systemBySender(Request $request, int $senderId): JsonResponse
     {
         $memberId = $this->getMemberId($request);
-        $cursor = $request->input('cursor');
-        $pageSize = $request->input('pageSize', 20);
+        $pageNum = (int) $request->input('pageNum', 1);
+        $pageSize = (int) $request->input('pageSize', 20);
 
         try {
             // 进入会话时标记该发送者的消息为已读
             $this->messageService->markSystemReadBySender($memberId, $senderId);
 
-            $messages = $this->messageService->getSystemMessagesBySender($memberId, $senderId, $cursor, $pageSize);
+            $messages = $this->messageService->getSystemMessagesBySender($memberId, $senderId, $pageNum, $pageSize);
 
-            return AppApiResponse::cursorPaginate($messages, MessageSystemResource::class);
+            return AppApiResponse::paginate($messages, MessageSystemResource::class);
         } catch (\Exception $e) {
             Log::error('获取官方账号消息列表失败', [
                 'member_id' => $memberId,

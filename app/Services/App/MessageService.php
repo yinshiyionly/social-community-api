@@ -279,14 +279,14 @@ class MessageService
      * @param int $pageSize
      * @return \Illuminate\Pagination\CursorPaginator
      */
-    public function getLikeAndCollectMessages(int $memberId, ?string $cursor, int $pageSize)
+    public function getLikeAndCollectMessages(int $memberId, int $pageNum, int $pageSize)
     {
         $query = AppMessageInteraction::byReceiver($memberId)
             ->likeAndCollect()
             ->with('sender')
             ->orderBy('message_id', 'desc');
 
-        return $query->cursorPaginate($pageSize, ['*'], 'cursor', $cursor);
+        return $query->paginate($pageSize, ['*'], 'page', $pageNum);
     }
 
     /**
@@ -297,14 +297,14 @@ class MessageService
      * @param int $pageSize
      * @return \Illuminate\Pagination\CursorPaginator
      */
-    public function getCommentMessages(int $memberId, ?string $cursor, int $pageSize)
+    public function getCommentMessages(int $memberId, int $pageNum, int $pageSize)
     {
         $query = AppMessageInteraction::byReceiver($memberId)
             ->byType(MessageType::COMMENT)
             ->with('sender')
             ->orderBy('message_id', 'desc');
 
-        return $query->cursorPaginate($pageSize, ['*'], 'cursor', $cursor);
+        return $query->paginate($pageSize, ['*'], 'page', $pageNum);
     }
 
     /**
@@ -315,14 +315,14 @@ class MessageService
      * @param int $pageSize
      * @return \Illuminate\Pagination\CursorPaginator
      */
-    public function getFollowMessages(int $memberId, ?string $cursor, int $pageSize)
+    public function getFollowMessages(int $memberId, int $pageNum, int $pageSize)
     {
         $query = AppMessageInteraction::byReceiver($memberId)
             ->byType(MessageType::FOLLOW)
             ->with('sender')
             ->orderBy('message_id', 'desc');
 
-        return $query->cursorPaginate($pageSize, ['*'], 'cursor', $cursor);
+        return $query->paginate($pageSize, ['*'], 'page', $pageNum);
     }
 
     /**
@@ -352,12 +352,12 @@ class MessageService
      * @param int $pageSize
      * @return \Illuminate\Pagination\CursorPaginator
      */
-    public function getSystemMessages(int $memberId, ?string $cursor, int $pageSize)
+    public function getSystemMessages(int $memberId, int $pageNum, int $pageSize)
     {
         $query = AppMessageSystem::forReceiver($memberId)
             ->orderBy('message_id', 'desc');
 
-        return $query->cursorPaginate($pageSize, ['*'], 'cursor', $cursor);
+        return $query->paginate($pageSize, ['*'], 'page', $pageNum);
     }
 
     /**
@@ -369,13 +369,13 @@ class MessageService
      * @param int $pageSize
      * @return \Illuminate\Pagination\CursorPaginator
      */
-    public function getSystemMessagesBySender(int $memberId, int $senderId, ?string $cursor, int $pageSize)
+    public function getSystemMessagesBySender(int $memberId, int $senderId, int $pageNum, int $pageSize)
     {
         $query = AppMessageSystem::forReceiver($memberId)
             ->bySender($senderId)
             ->orderBy('message_id', 'desc');
 
-        return $query->cursorPaginate($pageSize, ['*'], 'cursor', $cursor);
+        return $query->paginate($pageSize, ['*'], 'page', $pageNum);
     }
 
     /**

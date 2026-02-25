@@ -8,6 +8,7 @@ use App\Http\Resources\App\AppApiResponse;
 use App\Http\Resources\App\MessageCommentResource;
 use App\Http\Resources\App\MessageFollowResource;
 use App\Http\Resources\App\MessageLikeCollectResource;
+use App\Http\Resources\App\MessageSecretaryResource;
 use App\Http\Resources\App\MessageSystemDetailResource;
 use App\Http\Resources\App\MessageSystemResource;
 use App\Services\App\MessageService;
@@ -268,6 +269,54 @@ class MessageController extends Controller
             Log::error('获取官方账号消息列表失败', [
                 'member_id' => $memberId,
                 'sender_id' => $senderId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 小秘书官方账号ID
+     */
+    const SECRETARY_MEMBER_ID = 1;
+
+    /**
+     * 获取小秘书消息列表
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function secretary(Request $request): JsonResponse
+    {
+        $memberId = $this->getMemberId($request);
+        $page = (int) $request->input('page', 1);
+        $pageSize = (int) $request->input('pageSize', 10);
+
+        try {
+            // 进入会话时标记小秘书消息为已读
+            $this->messageService->markSystemReadBySender($memberId, self::SECRETARY_MEMBER_ID);
+
+            $messages = $this->messageService->getSystemMessagesBySender(
+                $memberId,
+                self::SECRETARY_MEMBER_ID,
+                $page,
+                $pageSize
+            );
+
+            $items = MessageSecretaryResource::collection(collect($messages->items()))->resolve();
+
+            return AppApiResponse::success([
+                'data' => [
+                    'list' => $items,
+                    'total' => $messages->total(),
+                    'page' => $messages->currentPage(),
+                    'pageSize' => $messages->perPage(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('获取小秘书消息列表失败', [
+                'member_id' => $memberId,
                 'error' => $e->getMessage(),
             ]);
 

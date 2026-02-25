@@ -7,7 +7,7 @@ use App\Jobs\App\ProcessPointConsumeJob;
 use App\Models\App\AppMemberGrowthTask;
 use App\Models\App\AppMemberPoint;
 use App\Models\App\AppMemberTaskRecord;
-use App\Models\App\AppPointLog;
+use App\Models\App\AppMemberPointLog;
 use App\Models\App\AppPointTask;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -155,11 +155,11 @@ class PointService
             // 创建积分日志
             $this->createPointLog([
                 'member_id' => $memberId,
-                'change_type' => AppPointLog::CHANGE_TYPE_EARN,
+                'change_type' => AppMemberPointLog::CHANGE_TYPE_EARN,
                 'change_value' => $task->point_value,
                 'before_points' => $beforePoints,
                 'after_points' => $pointAccount->available_points,
-                'source_type' => AppPointLog::SOURCE_TYPE_TASK,
+                'source_type' => AppMemberPointLog::SOURCE_TYPE_TASK,
                 'source_id' => $bizId,
                 'task_code' => $task->task_code,
                 'title' => $task->task_name,
@@ -234,11 +234,11 @@ class PointService
             // 创建积分日志
             $this->createPointLog([
                 'member_id' => $memberId,
-                'change_type' => AppPointLog::CHANGE_TYPE_EARN,
+                'change_type' => AppMemberPointLog::CHANGE_TYPE_EARN,
                 'change_value' => $task->point_value,
                 'before_points' => $beforePoints,
                 'after_points' => $pointAccount->available_points,
-                'source_type' => AppPointLog::SOURCE_TYPE_TASK,
+                'source_type' => AppMemberPointLog::SOURCE_TYPE_TASK,
                 'source_id' => $bizId,
                 'task_code' => $task->task_code,
                 'title' => $task->task_name,
@@ -307,11 +307,11 @@ class PointService
             // 创建积分日志
             $this->createPointLog([
                 'member_id' => $memberId,
-                'change_type' => AppPointLog::CHANGE_TYPE_USE,
+                'change_type' => AppMemberPointLog::CHANGE_TYPE_USE,
                 'change_value' => -$points,
                 'before_points' => $beforePoints,
                 'after_points' => $pointAccount->available_points,
-                'source_type' => AppPointLog::SOURCE_TYPE_CONSUME,
+                'source_type' => AppMemberPointLog::SOURCE_TYPE_CONSUME,
                 'order_no' => $orderNo,
                 'title' => $title,
                 'remark' => $remark,
@@ -410,11 +410,11 @@ class PointService
 
             $this->createPointLog([
                 'member_id' => $memberId,
-                'change_type' => AppPointLog::CHANGE_TYPE_FREEZE,
+                'change_type' => AppMemberPointLog::CHANGE_TYPE_FREEZE,
                 'change_value' => -$points,
                 'before_points' => $beforePoints,
                 'after_points' => $pointAccount->available_points,
-                'source_type' => AppPointLog::SOURCE_TYPE_CONSUME,
+                'source_type' => AppMemberPointLog::SOURCE_TYPE_CONSUME,
                 'order_no' => $orderNo,
                 'title' => $title,
                 'remark' => '积分冻结',
@@ -477,7 +477,7 @@ class PointService
 
             $pointAccount->unfreezePoints($points, $toAvailable);
 
-            $changeType = $toAvailable ? AppPointLog::CHANGE_TYPE_UNFREEZE : AppPointLog::CHANGE_TYPE_USE;
+            $changeType = $toAvailable ? AppMemberPointLog::CHANGE_TYPE_UNFREEZE : AppMemberPointLog::CHANGE_TYPE_USE;
             $changeValue = $toAvailable ? $points : -$points;
 
             $this->createPointLog([
@@ -486,7 +486,7 @@ class PointService
                 'change_value' => $changeValue,
                 'before_points' => $beforePoints,
                 'after_points' => $pointAccount->available_points,
-                'source_type' => $toAvailable ? AppPointLog::SOURCE_TYPE_REFUND : AppPointLog::SOURCE_TYPE_CONSUME,
+                'source_type' => $toAvailable ? AppMemberPointLog::SOURCE_TYPE_REFUND : AppMemberPointLog::SOURCE_TYPE_CONSUME,
                 'order_no' => $orderNo,
                 'title' => $title,
                 'remark' => $toAvailable ? '积分解冻返还' : '冻结积分扣除',
@@ -547,11 +547,11 @@ class PointService
 
             $this->createPointLog([
                 'member_id' => $memberId,
-                'change_type' => AppPointLog::CHANGE_TYPE_EARN,
+                'change_type' => AppMemberPointLog::CHANGE_TYPE_EARN,
                 'change_value' => $points,
                 'before_points' => $beforePoints,
                 'after_points' => $pointAccount->available_points,
-                'source_type' => AppPointLog::SOURCE_TYPE_GIFT,
+                'source_type' => AppMemberPointLog::SOURCE_TYPE_GIFT,
                 'title' => $title,
                 'remark' => $remark,
                 'operator_id' => $operatorId,
@@ -616,11 +616,11 @@ class PointService
 
             $this->createPointLog([
                 'member_id' => $memberId,
-                'change_type' => AppPointLog::CHANGE_TYPE_ADJUST,
+                'change_type' => AppMemberPointLog::CHANGE_TYPE_ADJUST,
                 'change_value' => -$points,
                 'before_points' => $beforePoints,
                 'after_points' => $pointAccount->available_points,
-                'source_type' => AppPointLog::SOURCE_TYPE_DEDUCT,
+                'source_type' => AppMemberPointLog::SOURCE_TYPE_DEDUCT,
                 'title' => $title,
                 'remark' => $remark,
                 'operator_id' => $operatorId,
@@ -680,7 +680,7 @@ class PointService
      */
     public function getPointLogs(int $memberId, ?int $changeType = null, int $page = 1, int $pageSize = 20): array
     {
-        $query = AppPointLog::byMember($memberId)
+        $query = AppMemberPointLog::byMember($memberId)
             ->select([
                 'log_id',
                 'change_type',
@@ -691,9 +691,9 @@ class PointService
                 'task_code',
                 'title',
                 'remark',
-                'create_time',
+                'created_at',
             ])
-            ->orderBy('create_time', 'desc');
+            ->orderBy('created_at', 'desc');
 
         if ($changeType !== null) {
             $query->byChangeType($changeType);
@@ -721,7 +721,7 @@ class PointService
                     'task_code' => $log->task_code,
                     'title' => $log->title,
                     'remark' => $log->remark,
-                    'create_time' => $log->create_time ? $log->create_time->format('Y-m-d H:i:s') : null,
+                    'created_at' => $log->created_at ? $log->created_at->format('Y-m-d H:i:s') : null,
                 ];
             })->toArray(),
         ];
@@ -796,9 +796,9 @@ class PointService
     {
         $today = date('Y-m-d');
 
-        $totalEarned = AppPointLog::byMember($memberId)
+        $totalEarned = AppMemberPointLog::byMember($memberId)
             ->earned()
-            ->whereDate('create_time', $today)
+            ->whereDate('created_at', $today)
             ->sum('change_value');
 
         $taskRecords = AppMemberTaskRecord::byMember($memberId)
@@ -871,10 +871,10 @@ class PointService
      * 创建积分日志
      *
      * @param array $data
-     * @return AppPointLog
+     * @return AppMemberPointLog
      */
-    protected function createPointLog(array $data): AppPointLog
+    protected function createPointLog(array $data): AppMemberPointLog
     {
-        return AppPointLog::createLog($data);
+        return AppMemberPointLog::createLog($data);
     }
 }

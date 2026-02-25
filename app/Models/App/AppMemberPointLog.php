@@ -4,14 +4,36 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * 用户积分流水日志表
+ *
+ * @property int $log_id
+ * @property int $member_id
+ * @property int $change_type
+ * @property int $change_value
+ * @property int $before_points
+ * @property int $after_points
+ * @property int $source_type
+ * @property string|null $source_id
+ * @property string|null $task_code
+ * @property string|null $order_no
+ * @property string $title
+ * @property string|null $remark
+ * @property int|null $operator_id
+ * @property string|null $operator_name
+ * @property \Carbon\Carbon|null $expire_time
+ * @property string|null $client_ip
+ * @property \Carbon\Carbon|null $created_at
+ * @property \Carbon\Carbon|null $updated_at
+ */
 class AppMemberPointLog extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_member_point_log';
     protected $primaryKey = 'log_id';
-    public $timestamps = false;
 
     // 变动类型
     const CHANGE_TYPE_EARN = 1;      // 获取
@@ -46,7 +68,6 @@ class AppMemberPointLog extends Model
         'operator_name',
         'expire_time',
         'client_ip',
-        'create_time',
     ];
 
     protected $casts = [
@@ -59,7 +80,6 @@ class AppMemberPointLog extends Model
         'source_type' => 'integer',
         'operator_id' => 'integer',
         'expire_time' => 'datetime',
-        'create_time' => 'datetime',
     ];
 
     /**
@@ -126,7 +146,6 @@ class AppMemberPointLog extends Model
      */
     public static function createLog(array $data): self
     {
-        $data['create_time'] = now();
         return self::create($data);
     }
 

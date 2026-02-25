@@ -4,14 +4,35 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * 用户积分任务配置表
+ *
+ * @property int $task_id
+ * @property string $task_code
+ * @property string $task_name
+ * @property int $task_type
+ * @property string|null $task_category
+ * @property int $point_value
+ * @property int $daily_limit
+ * @property int $total_limit
+ * @property string|null $icon
+ * @property string|null $description
+ * @property string|null $jump_url
+ * @property int $sort_order
+ * @property int $status
+ * @property \Carbon\Carbon|null $start_time
+ * @property \Carbon\Carbon|null $end_time
+ * @property \Carbon\Carbon|null $created_at
+ * @property \Carbon\Carbon|null $updated_at
+ */
 class AppPointTask extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
-    protected $table = 'app_point_task';
+    protected $table = 'app_member_point_task';
     protected $primaryKey = 'task_id';
-    public $timestamps = false;
 
     // 任务类型
     const TYPE_DAILY = 1;      // 日常任务
@@ -26,10 +47,6 @@ class AppPointTask extends Model
     // 状态
     const STATUS_ENABLED = 1;   // 启用
     const STATUS_DISABLED = 2;  // 禁用
-
-    // 删除标志
-    const DEL_FLAG_NORMAL = 0;
-    const DEL_FLAG_DELETED = 1;
 
     protected $fillable = [
         'task_code',
@@ -46,11 +63,6 @@ class AppPointTask extends Model
         'status',
         'start_time',
         'end_time',
-        'create_by',
-        'create_time',
-        'update_by',
-        'update_time',
-        'del_flag',
     ];
 
     protected $casts = [
@@ -61,31 +73,20 @@ class AppPointTask extends Model
         'total_limit' => 'integer',
         'sort_order' => 'integer',
         'status' => 'integer',
-        'del_flag' => 'integer',
         'start_time' => 'datetime',
         'end_time' => 'datetime',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
     ];
 
     /**
      * 查询作用域：启用状态
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeEnabled($query)
     {
-        return $query->where('status', self::STATUS_ENABLED)
-                     ->where('del_flag', self::DEL_FLAG_NORMAL);
+        return $query->where('status', self::STATUS_ENABLED);
     }
 
     /**
      * 查询作用域：按任务类型
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $type
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeByType($query, int $type)
     {
@@ -94,10 +95,6 @@ class AppPointTask extends Model
 
     /**
      * 查询作用域：按任务分类
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $category
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeByCategory($query, string $category)
     {
@@ -106,9 +103,6 @@ class AppPointTask extends Model
 
     /**
      * 查询作用域：生效中
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeActive($query)
     {
@@ -124,9 +118,6 @@ class AppPointTask extends Model
 
     /**
      * 根据任务编码获取任务配置
-     *
-     * @param string $taskCode
-     * @return self|null
      */
     public static function getByCode(string $taskCode)
     {
@@ -138,8 +129,6 @@ class AppPointTask extends Model
 
     /**
      * 获取日常任务列表
-     *
-     * @return \Illuminate\Database\Eloquent\Collection
      */
     public static function getDailyTasks()
     {
@@ -152,8 +141,6 @@ class AppPointTask extends Model
 
     /**
      * 获取成长任务列表
-     *
-     * @return \Illuminate\Database\Eloquent\Collection
      */
     public static function getGrowthTasks()
     {
@@ -166,8 +153,6 @@ class AppPointTask extends Model
 
     /**
      * 判断是否为日常任务
-     *
-     * @return bool
      */
     public function isDailyTask(): bool
     {
@@ -176,8 +161,6 @@ class AppPointTask extends Model
 
     /**
      * 判断是否为成长任务
-     *
-     * @return bool
      */
     public function isGrowthTask(): bool
     {

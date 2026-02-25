@@ -137,16 +137,31 @@ class MessageController extends Controller
      * @param Request $request
      * @return JsonResponse
      */
+    /**
+     * 获取评论消息列表
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
     public function comment(Request $request): JsonResponse
     {
         $memberId = $this->getMemberId($request);
-        $pageNum = (int) $request->input('pageNum', 1);
-        $pageSize = (int) $request->input('pageSize', 20);
+        $page = (int) $request->input('page', 1);
+        $pageSize = (int) $request->input('pageSize', 10);
 
         try {
-            $messages = $this->messageService->getCommentMessages($memberId, $pageNum, $pageSize);
+            $messages = $this->messageService->getCommentMessages($memberId, $page, $pageSize);
 
-            return AppApiResponse::paginate($messages, MessageCommentResource::class);
+            $items = MessageCommentResource::collection(collect($messages->items()))->resolve();
+
+            return AppApiResponse::success([
+                'data' => [
+                    'list' => $items,
+                    'total' => $messages->total(),
+                    'page' => $messages->currentPage(),
+                    'pageSize' => $messages->perPage(),
+                ],
+            ]);
         } catch (\Exception $e) {
             Log::error('获取评论消息列表失败', [
                 'member_id' => $memberId,

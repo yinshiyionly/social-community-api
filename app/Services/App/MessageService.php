@@ -301,7 +301,7 @@ class MessageService
     {
         $query = AppMessageInteraction::byReceiver($memberId)
             ->byType(MessageType::COMMENT)
-            ->with('sender')
+            ->with(['sender', 'post'])
             ->orderBy('message_id', 'desc');
 
         return $query->paginate($pageSize, ['*'], 'page', $pageNum);

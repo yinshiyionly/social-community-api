@@ -5,11 +5,11 @@ namespace App\Models\App;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class AppPointLog extends Model
+class AppMemberPointLog extends Model
 {
     use HasFactory;
 
-    protected $table = 'app_point_log';
+    protected $table = 'app_member_point_log';
     protected $primaryKey = 'log_id';
     public $timestamps = false;
 

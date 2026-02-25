@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AdItemController;
 use App\Http\Controllers\Admin\AdSpaceController;
 use App\Http\Controllers\App\AdController;
 use Illuminate\Support\Facades\Route;
@@ -23,5 +24,15 @@ Route::prefix('ad')->group(function () {
         Route::put('', [AdSpaceController::class, 'update']);
         Route::put('changeStatus', [AdSpaceController::class, 'changeStatus']);
         Route::delete('{spaceIds}', [AdSpaceController::class, 'destroy']);
+    });
+
+    // 广告内容管理
+    Route::prefix('item')->group(function () {
+        Route::get('list', [AdItemController::class, 'list']);
+        Route::get('{adId}', [AdItemController::class, 'show']);
+        Route::post('', [AdItemController::class, 'store']);
+        Route::put('', [AdItemController::class, 'update']);
+        Route::put('changeStatus', [AdItemController::class, 'changeStatus']);
+        Route::delete('{adIds}', [AdItemController::class, 'destroy']);
     });
 });

@@ -101,4 +101,29 @@ class PointController extends Controller
             return AppApiResponse::serverError();
         }
     }
+
+    /**
+     * 日常任务列表
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function dailyTasks(Request $request): JsonResponse
+    {
+        $memberId = $request->attributes->get('member_id');
+
+        try {
+            $taskService = new TaskService();
+            $list = $taskService->getDailyTaskList($memberId);
+
+            return AppApiResponse::success(['data' => $list]);
+        } catch (\Exception $e) {
+            Log::error('获取日常任务列表失败', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
 }

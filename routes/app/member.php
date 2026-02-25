@@ -49,6 +49,8 @@ Route::prefix('v1/member')->group(function () {
         Route::get('point/logs', [PointController::class, 'logs']);
         // 新人任务列表（成长任务）
         Route::get('task/growth', [PointController::class, 'growthTasks']);
+        // 日常任务列表
+        Route::get('task/daily', [PointController::class, 'dailyTasks']);
     });
 
     // 用户主页详情（可选鉴权）

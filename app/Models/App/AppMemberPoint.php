@@ -4,14 +4,28 @@ namespace App\Models\App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * 用户积分账户表
+ *
+ * @property int $id
+ * @property int $member_id
+ * @property int $total_points
+ * @property int $used_points
+ * @property int $available_points
+ * @property int $frozen_points
+ * @property int $expired_points
+ * @property int $level_points
+ * @property \Carbon\Carbon|null $created_at
+ * @property \Carbon\Carbon|null $updated_at
+ */
 class AppMemberPoint extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'app_member_point';
     protected $primaryKey = 'id';
-    public $timestamps = false;
 
     protected $fillable = [
         'member_id',
@@ -21,8 +35,6 @@ class AppMemberPoint extends Model
         'frozen_points',
         'expired_points',
         'level_points',
-        'create_time',
-        'update_time',
     ];
 
     protected $casts = [
@@ -34,8 +46,6 @@ class AppMemberPoint extends Model
         'frozen_points' => 'integer',
         'expired_points' => 'integer',
         'level_points' => 'integer',
-        'create_time' => 'datetime',
-        'update_time' => 'datetime',
     ];
 
     /**
@@ -67,8 +77,6 @@ class AppMemberPoint extends Model
                 'frozen_points' => 0,
                 'expired_points' => 0,
                 'level_points' => 0,
-                'create_time' => now(),
-                'update_time' => now(),
             ]);
         }
 
@@ -86,7 +94,6 @@ class AppMemberPoint extends Model
     {
         $this->total_points += $points;
         $this->available_points += $points;
-        $this->update_time = now();
 
         if ($addLevelPoints) {
             $this->level_points += $points;
@@ -109,7 +116,6 @@ class AppMemberPoint extends Model
 
         $this->used_points += $points;
         $this->available_points -= $points;
-        $this->update_time = now();
 
         return $this->save();
     }
@@ -128,7 +134,6 @@ class AppMemberPoint extends Model
 
         $this->available_points -= $points;
         $this->frozen_points += $points;
-        $this->update_time = now();
 
         return $this->save();
     }
@@ -147,7 +152,6 @@ class AppMemberPoint extends Model
         }
 
         $this->frozen_points -= $points;
-        $this->update_time = now();
 
         if ($toAvailable) {
             $this->available_points += $points;

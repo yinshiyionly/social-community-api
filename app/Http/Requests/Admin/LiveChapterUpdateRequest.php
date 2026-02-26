@@ -16,6 +16,7 @@ class LiveChapterUpdateRequest extends FormRequest
         return [
             'chapterId'      => 'required|integer|min:1',
             'chapterTitle'   => 'nullable|string|max:200',
+            'liveRoomId'     => 'nullable|string|max:50',
             'chapterNo'      => 'nullable|integer|min:0',
             'chapterSubtitle'=> 'nullable|string|max:200',
             'coverImage'     => 'nullable|string|max:500',
@@ -38,6 +39,8 @@ class LiveChapterUpdateRequest extends FormRequest
             'chapterId.integer'       => '章节ID必须是整数',
             'chapterId.min'           => '章节ID无效',
             'chapterTitle.max'        => '章节标题不能超过200个字符',
+            'liveRoomId.string'       => '直播间ID必须是字符串',
+            'liveRoomId.max'          => '直播间ID不能超过50个字符',
             'chapterSubtitle.max'     => '章节副标题不能超过200个字符',
             'coverImage.max'          => '封面图地址不能超过500个字符',
             'brief.max'               => '简介不能超过2000个字符',

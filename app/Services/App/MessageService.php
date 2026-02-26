@@ -11,6 +11,7 @@ use App\Models\App\AppMessageSystem;
 use App\Models\App\AppMessageUnreadCount;
 use App\Models\App\AppMessageSystemUnread;
 use App\Models\App\AppMemberFollow;
+use App\Services\AppFileUploadService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -84,7 +85,12 @@ class MessageService
             ->first();
 
         // 消息分类图标（可通过配置覆盖）
-        $icons = config('app.message_icons', []);
+        $icons = [
+            'likeAndCollect' => 'app/like.png',
+            'comment' => 'app/comment.png',
+            'follow' => 'app/follow.png',
+            'secretary' => 'app/secretary.png',
+        ];
 
         $categories = [
             [
@@ -93,7 +99,7 @@ class MessageService
                 'detail' => $latestLikeCollect ? $this->formatInteractionSummary($latestLikeCollect)['content'] : '',
                 'time' => $latestLikeCollect && $latestLikeCollect->created_at
                     ? DatetimeHelper::relativeTime($latestLikeCollect->created_at) : '',
-                'avatar' => $icons['likeAndCollect'] ?? '',
+                'avatar' => (new AppFileUploadService())->generateFileUrl($icons['likeAndCollect']),
                 'count' => $unreadCount->getLikeAndCollectCount(),
             ],
             [
@@ -102,7 +108,7 @@ class MessageService
                 'detail' => $latestComment ? $this->formatInteractionSummary($latestComment)['content'] : '',
                 'time' => $latestComment && $latestComment->created_at
                     ? DatetimeHelper::relativeTime($latestComment->created_at) : '',
-                'avatar' => $icons['comment'] ?? '',
+                'avatar' => (new AppFileUploadService())->generateFileUrl($icons['comment']),
                 'count' => $unreadCount->comment_count,
             ],
             [
@@ -111,7 +117,7 @@ class MessageService
                 'detail' => $latestFollow ? $this->formatFollowSummary($latestFollow)['content'] : '',
                 'time' => $latestFollow && $latestFollow->created_at
                     ? DatetimeHelper::relativeTime($latestFollow->created_at) : '',
-                'avatar' => $icons['follow'] ?? '',
+                'avatar' => (new AppFileUploadService())->generateFileUrl($icons['follow']),
                 'count' => $unreadCount->follow_count,
             ],
             [
@@ -120,7 +126,7 @@ class MessageService
                 'detail' => $latestSecretary ? $this->formatSystemSummary($latestSecretary)['content'] : '',
                 'time' => $latestSecretary && $latestSecretary->created_at
                     ? DatetimeHelper::relativeTime($latestSecretary->created_at) : '',
-                'avatar' => $icons['secretary'] ?? '',
+                'avatar' => (new AppFileUploadService())->generateFileUrl($icons['secretary']),
                 'count' => AppMessageSystemUnread::getUnreadCount($memberId, $secretaryMemberId),
             ],
         ];
@@ -146,173 +152,172 @@ class MessageService
      * @return array
      */
 
-        /**
-         * 获取消息总列表（互动分类 + 官方账号会话列表）
-         *
-         * @param int $memberId
-         * @return array
-         */
+    /**
+     * 获取消息总列表（互动分类 + 官方账号会话列表）
+     *
+     * @param int $memberId
+     * @return array
+     */
 
-            /**
-             * 获取消息总列表（互动分类 + 官方账号统一列表，按最新消息时间倒序）
-             *
-             * @param int $memberId
-             * @return array
-             */
-            public function getMessageOverview(int $memberId): array
-            {
-                $unreadCount = AppMessageUnreadCount::getOrCreate($memberId);
-                $list = [];
+    /**
+     * 获取消息总列表（互动分类 + 官方账号统一列表，按最新消息时间倒序）
+     *
+     * @param int $memberId
+     * @return array
+     */
+    public function getMessageOverview(int $memberId): array
+    {
+        $unreadCount = AppMessageUnreadCount::getOrCreate($memberId);
+        $list = [];
 
-                // 赞和收藏
-                $latestLikeCollect = AppMessageInteraction::byReceiver($memberId)
-                    ->likeAndCollect()
-                    ->with('sender:member_id,nickname,avatar')
-                    ->orderBy('message_id', 'desc')
-                    ->first();
+        // 赞和收藏
+        $latestLikeCollect = AppMessageInteraction::byReceiver($memberId)
+            ->likeAndCollect()
+            ->with('sender:member_id,nickname,avatar')
+            ->orderBy('message_id', 'desc')
+            ->first();
 
-                $list[] = [
-                    'itemType' => 'interaction',
-                    'type' => 'likeAndCollect',
-                    'title' => '赞和收藏',
-                    'avatar' => null,
-                    'isOfficial' => 0,
-                    'officialLabel' => '',
-                    'unreadCount' => $unreadCount->getLikeAndCollectCount(),
-                    'latestContent' => $latestLikeCollect ? $this->formatInteractionSummary($latestLikeCollect)['content'] : '',
-                    'latestTime' => $latestLikeCollect && $latestLikeCollect->created_at
-                        ? $latestLikeCollect->created_at->format('Y-m-d H:i:s') : null,
-                ];
+        $list[] = [
+            'itemType' => 'interaction',
+            'type' => 'likeAndCollect',
+            'title' => '赞和收藏',
+            'avatar' => null,
+            'isOfficial' => 0,
+            'officialLabel' => '',
+            'unreadCount' => $unreadCount->getLikeAndCollectCount(),
+            'latestContent' => $latestLikeCollect ? $this->formatInteractionSummary($latestLikeCollect)['content'] : '',
+            'latestTime' => $latestLikeCollect && $latestLikeCollect->created_at
+                ? $latestLikeCollect->created_at->format('Y-m-d H:i:s') : null,
+        ];
 
-                // 评论我的
-                $latestComment = AppMessageInteraction::byReceiver($memberId)
-                    ->byType(MessageType::COMMENT)
-                    ->with('sender:member_id,nickname,avatar')
-                    ->orderBy('message_id', 'desc')
-                    ->first();
+        // 评论我的
+        $latestComment = AppMessageInteraction::byReceiver($memberId)
+            ->byType(MessageType::COMMENT)
+            ->with('sender:member_id,nickname,avatar')
+            ->orderBy('message_id', 'desc')
+            ->first();
 
-                $list[] = [
-                    'itemType' => 'interaction',
-                    'type' => 'comment',
-                    'title' => '评论我的',
-                    'avatar' => null,
-                    'isOfficial' => 0,
-                    'officialLabel' => '',
-                    'unreadCount' => $unreadCount->comment_count,
-                    'latestContent' => $latestComment ? $this->formatInteractionSummary($latestComment)['content'] : '',
-                    'latestTime' => $latestComment && $latestComment->created_at
-                        ? $latestComment->created_at->format('Y-m-d H:i:s') : null,
-                ];
+        $list[] = [
+            'itemType' => 'interaction',
+            'type' => 'comment',
+            'title' => '评论我的',
+            'avatar' => null,
+            'isOfficial' => 0,
+            'officialLabel' => '',
+            'unreadCount' => $unreadCount->comment_count,
+            'latestContent' => $latestComment ? $this->formatInteractionSummary($latestComment)['content'] : '',
+            'latestTime' => $latestComment && $latestComment->created_at
+                ? $latestComment->created_at->format('Y-m-d H:i:s') : null,
+        ];
 
-                // 关注我的
-                $latestFollow = AppMessageInteraction::byReceiver($memberId)
-                    ->byType(MessageType::FOLLOW)
-                    ->with('sender:member_id,nickname,avatar')
-                    ->orderBy('message_id', 'desc')
-                    ->first();
+        // 关注我的
+        $latestFollow = AppMessageInteraction::byReceiver($memberId)
+            ->byType(MessageType::FOLLOW)
+            ->with('sender:member_id,nickname,avatar')
+            ->orderBy('message_id', 'desc')
+            ->first();
 
-                $list[] = [
-                    'itemType' => 'interaction',
-                    'type' => 'follow',
-                    'title' => '关注我的',
-                    'avatar' => null,
-                    'isOfficial' => 0,
-                    'officialLabel' => '',
-                    'unreadCount' => $unreadCount->follow_count,
-                    'latestContent' => $latestFollow ? $this->formatFollowSummary($latestFollow)['content'] : '',
-                    'latestTime' => $latestFollow && $latestFollow->created_at
-                        ? $latestFollow->created_at->format('Y-m-d H:i:s') : null,
-                ];
+        $list[] = [
+            'itemType' => 'interaction',
+            'type' => 'follow',
+            'title' => '关注我的',
+            'avatar' => null,
+            'isOfficial' => 0,
+            'officialLabel' => '',
+            'unreadCount' => $unreadCount->follow_count,
+            'latestContent' => $latestFollow ? $this->formatFollowSummary($latestFollow)['content'] : '',
+            'latestTime' => $latestFollow && $latestFollow->created_at
+                ? $latestFollow->created_at->format('Y-m-d H:i:s') : null,
+        ];
 
-                // 官方账号会话
-                $officialItems = $this->getOfficialConversationItems($memberId);
-                $list = array_merge($list, $officialItems);
+        // 官方账号会话
+        $officialItems = $this->getOfficialConversationItems($memberId);
+        $list = array_merge($list, $officialItems);
 
-                // 按最新消息时间倒序，无消息的排最后
-                usort($list, function ($a, $b) {
-                    $timeA = $a['latestTime'] ?? '0000-00-00 00:00:00';
-                    $timeB = $b['latestTime'] ?? '0000-00-00 00:00:00';
-                    return strcmp($timeB, $timeA);
-                });
+        // 按最新消息时间倒序，无消息的排最后
+        usort($list, function ($a, $b) {
+            $timeA = $a['latestTime'] ?? '0000-00-00 00:00:00';
+            $timeB = $b['latestTime'] ?? '0000-00-00 00:00:00';
+            return strcmp($timeB, $timeA);
+        });
 
-                return $list;
+        return $list;
+    }
+
+
+    /**
+     * 获取官方账号会话列表（每个官方账号的最新消息 + 未读数）
+     *
+     * @param int $memberId
+     * @return array
+     */
+
+    /**
+     * 获取官方账号会话列表项（统一格式）
+     *
+     * @param int $memberId
+     * @return array
+     */
+    protected function getOfficialConversationItems(int $memberId): array
+    {
+        // 查询给当前用户发过系统消息的所有 sender_id（去重）
+        $senderIds = AppMessageSystem::forReceiver($memberId)
+            ->whereNotNull('sender_id')
+            ->select('sender_id')
+            ->distinct()
+            ->pluck('sender_id')
+            ->toArray();
+
+        if (empty($senderIds)) {
+            return [];
+        }
+
+        // 批量获取官方账号信息
+        $senders = AppMemberBase::whereIn('member_id', $senderIds)
+            ->select(['member_id', 'nickname', 'avatar', 'is_official', 'official_label'])
+            ->get()
+            ->keyBy('member_id');
+
+        // 批量获取每个发送者的未读数
+        $unreadMap = AppMessageSystemUnread::where('member_id', $memberId)
+            ->whereIn('sender_id', $senderIds)
+            ->pluck('unread_count', 'sender_id')
+            ->toArray();
+
+        $items = [];
+        foreach ($senderIds as $senderId) {
+            $latestMessage = AppMessageSystem::forReceiver($memberId)
+                ->bySender($senderId)
+                ->orderBy('message_id', 'desc')
+                ->first();
+
+            if (!$latestMessage) {
+                continue;
             }
 
-
-        /**
-         * 获取官方账号会话列表（每个官方账号的最新消息 + 未读数）
-         *
-         * @param int $memberId
-         * @return array
-         */
-
-            /**
-             * 获取官方账号会话列表项（统一格式）
-             *
-             * @param int $memberId
-             * @return array
-             */
-            protected function getOfficialConversationItems(int $memberId): array
-            {
-                // 查询给当前用户发过系统消息的所有 sender_id（去重）
-                $senderIds = AppMessageSystem::forReceiver($memberId)
-                    ->whereNotNull('sender_id')
-                    ->select('sender_id')
-                    ->distinct()
-                    ->pluck('sender_id')
-                    ->toArray();
-
-                if (empty($senderIds)) {
-                    return [];
-                }
-
-                // 批量获取官方账号信息
-                $senders = AppMemberBase::whereIn('member_id', $senderIds)
-                    ->select(['member_id', 'nickname', 'avatar', 'is_official', 'official_label'])
-                    ->get()
-                    ->keyBy('member_id');
-
-                // 批量获取每个发送者的未读数
-                $unreadMap = AppMessageSystemUnread::where('member_id', $memberId)
-                    ->whereIn('sender_id', $senderIds)
-                    ->pluck('unread_count', 'sender_id')
-                    ->toArray();
-
-                $items = [];
-                foreach ($senderIds as $senderId) {
-                    $latestMessage = AppMessageSystem::forReceiver($memberId)
-                        ->bySender($senderId)
-                        ->orderBy('message_id', 'desc')
-                        ->first();
-
-                    if (!$latestMessage) {
-                        continue;
-                    }
-
-                    $sender = $senders->get($senderId);
-                    if (!$sender) {
-                        continue;
-                    }
-
-                    $summary = $this->formatSystemSummary($latestMessage);
-
-                    $items[] = [
-                        'itemType' => 'official',
-                        'type' => 'system',
-                        'senderId' => $senderId,
-                        'title' => $sender->nickname,
-                        'avatar' => $sender->avatar,
-                        'isOfficial' => $sender->is_official,
-                        'officialLabel' => $sender->official_label,
-                        'unreadCount' => $unreadMap[$senderId] ?? 0,
-                        'latestContent' => $summary['content'],
-                        'latestTime' => $summary['time'],
-                    ];
-                }
-
-                return $items;
+            $sender = $senders->get($senderId);
+            if (!$sender) {
+                continue;
             }
 
+            $summary = $this->formatSystemSummary($latestMessage);
+
+            $items[] = [
+                'itemType' => 'official',
+                'type' => 'system',
+                'senderId' => $senderId,
+                'title' => $sender->nickname,
+                'avatar' => $sender->avatar,
+                'isOfficial' => $sender->is_official,
+                'officialLabel' => $sender->official_label,
+                'unreadCount' => $unreadMap[$senderId] ?? 0,
+                'latestContent' => $summary['content'],
+                'latestTime' => $summary['time'],
+            ];
+        }
+
+        return $items;
+    }
 
 
     /**
@@ -634,13 +639,14 @@ class MessageService
      * @return void
      */
     public static function createLikeMessage(
-        int $senderId,
-        int $receiverId,
-        int $targetId,
-        int $targetType,
+        int     $senderId,
+        int     $receiverId,
+        int     $targetId,
+        int     $targetType,
         ?string $contentSummary = null,
         ?string $coverUrl = null
-    ): void {
+    ): void
+    {
         self::createInteractionMessage([
             'sender_id' => $senderId,
             'receiver_id' => $receiverId,
@@ -664,13 +670,14 @@ class MessageService
      * @return void
      */
     public static function createCollectMessage(
-        int $senderId,
-        int $receiverId,
-        int $targetId,
-        int $targetType,
+        int     $senderId,
+        int     $receiverId,
+        int     $targetId,
+        int     $targetType,
         ?string $contentSummary = null,
         ?string $coverUrl = null
-    ): void {
+    ): void
+    {
         self::createInteractionMessage([
             'sender_id' => $senderId,
             'receiver_id' => $receiverId,
@@ -694,13 +701,14 @@ class MessageService
      * @return void
      */
     public static function createCommentMessage(
-        int $senderId,
-        int $receiverId,
-        int $targetId,
-        int $targetType,
+        int     $senderId,
+        int     $receiverId,
+        int     $targetId,
+        int     $targetType,
         ?string $contentSummary = null,
         ?string $coverUrl = null
-    ): void {
+    ): void
+    {
         self::createInteractionMessage([
             'sender_id' => $senderId,
             'receiver_id' => $receiverId,
@@ -743,12 +751,13 @@ class MessageService
      * @return AppMessageSystem
      */
     public static function createSystemMessage(
-        int $senderId,
-        ?int $receiverId,
+        int    $senderId,
+        ?int   $receiverId,
         string $title,
         string $content,
-        array $options = []
-    ): AppMessageSystem {
+        array  $options = []
+    ): AppMessageSystem
+    {
         $message = AppMessageSystem::create([
             'sender_id' => $senderId,
             'receiver_id' => $receiverId,

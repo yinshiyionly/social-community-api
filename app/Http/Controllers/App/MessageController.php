@@ -161,6 +161,7 @@ class MessageController extends Controller
 
     /**
      * 获取评论消息列表
+     * 进入列表时自动标记评论消息为已读
      *
      * @param Request $request
      * @return JsonResponse
@@ -173,6 +174,11 @@ class MessageController extends Controller
 
         try {
             $messages = $this->messageService->getCommentMessages($memberId, $page, $pageSize);
+
+            // 首页时标记评论消息为已读
+            if ($page <= 1) {
+                $this->messageService->markAsRead($memberId, 'comment');
+            }
 
             $items = MessageCommentResource::collection(collect($messages->items()))->resolve();
 
@@ -196,12 +202,7 @@ class MessageController extends Controller
 
     /**
      * 获取关注消息列表
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    /**
-     * 获取关注消息列表
+     * 进入列表时自动标记关注消息为已读
      *
      * @param Request $request
      * @return JsonResponse
@@ -214,6 +215,11 @@ class MessageController extends Controller
 
         try {
             $messages = $this->messageService->getFollowMessages($memberId, $page, $pageSize);
+
+            // 首页时标记关注消息为已读
+            if ($page <= 1) {
+                $this->messageService->markAsRead($memberId, 'follow');
+            }
 
             // 获取发送者ID列表，检查当前用户是否已关注这些用户
             $senderIds = collect($messages->items())->pluck('sender_id')->unique()->toArray();

@@ -34,7 +34,8 @@ Route::prefix('v1/member')->group(function () {
         // 用户帖子列表
         Route::get('posts', [MemberController::class, 'posts']);
         // 个人收藏帖子列表
-        Route::get('collections', [MemberController::class, 'collections']);
+        // Route::get('collections', [MemberController::class, 'collections']);
+        Route::get('favorites', [MemberController::class, 'collections']);
         // 个人粉丝列表
         Route::get('fans', [MemberController::class, 'fans']);
         // 个人关注列表

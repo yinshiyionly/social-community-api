@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('v1/message')->middleware('app.auth')->group(function () {
+    // 获取消息分类列表
+    Route::get('/list', [MessageController::class, 'list']);
+
     // 获取消息总列表（各分类概览）
     Route::get('/overview', [MessageController::class, 'overview']);
 

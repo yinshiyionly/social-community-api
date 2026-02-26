@@ -67,6 +67,33 @@ class MessageController extends Controller
     }
 
     /**
+     * 获取消息分类列表
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function list(Request $request): JsonResponse
+    {
+        $memberId = $this->getMemberId($request);
+        $page = (int) $request->input('page', 1);
+        $pageSize = (int) $request->input('pageSize', 10);
+
+        try {
+            $data = $this->messageService->getMessageList($memberId, $page, $pageSize);
+
+            return AppApiResponse::success(['data' => $data]);
+        } catch (\Exception $e) {
+            Log::error('获取消息分类列表失败', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+
+    /**
      * 获取消息总列表（各分类概览）
      *
      * @param Request $request
@@ -390,7 +417,6 @@ class MessageController extends Controller
     public function markAllRead(Request $request): JsonResponse
     {
         $memberId = $this->getMemberId($request);
-
         try {
             $this->messageService->markAsRead($memberId, 'all');
 

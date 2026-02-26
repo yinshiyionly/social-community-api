@@ -3,6 +3,7 @@
 namespace App\Services\App;
 
 use App\Constant\MessageType;
+use App\Helper\DatetimeHelper;
 use App\Jobs\App\CreateInteractionMessageJob;
 use App\Models\App\AppMemberBase;
 use App\Models\App\AppMessageInteraction;
@@ -42,6 +43,101 @@ class MessageService
             'system' => $system,
         ];
     }
+
+    /**
+     * 获取消息分类列表（固定4个分类 + 未读数 + 最新消息摘要）
+     *
+     * @param int $memberId
+     * @param int $page
+     * @param int $pageSize
+     * @return array
+     */
+    public function getMessageList(int $memberId, int $page = 1, int $pageSize = 10): array
+    {
+        $unreadCount = AppMessageUnreadCount::getOrCreate($memberId);
+
+        // 小秘书官方账号ID
+        $secretaryMemberId = 1;
+
+        // 获取各分类最新一条消息
+        $latestLikeCollect = AppMessageInteraction::byReceiver($memberId)
+            ->likeAndCollect()
+            ->with('sender:member_id,nickname,avatar')
+            ->orderBy('message_id', 'desc')
+            ->first();
+
+        $latestComment = AppMessageInteraction::byReceiver($memberId)
+            ->byType(MessageType::COMMENT)
+            ->with('sender:member_id,nickname,avatar')
+            ->orderBy('message_id', 'desc')
+            ->first();
+
+        $latestFollow = AppMessageInteraction::byReceiver($memberId)
+            ->byType(MessageType::FOLLOW)
+            ->with('sender:member_id,nickname,avatar')
+            ->orderBy('message_id', 'desc')
+            ->first();
+
+        $latestSecretary = AppMessageSystem::forReceiver($memberId)
+            ->bySender($secretaryMemberId)
+            ->orderBy('message_id', 'desc')
+            ->first();
+
+        // 消息分类图标（可通过配置覆盖）
+        $icons = config('app.message_icons', []);
+
+        $categories = [
+            [
+                'id' => 1,
+                'type' => '赞和收藏',
+                'detail' => $latestLikeCollect ? $this->formatInteractionSummary($latestLikeCollect)['content'] : '',
+                'time' => $latestLikeCollect && $latestLikeCollect->created_at
+                    ? DatetimeHelper::relativeTime($latestLikeCollect->created_at) : '',
+                'avatar' => $icons['likeAndCollect'] ?? '',
+                'count' => $unreadCount->getLikeAndCollectCount(),
+            ],
+            [
+                'id' => 2,
+                'type' => '评论我的',
+                'detail' => $latestComment ? $this->formatInteractionSummary($latestComment)['content'] : '',
+                'time' => $latestComment && $latestComment->created_at
+                    ? DatetimeHelper::relativeTime($latestComment->created_at) : '',
+                'avatar' => $icons['comment'] ?? '',
+                'count' => $unreadCount->comment_count,
+            ],
+            [
+                'id' => 3,
+                'type' => '关注我的',
+                'detail' => $latestFollow ? $this->formatFollowSummary($latestFollow)['content'] : '',
+                'time' => $latestFollow && $latestFollow->created_at
+                    ? DatetimeHelper::relativeTime($latestFollow->created_at) : '',
+                'avatar' => $icons['follow'] ?? '',
+                'count' => $unreadCount->follow_count,
+            ],
+            [
+                'id' => 4,
+                'type' => '小秘书',
+                'detail' => $latestSecretary ? $this->formatSystemSummary($latestSecretary)['content'] : '',
+                'time' => $latestSecretary && $latestSecretary->created_at
+                    ? DatetimeHelper::relativeTime($latestSecretary->created_at) : '',
+                'avatar' => $icons['secretary'] ?? '',
+                'count' => AppMessageSystemUnread::getUnreadCount($memberId, $secretaryMemberId),
+            ],
+        ];
+
+        // 分页处理（固定4条数据）
+        $total = count($categories);
+        $offset = ($page - 1) * $pageSize;
+        $list = array_slice($categories, $offset, $pageSize);
+
+        return [
+            'list' => $list,
+            'total' => $total,
+            'page' => $page,
+            'pageSize' => $pageSize,
+        ];
+    }
+
 
     /**
      * 获取消息总列表（各分类最新一条 + 未读数）

@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\CourseCategoryController;
 use App\Http\Controllers\Admin\CourseController;
 use App\Http\Controllers\Admin\VideoChapterController;
+use App\Http\Controllers\Admin\LiveChapterController;
 
 /*
 |--------------------------------------------------------------------------
@@ -72,6 +73,28 @@ Route::middleware('system.auth')->group(function () {
         Route::put('/batchSort', [VideoChapterController::class, 'batchSort']);
         // 删除章节
         Route::delete('/{chapterIds}', [VideoChapterController::class, 'destroy']);
+    });
+
+    // 直播课章节管理
+    Route::prefix('admin/course/live/chapter')->group(function () {
+        // 章节列表（分页）
+        Route::get('/list/{courseId}', [LiveChapterController::class, 'list'])->where('courseId', '[0-9]+');
+        // 章节详情
+        Route::get('/{chapterId}', [LiveChapterController::class, 'show'])->where('chapterId', '[0-9]+');
+        // 创建章节
+        Route::post('/', [LiveChapterController::class, 'store']);
+        // 更新章节
+        Route::put('/', [LiveChapterController::class, 'update']);
+        // 更改状态
+        Route::put('/changeStatus', [LiveChapterController::class, 'changeStatus']);
+        // 同步直播间状态
+        Route::put('/syncLiveStatus/{chapterId}', [LiveChapterController::class, 'syncLiveStatus'])->where('chapterId', '[0-9]+');
+        // 获取回放列表
+        Route::get('/playback/{chapterId}', [LiveChapterController::class, 'playbackList'])->where('chapterId', '[0-9]+');
+        // 同步回放信息
+        Route::put('/syncPlayback/{chapterId}', [LiveChapterController::class, 'syncPlayback'])->where('chapterId', '[0-9]+');
+        // 删除章节
+        Route::delete('/{chapterIds}', [LiveChapterController::class, 'destroy']);
     });
 
 });

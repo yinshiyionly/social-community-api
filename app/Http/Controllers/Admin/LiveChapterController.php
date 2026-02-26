@@ -99,6 +99,7 @@ class LiveChapterController extends Controller
             $data = [
                 'courseId' => $request->input('courseId'),
                 'chapterTitle' => $request->input('chapterTitle'),
+                'liveRoomId' => $request->input('liveRoomId'),
                 'liveStartTime' => $request->input('liveStartTime'),
                 'liveEndTime' => $request->input('liveEndTime'),
                 'chapterNo' => $request->input('chapterNo'),
@@ -142,6 +143,7 @@ class LiveChapterController extends Controller
 
             $data = [
                 'chapterTitle' => $request->input('chapterTitle'),
+                'liveRoomId' => $request->input('liveRoomId'),
                 'chapterNo' => $request->input('chapterNo'),
                 'chapterSubtitle' => $request->input('chapterSubtitle'),
                 'coverImage' => $request->input('coverImage'),

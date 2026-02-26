@@ -93,7 +93,7 @@ class MemberController extends Controller
     {
         $page = (int)$request->input('page', 1);
         $pageSize = (int)$request->input('pageSize', 10);
-        $id = (int)$request->input('id', 0);
+        $id = (int)$request->get('memberId', 0);
         if (empty($id)) {
             $id = $request->attributes->get('member_id');
         }
@@ -109,7 +109,7 @@ class MemberController extends Controller
             // 获取帖子列表
             $posts = $this->memberService->getMemberPosts($id, $page, $pageSize);
 
-            return AppApiResponse::normalPaginate($posts, MemberPostListResource::class);
+            return AppApiResponse::memberPaginate($posts, MemberPostListResource::class);
         } catch (\Exception $e) {
             Log::error('获取用户帖子列表失败', [
                 'target_member_id' => $id,

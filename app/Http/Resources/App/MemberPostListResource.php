@@ -24,7 +24,10 @@ class MemberPostListResource extends JsonResource
             'id' => $this->post_id,
             'cover' => isset($cover['url']) ? $cover['url'] : '',
             'title' => $this->title ?: ($this->content ?: ''),
+            'avatar' => '',
+            'nickname' => '',
             'likes' => $this->stat ? $this->stat->like_count : 0,
+            'views' => $this->stat ? $this->stat->view_count : 0,
             'isVideo' => $this->post_type == AppPostBase::POST_TYPE_VIDEO,
             'aspectRatio' => $this->calculateAspectRatio($cover),
         ];

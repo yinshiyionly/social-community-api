@@ -106,24 +106,21 @@ class LiveChapterService
             'status' => AppCourseChapter::STATUS_ONLINE,
         ]);
 
-        // 调用百家云创建直播间
-        $startTime = $data['liveStartTime'];
-        $endTime = $data['liveEndTime'];
+        // 调用百家云获取直播间信息（通过前端传入的 liveRoomId）
+        $liveRoomId = $data['liveRoomId'];
 
-        Log::info('调用百家云创建直播间', [
+        Log::info('调用百家云获取直播间信息', [
             'chapter_id' => $chapter->chapter_id,
-            'action' => 'createRoom',
+            'room_id' => $liveRoomId,
+            'action' => 'getRoomInfo',
         ]);
 
-        $result = $this->baijiayunService->createRoom(
-            $data['chapterTitle'],
-            $startTime,
-            $endTime
-        );
+        $result = $this->baijiayunService->getRoomInfo($liveRoomId);
 
         if (!$result['success']) {
-            Log::error('百家云创建直播间失败', [
+            Log::error('百家云获取直播间信息失败', [
                 'chapter_id' => $chapter->chapter_id,
+                'room_id' => $liveRoomId,
                 'error_code' => $result['error_code'],
                 'error_message' => $result['error_message'],
             ]);
@@ -134,25 +131,43 @@ class LiveChapterService
             return [
                 'success' => false,
                 'chapter' => null,
-                'error' => '创建直播间失败：' . $result['error_message'],
+                'error' => '获取直播间信息失败',
             ];
         }
 
-        Log::info('百家云创建直播间成功', [
+        $roomData = $result['data'];
+
+        // 检查直播间是否存在
+        if (empty($roomData['room_id'])) {
+            Log::error('百家云直播间不存在', [
+                'chapter_id' => $chapter->chapter_id,
+                'room_id' => $liveRoomId,
+            ]);
+
+            $chapter->forceDelete();
+
+            return [
+                'success' => false,
+                'chapter' => null,
+                'error' => '直播间不存在',
+            ];
+        }
+
+        Log::info('百家云获取直播间信息成功', [
             'chapter_id' => $chapter->chapter_id,
-            'room_id' => $result['data']['room_id'] ?? '',
+            'room_id' => $roomData['room_id'],
         ]);
 
-        // 创建直播内容记录
+        // 创建直播内容记录，时间优先使用百家云返回的数据，前端传入值为备选
         AppChapterContentLive::create([
             'chapter_id' => $chapter->chapter_id,
             'live_platform' => AppChapterContentLive::PLATFORM_BAIJIAYUN,
-            'live_room_id' => $result['data']['room_id'] ?? '',
-            'live_push_url' => $result['data']['push_url'] ?? '',
-            'live_pull_url' => $result['data']['pull_url'] ?? '',
+            'live_room_id' => $roomData['room_id'],
+            'live_push_url' => $roomData['push_url'] ?? '',
+            'live_pull_url' => $roomData['pull_url'] ?? '',
             'live_cover' => $data['liveCover'] ?? '',
-            'live_start_time' => $startTime,
-            'live_end_time' => $endTime,
+            'live_start_time' => $roomData['start_time'] ?? ($data['liveStartTime'] ?? null),
+            'live_end_time' => $roomData['end_time'] ?? ($data['liveEndTime'] ?? null),
             'live_duration' => $data['liveDuration'] ?? 0,
             'live_status' => AppChapterContentLive::LIVE_STATUS_NOT_STARTED,
             'allow_chat' => $data['allowChat'] ?? 1,
@@ -190,10 +205,50 @@ class LiveChapterService
 
         $live = $chapter->liveContent;
 
-        // 直播中禁止修改时间字段
-        if ($live && $live->isLiving()) {
-            if (isset($data['liveStartTime']) || isset($data['liveEndTime'])) {
-                return ['success' => false, 'error' => '直播进行中，无法修改时间'];
+        // 如果传入了 liveRoomId，表示要切换直播间
+        if (!empty($data['liveRoomId'])) {
+            // 直播中禁止切换直播间
+            if ($live && $live->isLiving()) {
+                return ['success' => false, 'error' => '直播进行中，无法切换直播间'];
+            }
+
+            $liveRoomId = $data['liveRoomId'];
+
+            Log::info('调用百家云获取直播间信息', [
+                'chapter_id' => $chapterId,
+                'room_id' => $liveRoomId,
+                'action' => 'getRoomInfo',
+            ]);
+
+            $result = $this->baijiayunService->getRoomInfo($liveRoomId);
+
+            if (!$result['success']) {
+                Log::error('百家云获取直播间信息失败', [
+                    'chapter_id' => $chapterId,
+                    'room_id' => $liveRoomId,
+                    'error_code' => $result['error_code'],
+                    'error_message' => $result['error_message'],
+                ]);
+
+                return ['success' => false, 'error' => '获取直播间信息失败'];
+            }
+
+            $roomData = $result['data'];
+
+            Log::info('百家云获取直播间信息成功，切换直播间', [
+                'chapter_id' => $chapterId,
+                'room_id' => $roomData['room_id'],
+            ]);
+
+            // 更新直播内容的直播间相关字段
+            if ($live) {
+                $live->update([
+                    'live_room_id' => $roomData['room_id'],
+                    'live_push_url' => $roomData['push_url'] ?? '',
+                    'live_pull_url' => $roomData['pull_url'] ?? '',
+                    'live_start_time' => $roomData['start_time'] ?? $live->live_start_time,
+                    'live_end_time' => $roomData['end_time'] ?? $live->live_end_time,
+                ]);
             }
         }
 
@@ -218,7 +273,7 @@ class LiveChapterService
             $chapter->update($chapterUpdate);
         }
 
-        // 同步更新直播内容字段
+        // 同步更新直播内容其他字段（不含直播间相关字段，已在切换逻辑中处理）
         if ($live) {
             $liveFields = [
                 'liveCover'     => 'live_cover',

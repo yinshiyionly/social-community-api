@@ -79,6 +79,9 @@ class AppMemberBase extends Model
     const OFFICIAL_NO = 0;
     const OFFICIAL_YES = 1;
 
+    // 用户主页背景图片地址
+    const MEMBER_BACKGROUND_IMAGE_URL = 'app/member-bg-image.png';
+
     /**
      * 关联第三方账号
      */
@@ -168,5 +171,16 @@ class AppMemberBase extends Model
     public function getAvatarAttribute($value)
     {
         return $this->getTosUrl($value);
+    }
+
+    /**
+     * 用户主页背景图片
+     * 拼接 TOS URL 绝对路径
+     *
+     * @return string|null
+     */
+    public function getBgImageAttribute()
+    {
+        return $this->getTosUrl(self::MEMBER_BACKGROUND_IMAGE_URL);
     }
 }

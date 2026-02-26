@@ -53,10 +53,15 @@ Route::prefix('v1/member')->group(function () {
         Route::get('task/daily', [PointController::class, 'dailyTasks']);
     });
 
-    // 用户主页详情（可选鉴权）
-    Route::get('{id}/profile', [MemberController::class, 'profile'])
-        ->middleware('app.jwt.optional')
-        ->where('id', '[0-9]+');
+    // 可选鉴权中间件 app.auth.optional
 
+    // 用户主页详情（可选鉴权）
+    /*Route::get('{id}/profile', [MemberController::class, 'profile'])
+        ->middleware('app.auth.optional')
+        ->where('id', '[0-9]+');*/
+
+    // 用户主页
+    Route::get('/profile', [MemberController::class, 'profile'])
+        ->middleware('app.auth.optional');
 
 });

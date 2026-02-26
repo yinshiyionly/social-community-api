@@ -21,10 +21,13 @@ class MemberProfileResource extends JsonResource
             'memberId' => $this->member_id,
             'nickname' => $this->nickname ?? '',
             'avatar' => $this->avatar ?? '',
+            // 用户主页背景图片地址
+            'bgImage' => $this->bgImage ?? '',
             'bio' => $this->bio ?? '',
             'fansCount' => $this->fans_count ?? 0,
-            'followingCount' => $this->following_count ?? 0,
+            'followCount' => $this->following_count ?? 0,
             'likeCount' => $this->like_count ?? 0,
+            'score' => $this->points
         ];
     }
 }

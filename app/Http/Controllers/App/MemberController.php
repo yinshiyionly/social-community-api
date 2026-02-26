@@ -43,14 +43,14 @@ class MemberController extends Controller
      * 获取用户主页详情
      *
      * @param Request $request
-     * @param int $id 目标用户ID
      * @return JsonResponse
      */
-    public function profile(Request $request, int $id): JsonResponse
+    public function profile(Request $request): JsonResponse
     {
         $currentMemberId = $this->getMemberId($request);
 
         try {
+            $id = $request->get('memberId', 0);
             // 获取用户信息
             $member = $this->memberService->getMemberProfile($id);
 
@@ -282,14 +282,14 @@ class MemberController extends Controller
      * @param Request $request
      * @return JsonResponse
      */
-    
+
         /**
          * 获取当前登录用户个人信息
          *
          * @param Request $request
          * @return JsonResponse
          */
-        
+
             /**
              * 获取当前登录用户个人信息
              *

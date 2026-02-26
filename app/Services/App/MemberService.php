@@ -20,6 +20,7 @@ class MemberService
         'fans_count',
         'following_count',
         'like_count',
+        'points'
     ];
 
     /**

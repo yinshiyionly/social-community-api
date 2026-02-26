@@ -91,6 +91,29 @@ class AppApiResponse
     /**
      * 分页响应
      */
+    public static function memberPaginate($paginator, $resourceClass = null, $message = 'success')
+    {
+        $items = $paginator->items();
+
+        if ($resourceClass && class_exists($resourceClass)) {
+            $items = $resourceClass::collection(collect($items))->resolve();
+        }
+
+        return response()->json([
+            'code' => AppResponseCode::SUCCESS,
+            'msg' => $message,
+            'data' => [
+                'list' => $items,
+                'total' => $paginator->total(),
+                'page' => $paginator->currentPage(),
+                'pageSize' => $paginator->perPage()
+            ]
+        ]);
+    }
+
+    /**
+     * 分页响应
+     */
     public static function paginate($paginator, $resourceClass = null, $message = 'success')
     {
         $items = $paginator->items();

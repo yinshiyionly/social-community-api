@@ -55,4 +55,61 @@ class DatetimeHelper
 
         return $parts ? '还有' . implode('', $parts) : '即将过期';
     }
+
+    /**
+     * 获取相对时间描述（中文）
+     *
+     * 如：刚刚、3分钟前、1小时前、昨天、2天前、2025-01-01
+     *
+     * @param \Carbon\Carbon|string|null $time
+     * @return string
+     */
+    public static function relativeTime($time): string
+    {
+        if (!$time) {
+            return '';
+        }
+
+        $carbon = $time instanceof Carbon ? $time : Carbon::parse($time);
+        $now = Carbon::now();
+        $diffInSeconds = $now->diffInSeconds($carbon, false);
+
+        // 未来时间直接返回日期
+        if ($diffInSeconds > 0) {
+            return $carbon->format('Y-m-d');
+        }
+
+        $diffInSeconds = abs($diffInSeconds);
+        $diffInMinutes = (int) floor($diffInSeconds / 60);
+        $diffInHours = (int) floor($diffInMinutes / 60);
+        $diffInDays = (int) floor($diffInHours / 24);
+
+        if ($diffInSeconds < 60) {
+            return '刚刚';
+        }
+
+        if ($diffInMinutes < 60) {
+            return $diffInMinutes . '分钟前';
+        }
+
+        if ($diffInHours < 24) {
+            return $diffInHours . '小时前';
+        }
+
+        if ($diffInDays === 1) {
+            return '昨天';
+        }
+
+        if ($diffInDays <= 7) {
+            return $diffInDays . '天前';
+        }
+
+        // 超过7天显示具体日期
+        if ($carbon->year === $now->year) {
+            return $carbon->format('m-d');
+        }
+
+        return $carbon->format('Y-m-d');
+    }
+
 }

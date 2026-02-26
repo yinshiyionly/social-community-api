@@ -121,13 +121,16 @@ class MemberService
     public function getMemberCollections(int $memberId, int $page = 1, int $pageSize = 10)
     {
         return AppPostCollection::query()
-            ->select(['collection_id', 'post_id', 'created_at'])
-            ->with(['post' => function ($query) {
-                $query->select(self::POST_LIST_COLUMNS)
-                    ->with(self::POST_STAT_RELATION)
-                    ->approved()
-                    ->visible();
-            }])
+            ->select(['collection_id', 'member_id', 'post_id', 'created_at'])
+            ->with([
+                'post' => function ($query) {
+                    $query->select(self::POST_LIST_COLUMNS)
+                        ->with(self::POST_STAT_RELATION)
+                        ->approved()
+                        ->visible();
+                },
+                'member:member_id,nickname,avatar'
+            ])
             ->byMember($memberId)
             ->orderByDesc('collection_id')
             ->paginate($pageSize, ['*'], 'page', $page);
@@ -208,8 +211,8 @@ class MemberService
     public function updateAvatar(int $memberId, string $avatar): bool
     {
         return AppMemberBase::query()
-            ->where('member_id', $memberId)
-            ->update(['avatar' => $avatar]) > 0;
+                ->where('member_id', $memberId)
+                ->update(['avatar' => $avatar]) > 0;
     }
 
     /**
@@ -222,8 +225,8 @@ class MemberService
     public function updateNickname(int $memberId, string $nickname): bool
     {
         return AppMemberBase::query()
-            ->where('member_id', $memberId)
-            ->update(['nickname' => $nickname]) > 0;
+                ->where('member_id', $memberId)
+                ->update(['nickname' => $nickname]) > 0;
     }
 
     /**
@@ -279,7 +282,7 @@ class MemberService
         }
 
         return AppMemberBase::query()
-            ->where('member_id', $memberId)
-            ->update($updateData) > 0;
+                ->where('member_id', $memberId)
+                ->update($updateData) > 0;
     }
 }

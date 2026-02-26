@@ -132,11 +132,12 @@ class MemberController extends Controller
         $memberId = $this->getMemberId($request);
         $page = (int)$request->input('page', 1);
         $pageSize = (int)$request->input('pageSize', 10);
+        $memberId = (int)$request->get('memberId', 0);
 
         try {
             $collections = $this->memberService->getMemberCollections($memberId, $page, $pageSize);
 
-            return AppApiResponse::normalPaginate($collections, MemberCollectionListResource::class);
+            return AppApiResponse::memberPaginate($collections, MemberCollectionListResource::class);
         } catch (\Exception $e) {
             Log::error('获取收藏帖子列表失败', [
                 'member_id' => $memberId,

@@ -19,13 +19,12 @@ class MemberPostListResource extends JsonResource
     public function toArray($request): array
     {
         $cover = $this->cover;
-
         return [
             'id' => $this->post_id,
             'cover' => isset($cover['url']) ? $cover['url'] : '',
             'title' => $this->title ?: ($this->content ?: ''),
-            'avatar' => '',
-            'nickname' => '',
+            'avatar' => $this->member ? $this->member->avatar : '',
+            'nickname' => $this->member ? $this->member->nickname : '',
             'likes' => $this->stat ? $this->stat->like_count : 0,
             'views' => $this->stat ? $this->stat->view_count : 0,
             'isVideo' => $this->post_type == AppPostBase::POST_TYPE_VIDEO,

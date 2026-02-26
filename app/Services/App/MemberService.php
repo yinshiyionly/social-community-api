@@ -85,7 +85,7 @@ class MemberService
     /**
      * 统计关联
      */
-    private const POST_STAT_RELATION = 'stat:post_id,like_count';
+    private const POST_STAT_RELATION = 'stat:post_id,like_count,view_count';
 
     /**
      * 获取用户帖子列表（普通分页）
@@ -99,7 +99,10 @@ class MemberService
     {
         return AppPostBase::query()
             ->select(self::POST_LIST_COLUMNS)
-            ->with(self::POST_STAT_RELATION)
+            ->with([
+                self::POST_STAT_RELATION,
+                'member:member_id,nickname,avatar',
+            ])
             ->byMember($memberId)
             ->approved()
             ->visible()

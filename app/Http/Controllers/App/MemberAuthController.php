@@ -8,6 +8,7 @@ use App\Http\Requests\App\Member\SendSmsRequest;
 use App\Http\Requests\App\Member\SmsLoginRequest;
 use App\Http\Requests\App\Member\WeChatLoginRequest;
 use App\Http\Resources\App\AppApiResponse;
+use App\Jobs\App\SendWelcomeMessageJob;
 use App\Services\App\MemberAuthService;
 use App\Services\App\SmsService;
 use App\Services\App\WeChatService;
@@ -101,6 +102,11 @@ class MemberAuthController extends Controller
             return AppApiResponse::accountDisabled();
         }
 
+        // 首次注册，发送欢迎消息
+        if (!empty($result['is_new'])) {
+            SendWelcomeMessageJob::dispatch($result['member']->member_id);
+        }
+
         return AppApiResponse::success(['data' => [
             'token' => $result['token']
         ]]);
@@ -166,7 +172,12 @@ class MemberAuthController extends Controller
             return AppApiResponse::accountDisabled();
         }
 
-        // 5. 检查是否需要绑定手机号
+        // 5. 首次注册，发送欢迎消息
+        if (!empty($result['is_new'])) {
+            SendWelcomeMessageJob::dispatch($result['member']->member_id);
+        }
+
+        // 6. 检查是否需要绑定手机号
         $needBindPhone = empty($result['member']->phone);
 
         return AppApiResponse::success([

@@ -441,6 +441,7 @@ class MessageService
 
         return AppMemberFollow::where('member_id', $memberId)
             ->whereIn('follow_member_id', $targetMemberIds)
+            ->where('status', AppMemberFollow::STATUS_NORMAL)
             ->pluck('follow_member_id')
             ->toArray();
     }

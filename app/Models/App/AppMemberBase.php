@@ -82,6 +82,9 @@ class AppMemberBase extends Model
     // 用户主页背景图片地址
     const MEMBER_BACKGROUND_IMAGE_URL = 'app/member-bg-image.png';
 
+    // 小秘书官方账号ID
+    const SECRETARY_MEMBER_ID = 1;
+
     /**
      * 关联第三方账号
      */

@@ -3,7 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
-class CreateAppPointTaskTable extends Migration
+class CreateAppMemberPointTaskTable extends Migration
 {
     /**
      * Run the migrations.

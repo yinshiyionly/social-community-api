@@ -35,6 +35,7 @@ class MemberCollectionListResource extends JsonResource
             'nickname' => $this->member ? $this->member->nickname : '',
             'views' => $this->stat ? $this->stat->view_count : 0,
             'likes' => $post->stat ? $post->stat->like_count : 0,
+            'postType' => $post->post_type,
             'isVideo' => $post->post_type == AppPostBase::POST_TYPE_VIDEO,
             'aspectRatio' => $this->calculateAspectRatio($cover),
         ];

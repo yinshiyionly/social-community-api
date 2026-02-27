@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\App\CourseController;
 use App\Http\Controllers\App\LearningCenterController;
+use App\Http\Controllers\App\StudyCourseController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -64,4 +65,27 @@ Route::prefix('app/learning')->middleware('app.jwt')->group(function () {
 Route::prefix('v1/study')->middleware('app.auth')->group(function () {
     // 课表区间数据（日期分组 + 日历红点）
     Route::get('/schedule/range', [LearningCenterController::class, 'scheduleRange']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| App 学习页（课程Tab）路由
+|--------------------------------------------------------------------------
+*/
+
+Route::prefix('v1/study/course')->group(function () {
+    // 课程分类筛选项（无需登录）
+    Route::get('/filters', [StudyCourseController::class, 'filters']);
+
+    // 课程付费类型筛选项（无需登录）
+    Route::get('/all-types', [StudyCourseController::class, 'allTypes']);
+
+    // 以下接口需要登录
+    Route::middleware('app.auth')->group(function () {
+        // 学习页总览数据
+        Route::get('/overview', [StudyCourseController::class, 'overview']);
+
+        // 筛选后的课程列表
+        Route::get('/list', [StudyCourseController::class, 'list']);
+    });
 });

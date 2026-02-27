@@ -112,7 +112,7 @@ class FollowController extends Controller
     {
         $memberId = $this->getMemberId($request);
         $source = $request->getSource();
-        $id = $request->get('userId', 0);
+        $id = $request->get('memberId', 0);
 
         if (empty($id)) {
             return AppApiResponse::error('用户ID不能为空');
@@ -157,7 +157,7 @@ class FollowController extends Controller
     public function unfollow(Request $request): JsonResponse
     {
         $memberId = $this->getMemberId($request);
-        $id = $request->get('userId', 0);
+        $id = $request->get('memberId', 0);
 
         if (empty($id)) {
             return AppApiResponse::error('用户ID不能为空');

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\App\ScheduleDateRequest;
+use App\Http\Requests\App\ScheduleRangeRequest;
 use App\Http\Requests\App\ScheduleWeekRequest;
 use App\Http\Resources\App\AppApiResponse;
 use App\Http\Resources\App\MemberCourseListResource;
@@ -92,4 +93,30 @@ class LearningCenterController extends Controller
             return AppApiResponse::serverError();
         }
     }
+
+    /**
+     * 课表区间数据（日期分组 + 日历红点）
+     */
+    public function scheduleRange(ScheduleRangeRequest $request)
+    {
+        $memberId = $request->attributes->get('member_id');
+        $startDate = $request->input('startDate');
+        $endDate = $request->input('endDate');
+
+        try {
+            $data = $this->learningCenterService->getScheduleRange($memberId, $startDate, $endDate);
+
+            return AppApiResponse::success(['data' => $data]);
+        } catch (\Exception $e) {
+            Log::error('获取课表区间数据失败', [
+                'member_id' => $memberId,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
 }

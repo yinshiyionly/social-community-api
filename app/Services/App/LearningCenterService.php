@@ -2,8 +2,11 @@
 
 namespace App\Services\App;
 
+use App\Models\App\AppChapterHomework;
 use App\Models\App\AppCourseChapter;
+use App\Models\App\AppMemberChapterProgress;
 use App\Models\App\AppMemberCourse;
+use App\Models\App\AppMemberHomeworkSubmit;
 use App\Models\App\AppMemberSchedule;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -165,6 +168,179 @@ class LearningCenterService
 
         return $result;
     }
+
+    /**
+     * 获取课表区间数据（日期分组 + 日历红点）
+     *
+     * @param int $memberId 用户ID
+     * @param string $startDate 起始日期 Y-m-d
+     * @param string $endDate 结束日期 Y-m-d
+     * @return array
+     */
+    public function getScheduleRange(int $memberId, string $startDate, string $endDate): array
+    {
+        // 查询区间内的课表记录，预加载章节、课程、作业
+        $schedules = AppMemberSchedule::byMember($memberId)
+            ->whereBetween('schedule_date', [$startDate, $endDate])
+            ->select([
+                'id',
+                'course_id',
+                'chapter_id',
+                'member_course_id',
+                'schedule_date',
+                'schedule_time',
+                'is_unlocked',
+                'is_learned',
+            ])
+            ->with([
+                'chapter:chapter_id,course_id,chapter_title,chapter_no,cover_image,has_homework,sort_order',
+                'chapter.homeworks' => function ($query) {
+                    $query->enabled()
+                        ->select(['homework_id', 'chapter_id', 'course_id', 'homework_title'])
+                        ->orderBy('sort_order');
+                },
+                'course:course_id,course_title,cover_image',
+                'memberCourse:id,progress,learned_chapters,total_chapters',
+            ])
+            ->orderBy('schedule_date')
+            ->orderBy('schedule_time')
+            ->get();
+
+        // 查询用户在这些章节的学习进度（批量查询避免 N+1）
+        $chapterIds = $schedules->pluck('chapter_id')->unique()->filter()->values()->toArray();
+        $progressMap = [];
+        if (!empty($chapterIds)) {
+            $progressMap = AppMemberChapterProgress::byMember($memberId)
+                ->whereIn('chapter_id', $chapterIds)
+                ->select(['chapter_id', 'progress', 'is_completed'])
+                ->get()
+                ->keyBy('chapter_id')
+                ->toArray();
+        }
+
+        // 查询用户在这些章节的作业提交情况（批量查询）
+        $homeworkIds = [];
+        foreach ($schedules as $schedule) {
+            if ($schedule->chapter && $schedule->chapter->homeworks) {
+                foreach ($schedule->chapter->homeworks as $hw) {
+                    $homeworkIds[] = $hw->homework_id;
+                }
+            }
+        }
+        $homeworkIds = array_unique($homeworkIds);
+
+        $submittedHomeworkIds = [];
+        if (!empty($homeworkIds)) {
+            $submittedHomeworkIds = AppMemberHomeworkSubmit::byMember($memberId)
+                ->whereIn('homework_id', $homeworkIds)
+                ->pluck('homework_id')
+                ->toArray();
+        }
+
+        // 按日期分组
+        $grouped = $schedules->groupBy(function ($schedule) {
+            return $schedule->schedule_date ? $schedule->schedule_date->format('Y-m-d') : '';
+        });
+
+        // 构建 marks 和 sections
+        $marks = [];
+        $sections = [];
+
+        $current = new \DateTime($startDate);
+        $end = new \DateTime($endDate);
+
+        while ($current <= $end) {
+            $dateStr = $current->format('Y-m-d');
+            $daySchedules = isset($grouped[$dateStr]) ? $grouped[$dateStr] : collect();
+            $hasSchedule = $daySchedules->isNotEmpty();
+
+            $marks[] = [
+                'date' => $dateStr,
+                'hasSchedule' => $hasSchedule,
+            ];
+
+            if ($hasSchedule) {
+                $list = [];
+                foreach ($daySchedules as $schedule) {
+                    $list[] = $this->formatScheduleItem($schedule, $progressMap, $submittedHomeworkIds);
+                }
+                $sections[] = [
+                    'date' => $dateStr,
+                    'list' => $list,
+                ];
+            }
+
+            $current->modify('+1 day');
+        }
+
+        return [
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'marks' => $marks,
+            'sections' => $sections,
+        ];
+    }
+
+    /**
+     * 格式化单个课表项
+     *
+     * @param AppMemberSchedule $schedule
+     * @param array $progressMap
+     * @param array $submittedHomeworkIds
+     * @return array
+     */
+    private function formatScheduleItem(AppMemberSchedule $schedule, array $progressMap, array $submittedHomeworkIds): array
+    {
+        $chapter = $schedule->chapter;
+        $course = $schedule->course;
+
+        // 进度文案
+        $progressText = '未学习';
+        if ($schedule->is_learned) {
+            $progressText = '已学完';
+        } elseif (isset($progressMap[$schedule->chapter_id])) {
+            $progress = $progressMap[$schedule->chapter_id];
+            $pct = (int) $progress['progress'];
+            $progressText = $pct > 0 ? '已学' . $pct . '%' : '未学习';
+        }
+
+        // 按钮文案
+        $actionText = '去学习';
+        $actionType = 'learn';
+        if ($schedule->is_learned) {
+            $actionText = '已学完';
+            $actionType = 'view';
+        }
+
+        $item = [
+            'id' => $schedule->id,
+            'type' => 'course',
+            'time' => $schedule->schedule_time ? $schedule->schedule_time : '',
+            'title' => $chapter ? $chapter->chapter_title : '',
+            'cover' => $course ? $course->cover_image : '',
+            'progressText' => $progressText,
+            'actionText' => $actionText,
+            'actionType' => $actionType,
+            'bizId' => $schedule->course_id,
+        ];
+
+        // 关联打卡任务（取章节第一个启用的作业）
+        if ($chapter && $chapter->has_homework && $chapter->homeworks && $chapter->homeworks->isNotEmpty()) {
+            $homework = $chapter->homeworks->first();
+            $isSubmitted = in_array($homework->homework_id, $submittedHomeworkIds);
+
+            $item['checkinTask'] = [
+                'id' => $homework->homework_id,
+                'title' => '打卡：' . $homework->homework_title,
+                'actionText' => $isSubmitted ? '已完成' : '去完成',
+                'actionType' => $isSubmitted ? 'view' : 'task',
+                'bizId' => $homework->homework_id,
+            ];
+        }
+
+        return $item;
+    }
+
 
 
 

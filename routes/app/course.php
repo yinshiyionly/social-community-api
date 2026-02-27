@@ -54,3 +54,14 @@ Route::prefix('app/learning')->middleware('app.jwt')->group(function () {
     // 课表周概览
     Route::get('/week', [LearningCenterController::class, 'weekOverview']);
 });
+
+/*
+|--------------------------------------------------------------------------
+| App 学习页（课表Tab）路由
+|--------------------------------------------------------------------------
+*/
+
+Route::prefix('v1/study')->middleware('app.auth')->group(function () {
+    // 课表区间数据（日期分组 + 日历红点）
+    Route::get('/schedule/range', [LearningCenterController::class, 'scheduleRange']);
+});

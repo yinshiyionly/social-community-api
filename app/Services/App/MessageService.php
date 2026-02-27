@@ -58,7 +58,7 @@ class MessageService
         $unreadCount = AppMessageUnreadCount::getOrCreate($memberId);
 
         // 小秘书官方账号ID
-        $secretaryMemberId = 1;
+        $secretaryMemberId = AppMemberBase::SECRETARY_MEMBER_ID;
 
         // 获取各分类最新一条消息
         $latestLikeCollect = AppMessageInteraction::byReceiver($memberId)

@@ -58,6 +58,7 @@ class RecommendPostListResource extends JsonResource
 
         $data = [
             'id' => $this->post_id,
+            'postType' => $postType,
             'author' => [
                 'id' => $member ? $member->member_id : null,
                 'avatar' => $member ? ($member->avatar ?? '') : '',

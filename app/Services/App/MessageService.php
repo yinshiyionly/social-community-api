@@ -113,15 +113,6 @@ class MessageService
             ],
             [
                 'id' => 3,
-                'type' => '关注我的',
-                'detail' => $latestFollow ? $this->formatFollowSummary($latestFollow)['content'] : '',
-                'time' => $latestFollow && $latestFollow->created_at
-                    ? DatetimeHelper::relativeTime($latestFollow->created_at) : '',
-                'avatar' => (new AppFileUploadService())->generateFileUrl($icons['follow']),
-                'count' => $unreadCount->follow_count,
-            ],
-            [
-                'id' => 4,
                 'type' => '小秘书',
                 'detail' => $latestSecretary ? $this->formatSystemSummary($latestSecretary)['content'] : '',
                 'time' => $latestSecretary && $latestSecretary->created_at
@@ -129,6 +120,15 @@ class MessageService
                 'avatar' => (new AppFileUploadService())->generateFileUrl($icons['secretary']),
                 'count' => AppMessageSystemUnread::getUnreadCount($memberId, $secretaryMemberId),
             ],
+            [
+                'id' => 4,
+                'type' => '关注我的',
+                'detail' => $latestFollow ? $this->formatFollowSummary($latestFollow)['content'] : '',
+                'time' => $latestFollow && $latestFollow->created_at
+                    ? DatetimeHelper::relativeTime($latestFollow->created_at) : '',
+                'avatar' => (new AppFileUploadService())->generateFileUrl($icons['follow']),
+                'count' => $unreadCount->follow_count,
+            ]
         ];
 
         // 分页处理（固定4条数据）

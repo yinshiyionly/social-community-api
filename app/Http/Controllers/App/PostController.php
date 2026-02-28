@@ -94,7 +94,9 @@ class PostController extends Controller
             $postId = $this->postService->createPost($memberId, $data);
 
             return AppApiResponse::success([
-                'data' => ['post_id' => $postId]
+                'data' => [
+                    'postId' => $postId
+                ]
             ]);
         } catch (\Exception $e) {
             Log::error('发表图文动态失败', [
@@ -121,7 +123,9 @@ class PostController extends Controller
             $postId = $this->postService->createPost($memberId, $data);
 
             return AppApiResponse::success([
-                'data' => ['post_id' => $postId]
+                'data' => [
+                    'postId' => $postId
+                ]
             ]);
         } catch (\Exception $e) {
             Log::error('发表视频动态失败', [

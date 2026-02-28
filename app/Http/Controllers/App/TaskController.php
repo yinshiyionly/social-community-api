@@ -55,4 +55,31 @@ class TaskController extends Controller
             return AppApiResponse::serverError();
         }
     }
+
+    /**
+     * 获取学分明细（分页）
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function scoreDetail(Request $request): JsonResponse
+    {
+        $memberId = $request->attributes->get('member_id');
+        $page = (int) $request->input('page', 1);
+        $pageSize = (int) $request->input('pageSize', 20);
+
+        try {
+            $data = $this->taskService->getScoreDetail($memberId, $page, $pageSize);
+
+            return AppApiResponse::success(['data' => $data]);
+        } catch (\Exception $e) {
+            Log::error('获取学分明细失败', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
 }

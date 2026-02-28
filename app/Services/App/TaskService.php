@@ -4,6 +4,7 @@ namespace App\Services\App;
 
 use App\Models\App\AppMemberGrowthTask;
 use App\Models\App\AppMemberPoint;
+use App\Models\App\AppMemberPointLog;
 use App\Models\App\AppMemberTaskRecord;
 use App\Models\App\AppPointTask;
 
@@ -39,6 +40,49 @@ class TaskService
             'tabs' => $tabs,
             'currentTab' => $tab,
             'list' => $list,
+        ];
+    }
+
+    /**
+     * 获取学分明细（分页）
+     *
+     * @param int $memberId
+     * @param int $page
+     * @param int $pageSize
+     * @return array
+     */
+    public function getScoreDetail(int $memberId, int $page, int $pageSize): array
+    {
+        $account = AppMemberPoint::getOrCreate($memberId);
+
+        // 累计获取学分
+        $totalEarned = AppMemberPointLog::byMember($memberId)
+            ->earned()
+            ->sum('change_value');
+
+        // 分页查询明细
+        $paginator = AppMemberPointLog::byMember($memberId)
+            ->select(['log_id', 'title', 'change_value', 'created_at'])
+            ->orderBy('log_id', 'desc')
+            ->paginate($pageSize, ['*'], 'page', $page);
+
+        $list = [];
+        foreach ($paginator->items() as $log) {
+            $list[] = [
+                'id' => $log->log_id,
+                'title' => $log->title,
+                'time' => $log->created_at ? $log->created_at->format('Y.m.d H:i:s') : '',
+                'scoreChange' => $log->change_value,
+            ];
+        }
+
+        return [
+            'scoreBalance' => $account->available_points,
+            'totalEarned' => (int) $totalEarned,
+            'list' => $list,
+            'total' => $paginator->total(),
+            'page' => $paginator->currentPage(),
+            'pageSize' => $paginator->perPage(),
         ];
     }
 

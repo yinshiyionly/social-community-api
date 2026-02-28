@@ -12,4 +12,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1/task')->middleware('app.auth')->group(function () {
     // 任务中心数据
     Route::get('/center', [TaskController::class, 'center']);
+
+    // 学分明细（分页）
+    Route::get('/score/detail', [TaskController::class, 'scoreDetail']);
 });

@@ -84,33 +84,38 @@ class StudyCourseController extends Controller
     /**
      * 获取筛选后的课程列表
      */
-    public function list(StudyCourseListRequest $request)
-    {
-        $memberId = $request->attributes->get('member_id');
-        $filter = $request->input('filter');
-        $filterType = $request->input('filterType', 'quick');
-        $page = (int) $request->input('page', 1);
-        $pageSize = (int) $request->input('pageSize', 10);
+    
+        /**
+         * 获取筛选后的课程列表
+         */
+        public function list(StudyCourseListRequest $request)
+        {
+            $memberId = $request->attributes->get('member_id');
+            $categoryId = $request->input('filter');
+            $payType = $request->input('filterType');
+            $page = (int) $request->input('page', 1);
+            $pageSize = (int) $request->input('pageSize', 10);
 
-        try {
-            $data = $this->studyCourseService->getFilteredCourseList(
-                $memberId,
-                $filter,
-                $filterType,
-                $page,
-                $pageSize
-            );
+            try {
+                $data = $this->studyCourseService->getFilteredCourseList(
+                    $memberId,
+                    $categoryId,
+                    $payType,
+                    $page,
+                    $pageSize
+                );
 
-            return AppApiResponse::success(['data' => $data]);
-        } catch (\Exception $e) {
-            Log::error('获取学习页课程列表失败', [
-                'member_id' => $memberId,
-                'filter' => $filter,
-                'filter_type' => $filterType,
-                'error' => $e->getMessage(),
-            ]);
+                return AppApiResponse::success(['data' => $data]);
+            } catch (\Exception $e) {
+                Log::error('获取学习页课程列表失败', [
+                    'member_id' => $memberId,
+                    'category_id' => $categoryId,
+                    'pay_type' => $payType,
+                    'error' => $e->getMessage(),
+                ]);
 
-            return AppApiResponse::serverError();
+                return AppApiResponse::serverError();
+            }
         }
-    }
+
 }

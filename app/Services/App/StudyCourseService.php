@@ -150,13 +150,13 @@ class StudyCourseService
      * 获取筛选后的课程列表（分页）
      *
      * @param int $memberId
-     * @param string $filter 筛选值
-     * @param string $filterType 筛选类型 quick|allType
+     * @param int|null $categoryId 课程分类ID
+     * @param int|null $payType 课程付费类型
      * @param int $page
      * @param int $pageSize
      * @return array
      */
-    public function getFilteredCourseList(int $memberId, string $filter, string $filterType, int $page, int $pageSize): array
+    public function getFilteredCourseList(int $memberId, $categoryId, $payType, int $page, int $pageSize): array
     {
         $query = AppMemberCourse::byMember($memberId)
             ->notExpired()
@@ -165,16 +165,17 @@ class StudyCourseService
                 'is_completed', 'last_learn_time', 'enroll_time',
             ]);
 
-        // 根据筛选类型关联课程表进行过滤
-        if ($filterType === 'quick') {
-            // 按课程分类筛选
-            $query->whereHas('course', function ($q) use ($filter) {
-                $q->where('category_id', (int) $filter);
+        // 按课程分类筛选
+        if ($categoryId) {
+            $query->whereHas('course', function ($q) use ($categoryId) {
+                $q->where('category_id', (int) $categoryId);
             });
-        } elseif ($filterType === 'allType') {
-            // 按付费类型筛选
-            $query->whereHas('course', function ($q) use ($filter) {
-                $q->where('pay_type', (int) $filter);
+        }
+
+        // 按付费类型筛选
+        if ($payType) {
+            $query->whereHas('course', function ($q) use ($payType) {
+                $q->where('pay_type', (int) $payType);
             });
         }
 
@@ -184,13 +185,35 @@ class StudyCourseService
 
         $paginator = $query->paginate($pageSize, ['*'], 'page', $page);
 
+        // 预加载下一节未学课表（用于直播课 statusText）
+        $memberCourseIds = [];
+        foreach ($paginator->items() as $mc) {
+            $memberCourseIds[] = $mc->id;
+        }
+
+        $nextSchedules = [];
+        if (!empty($memberCourseIds)) {
+            $schedules = AppMemberSchedule::whereIn('member_course_id', $memberCourseIds)
+                ->where('is_learned', 0)
+                ->where('schedule_date', '>=', date('Y-m-d'))
+                ->orderBy('schedule_date')
+                ->orderBy('schedule_time')
+                ->get()
+                ->groupBy('member_course_id');
+
+            foreach ($schedules as $mcId => $group) {
+                $nextSchedules[$mcId] = $group->first();
+            }
+        }
+
         $list = [];
         foreach ($paginator->items() as $mc) {
             $course = $mc->course;
             if (!$course) {
                 continue;
             }
-            $list[] = $this->formatCourseListItem($mc, $course);
+            $nextSchedule = isset($nextSchedules[$mc->id]) ? $nextSchedules[$mc->id] : null;
+            $list[] = $this->formatCourseListItem($mc, $course, $nextSchedule);
         }
 
         return [
@@ -200,6 +223,7 @@ class StudyCourseService
             'pageSize' => $paginator->perPage(),
         ];
     }
+
 
     /**
      * 格式化总览课程项
@@ -241,40 +265,63 @@ class StudyCourseService
      * @param AppCourseBase $course
      * @return array
      */
-    private function formatCourseListItem(AppMemberCourse $mc, AppCourseBase $course): array
-    {
-        $overlayText = '';
-        $payTypeConfig = isset(AppCourseBase::PAY_TYPE_CONFIG[$course->pay_type])
-            ? AppCourseBase::PAY_TYPE_CONFIG[$course->pay_type]
-            : null;
-        if ($payTypeConfig) {
-            $overlayText = $payTypeConfig['typeName'];
+    
+        /**
+         * 格式化筛选列表课程项
+         *
+         * @param AppMemberCourse $mc
+         * @param AppCourseBase $course
+         * @param AppMemberSchedule|null $nextSchedule 下一节未学课表
+         * @return array
+         */
+        private function formatCourseListItem(AppMemberCourse $mc, AppCourseBase $course, $nextSchedule = null): array
+        {
+            $overlayText = '';
+            $payTypeConfig = isset(AppCourseBase::PAY_TYPE_CONFIG[$course->pay_type])
+                ? AppCourseBase::PAY_TYPE_CONFIG[$course->pay_type]
+                : null;
+            if ($payTypeConfig) {
+                $overlayText = $payTypeConfig['typeName'];
+            }
+
+            // 时间文案（直播课显示下一节开课时间）
+            $timeText = '';
+            if ($nextSchedule && $nextSchedule->schedule_date) {
+                $dateStr = $nextSchedule->schedule_date->format('Y.m.d');
+                $timeStr = $nextSchedule->schedule_time ? $nextSchedule->schedule_time : '';
+                $timeText = $timeStr ? ($dateStr . ' ' . $timeStr) : $dateStr;
+            }
+
+            // 状态文案
+            $statusText = '';
+            if ($mc->is_completed) {
+                $statusText = '已结课';
+            } elseif ($nextSchedule && $nextSchedule->schedule_date) {
+                $dateStr = $nextSchedule->schedule_date->format('Y.m.d');
+                $timeStr = $nextSchedule->schedule_time ? $nextSchedule->schedule_time : '';
+                $statusText = $timeStr ? ($dateStr . ' ' . $timeStr . ' 开课') : ($dateStr . ' 开课');
+            } elseif ($mc->progress > 0) {
+                $statusText = '已学' . (int) $mc->progress . '%';
+            } else {
+                $statusText = '未学习';
+            }
+
+            $actionText = '去学习';
+            if ($mc->is_completed) {
+                $actionText = '已结课';
+            } elseif ($mc->last_learn_time) {
+                $actionText = '继续学';
+            }
+
+            return [
+                'id' => $mc->course_id,
+                'title' => $course->course_title,
+                'cover' => $course->cover_image,
+                'overlayText' => $overlayText,
+                'timeText' => $timeText,
+                'statusText' => $statusText,
+                'actionText' => $actionText,
+            ];
         }
 
-        // 状态文案
-        $statusText = '';
-        if ($mc->is_completed) {
-            $statusText = '已结课';
-        } elseif ($mc->progress > 0) {
-            $statusText = '已学' . (int) $mc->progress . '%';
-        } else {
-            $statusText = '未学习';
-        }
-
-        $actionText = '去学习';
-        if ($mc->is_completed) {
-            $actionText = '已结课';
-        } elseif ($mc->last_learn_time) {
-            $actionText = '继续学';
-        }
-
-        return [
-            'id' => $mc->course_id,
-            'title' => $course->course_title,
-            'cover' => $course->cover_image,
-            'overlayText' => $overlayText,
-            'statusText' => $statusText,
-            'actionText' => $actionText,
-        ];
-    }
 }

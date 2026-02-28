@@ -3,6 +3,7 @@
 namespace App\Services\App;
 
 use App\Models\App\AppMemberGrowthTask;
+use App\Models\App\AppMemberPoint;
 use App\Models\App\AppMemberTaskRecord;
 use App\Models\App\AppPointTask;
 
@@ -11,6 +12,125 @@ use App\Models\App\AppPointTask;
  */
 class TaskService
 {
+    /**
+     * 获取任务中心数据
+     *
+     * @param int $memberId
+     * @param string $tab newbie|daily
+     * @return array
+     */
+    public function getTaskCenter(int $memberId, string $tab): array
+    {
+        $account = AppMemberPoint::getOrCreate($memberId);
+
+        $tabs = [
+            ['label' => '新人任务', 'value' => 'newbie'],
+            ['label' => '日常任务', 'value' => 'daily'],
+        ];
+
+        if ($tab === 'daily') {
+            $list = $this->buildDailyTaskItems($memberId);
+        } else {
+            $list = $this->buildGrowthTaskItems($memberId);
+        }
+
+        return [
+            'scoreBalance' => $account->available_points,
+            'tabs' => $tabs,
+            'currentTab' => $tab,
+            'list' => $list,
+        ];
+    }
+
+    /**
+     * 构建新人任务列表项（任务中心格式）
+     *
+     * @param int $memberId
+     * @return array
+     */
+    private function buildGrowthTaskItems(int $memberId): array
+    {
+        $tasks = AppPointTask::enabled()
+            ->active()
+            ->byType(AppPointTask::TYPE_GROWTH)
+            ->select(['task_id', 'task_code', 'task_name', 'point_value', 'sort_order'])
+            ->orderBy('sort_order')
+            ->get();
+
+        if ($tasks->isEmpty()) {
+            return [];
+        }
+
+        $memberTasks = AppMemberGrowthTask::byMember($memberId)
+            ->select(['task_code', 'is_completed'])
+            ->get()
+            ->keyBy('task_code');
+
+        $list = [];
+        foreach ($tasks as $task) {
+            $memberTask = $memberTasks->get($task->task_code);
+            $isDone = $memberTask && $memberTask->is_completed;
+
+            $list[] = [
+                'id' => $task->task_id,
+                'title' => $task->task_name,
+                'rewardScore' => $task->point_value,
+                'status' => $isDone ? 'done' : 'todo',
+                'actionText' => $isDone ? '已完成' : '去完成',
+                'sortNo' => $task->sort_order,
+            ];
+        }
+
+        return $list;
+    }
+
+    /**
+     * 构建日常任务列表项（任务中心格式）
+     *
+     * @param int $memberId
+     * @return array
+     */
+    private function buildDailyTaskItems(int $memberId): array
+    {
+        $tasks = AppPointTask::enabled()
+            ->active()
+            ->byType(AppPointTask::TYPE_DAILY)
+            ->select(['task_id', 'task_code', 'task_name', 'point_value', 'daily_limit', 'icon', 'sort_order'])
+            ->orderBy('sort_order')
+            ->get();
+
+        if ($tasks->isEmpty()) {
+            return [];
+        }
+
+        $today = date('Y-m-d');
+        $taskCodes = $tasks->pluck('task_code')->toArray();
+
+        $todayCounts = AppMemberTaskRecord::byMember($memberId)
+            ->byDate($today)
+            ->whereIn('task_code', $taskCodes)
+            ->selectRaw('task_code, count(*) as completed_count')
+            ->groupBy('task_code')
+            ->pluck('completed_count', 'task_code');
+
+        $list = [];
+        foreach ($tasks as $task) {
+            $completedCount = (int) ($todayCounts->get($task->task_code, 0));
+            $isDone = $task->daily_limit > 0 && $completedCount >= $task->daily_limit;
+
+            $list[] = [
+                'id' => $task->task_id,
+                'title' => $task->task_name,
+                'rewardScore' => $task->point_value,
+                'status' => $isDone ? 'done' : 'todo',
+                'actionText' => $isDone ? '已完成' : '去完成',
+                'avatar' => $task->icon,
+            ];
+        }
+
+        return $list;
+    }
+
     /**
      * 获取新人任务列表（成长任务 + 用户完成状态）
      *

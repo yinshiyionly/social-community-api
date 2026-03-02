@@ -30,8 +30,10 @@ Route::prefix('v1/post')->group(function () {
         Route::get('page', [PostController::class, 'page']);
         // 视频流列表（游标分页）- 刷视频场景
         Route::get('video/feed', [PostController::class, 'videoFeed']);
-        // 动态详情（通用）
-        Route::get('detail/{id}', [PostController::class, 'detail']);
+        // 动态详情（通用，v1）
+        Route::get('detail', [PostController::class, 'detail']);
+        // 动态详情（兼容旧版路径参数）
+        Route::get('detail/{id}', [PostController::class, 'detailById']);
         // 图文动态详情
         Route::get('detail/imageText/{id}', [PostController::class, 'detailImageText']);
         // 视频动态详情

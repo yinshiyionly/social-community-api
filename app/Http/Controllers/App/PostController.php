@@ -5,6 +5,7 @@ namespace App\Http\Controllers\App;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\App\ArticlePostStoreRequest;
 use App\Http\Requests\App\ImageTextPostStoreRequest;
+use App\Http\Requests\App\PostDetailRequest;
 use App\Http\Requests\App\PostListRequest;
 use App\Http\Requests\App\PostPageRequest;
 use App\Http\Requests\App\PostStoreRequest;
@@ -12,8 +13,8 @@ use App\Http\Requests\App\VideoPostStoreRequest;
 use App\Http\Resources\App\AppApiResponse;
 use App\Http\Resources\App\ArticlePostResource;
 use App\Http\Resources\App\ImageTextPostResource;
+use App\Http\Resources\App\PostDetailResource;
 use App\Http\Resources\App\PostListResource;
-use App\Http\Resources\App\PostResource;
 use App\Http\Resources\App\VideoFeedResource;
 use App\Http\Resources\App\VideoPostResource;
 use App\Models\App\AppPostBase;
@@ -285,17 +286,77 @@ class PostController extends Controller
     }
 
     /**
-     * 获取帖子详情
+     * 获取帖子详情（v1）
+     *
+     * GET /api/app/v1/post/detail?postId=xxx&postType=1|2|3
+     *
+     * @param PostDetailRequest $request
+     * @return JsonResponse
+     */
+    public function detail(PostDetailRequest $request): JsonResponse
+    {
+        $postId = (int)$request->input('postId');
+        $postType = $this->normalizePostType($request->input('postType'));
+
+        return $this->buildDetailResponse($request, $postId, $postType);
+    }
+
+    /**
+     * 获取帖子详情（兼容旧版路径参数）
+     *
+     * GET /api/app/v1/post/detail/{id}
      *
      * @param Request $request
-     * @param int $id 帖子ID
+     * @param int $id
+     * @return JsonResponse
      */
-    public function detail(Request $request, int $id)
+    public function detailById(Request $request, int $id): JsonResponse
+    {
+        $postType = $this->normalizePostType($request->input('postType'));
+
+        return $this->buildDetailResponse($request, $id, $postType);
+    }
+
+    /**
+     * 归一化帖子类型参数
+     *
+     * @param mixed $postType
+     * @return int|null
+     */
+    protected function normalizePostType($postType): ?int
+    {
+        if ($postType === null || $postType === '') {
+            return null;
+        }
+
+        $normalized = (int)$postType;
+        if (!in_array($normalized, [
+            AppPostBase::POST_TYPE_IMAGE_TEXT,
+            AppPostBase::POST_TYPE_VIDEO,
+            AppPostBase::POST_TYPE_ARTICLE,
+        ], true)) {
+            return null;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * 组装帖子详情响应
+     *
+     * @param Request $request
+     * @param int $postId
+     * @param int|null $postType
+     * @return JsonResponse
+     */
+    protected function buildDetailResponse(Request $request, int $postId, ?int $postType = null): JsonResponse
     {
         $memberId = $this->getMemberId($request);
 
         try {
-            $post = $this->postService->getPostDetail($id);
+            $post = is_null($postType)
+                ? $this->postService->getPostDetail($postId)
+                : $this->postService->getPostDetailByType($postId, $postType);
 
             if (!$post) {
                 return AppApiResponse::dataNotFound('内容不存在');
@@ -304,23 +365,31 @@ class PostController extends Controller
             // 增加浏览量
             $this->postService->incrementViewCount($post);
 
-            // 检查收藏和点赞状态
-            $isCollected = false;
+            $isFavorited = false;
             $isLiked = false;
+            $isFollowed = false;
             if ($memberId) {
-                $isCollected = $this->postService->isPostCollected($memberId, $id);
-                $isLiked = $this->postService->isPostLiked($memberId, $id);
+                $memberId = (int)$memberId;
+                $isFavorited = $this->postService->isPostCollected($memberId, $postId);
+                $isLiked = $this->postService->isPostLiked($memberId, $postId);
+                $followedMemberIds = $this->postService->getFollowedMemberIds($memberId, [(int)$post->member_id]);
+                $isFollowed = in_array((int)$post->member_id, $followedMemberIds, true);
             }
 
             return AppApiResponse::resource(
                 $post,
-                PostResource::class,
+                PostDetailResource::class,
                 'success',
-                ['isCollected' => $isCollected, 'isLiked' => $isLiked]
+                [
+                    'isFollowed' => $isFollowed,
+                    'isLiked' => $isLiked,
+                    'isFavorited' => $isFavorited,
+                ]
             );
         } catch (\Exception $e) {
             Log::error('获取帖子详情失败', [
-                'post_id' => $id,
+                'post_id' => $postId,
+                'post_type' => $postType,
                 'error' => $e->getMessage()
             ]);
 

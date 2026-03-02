@@ -92,7 +92,7 @@ class StudyCourseService
 
             $todayTasks[] = [
                 'id' => $schedule->id,
-                'time' => $schedule->schedule_time ? $schedule->schedule_time : '',
+                'time' => $schedule->schedule_time ? substr($schedule->schedule_time, 0, 5) : '',
                 'title' => $chapter ? $chapter->chapter_title : '',
                 'subtitle' => $chapter ? $chapter->chapter_subtitle : '',
                 'statusText' => $statusText,
@@ -202,14 +202,14 @@ class StudyCourseService
         // 按课程分类筛选
         if ($categoryId) {
             $query->whereHas('course', function ($q) use ($categoryId) {
-                $q->where('category_id', (int) $categoryId);
+                $q->where('category_id', (int)$categoryId);
             });
         }
 
         // 按付费类型筛选
         if ($payType) {
             $query->whereHas('course', function ($q) use ($payType) {
-                $q->where('pay_type', (int) $payType);
+                $q->where('pay_type', (int)$payType);
             });
         }
 
@@ -273,7 +273,7 @@ class StudyCourseService
         $overlayText = '';
         if ($nextSchedule && $nextSchedule->schedule_date) {
             $dateStr = $nextSchedule->schedule_date->format('n月j日');
-            $timeStr = $nextSchedule->schedule_time ? $nextSchedule->schedule_time : '';
+            $timeStr = $nextSchedule->schedule_time ? substr($nextSchedule->schedule_time, 0, 5) : '';
             $overlayText = $timeStr ? ($dateStr . ' ' . $timeStr) : $dateStr;
         } else {
             $payTypeConfig = isset(AppCourseBase::PAY_TYPE_CONFIG[$course->pay_type])
@@ -322,7 +322,7 @@ class StudyCourseService
         $timeText = '';
         if ($nextSchedule && $nextSchedule->schedule_date) {
             $dateStr = $nextSchedule->schedule_date->format('Y.m.d');
-            $timeStr = $nextSchedule->schedule_time ? $nextSchedule->schedule_time : '';
+            $timeStr = $nextSchedule->schedule_time ? substr($nextSchedule->schedule_time, 0, 5) : '';
             $timeText = $timeStr ? ($dateStr . ' ' . $timeStr) : $dateStr;
         }
 
@@ -332,10 +332,10 @@ class StudyCourseService
             $statusText = '已结课';
         } elseif ($nextSchedule && $nextSchedule->schedule_date) {
             $dateStr = $nextSchedule->schedule_date->format('Y.m.d');
-            $timeStr = $nextSchedule->schedule_time ? $nextSchedule->schedule_time : '';
+            $timeStr = $nextSchedule->schedule_time ? substr($nextSchedule->schedule_time, 0, 5) : '';
             $statusText = $timeStr ? ($dateStr . ' ' . $timeStr . ' 开课') : ($dateStr . ' 开课');
         } elseif ($mc->progress > 0) {
-            $statusText = '已学' . (int) $mc->progress . '%';
+            $statusText = '已学' . (int)$mc->progress . '%';
         } else {
             $statusText = '未学习';
         }

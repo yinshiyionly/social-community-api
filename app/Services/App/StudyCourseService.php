@@ -116,10 +116,31 @@ class StudyCourseService
                 'id', 'course_id', 'progress', 'learned_chapters', 'total_chapters',
                 'is_completed', 'last_learn_time', 'last_chapter_id', 'enroll_time',
             ])
-            ->with(['course:course_id,course_title,cover_image,play_type'])
+            ->with(['course:course_id,course_title,cover_image,play_type,pay_type'])
             ->orderByRaw('last_learn_time DESC NULLS LAST')
             ->orderBy('enroll_time', 'desc')
             ->get();
+
+        // 预加载下一节未学课表（用于 overlayText 显示开课时间）
+        $memberCourseIds = [];
+        foreach ($memberCourses as $mc) {
+            $memberCourseIds[] = $mc->id;
+        }
+
+        $nextSchedules = [];
+        if (!empty($memberCourseIds)) {
+            $schedules = AppMemberSchedule::whereIn('member_course_id', $memberCourseIds)
+                ->where('is_learned', 0)
+                ->where('schedule_date', '>=', date('Y-m-d'))
+                ->orderBy('schedule_date')
+                ->orderBy('schedule_time')
+                ->get()
+                ->groupBy('member_course_id');
+
+            foreach ($schedules as $mcId => $group) {
+                $nextSchedules[$mcId] = $group->first();
+            }
+        }
 
         $recentList = [];
         $pendingList = [];
@@ -131,7 +152,8 @@ class StudyCourseService
                 continue;
             }
 
-            $item = $this->formatCourseOverviewItem($mc, $course);
+            $nextSchedule = isset($nextSchedules[$mc->id]) ? $nextSchedules[$mc->id] : null;
+            $item = $this->formatCourseOverviewItem($mc, $course, $nextSchedule);
 
             if ($mc->is_completed) {
                 $finishedList[] = $item;
@@ -242,16 +264,24 @@ class StudyCourseService
      *
      * @param AppMemberCourse $mc
      * @param AppCourseBase $course
+     * @param AppMemberSchedule|null $nextSchedule 下一节未学课表
      * @return array
      */
-    private function formatCourseOverviewItem(AppMemberCourse $mc, AppCourseBase $course): array
+    private function formatCourseOverviewItem(AppMemberCourse $mc, AppCourseBase $course, $nextSchedule = null): array
     {
+        // overlayText：优先显示下一节开课时间，否则显示付费类型
         $overlayText = '';
-        $payTypeConfig = isset(AppCourseBase::PAY_TYPE_CONFIG[$course->pay_type])
-            ? AppCourseBase::PAY_TYPE_CONFIG[$course->pay_type]
-            : null;
-        if ($payTypeConfig) {
-            $overlayText = $payTypeConfig['typeName'];
+        if ($nextSchedule && $nextSchedule->schedule_date) {
+            $dateStr = $nextSchedule->schedule_date->format('n月j日');
+            $timeStr = $nextSchedule->schedule_time ? $nextSchedule->schedule_time : '';
+            $overlayText = $timeStr ? ($dateStr . ' ' . $timeStr) : $dateStr;
+        } else {
+            $payTypeConfig = isset(AppCourseBase::PAY_TYPE_CONFIG[$course->pay_type])
+                ? AppCourseBase::PAY_TYPE_CONFIG[$course->pay_type]
+                : null;
+            if ($payTypeConfig) {
+                $overlayText = $payTypeConfig['typeName'];
+            }
         }
 
         $actionText = '去学习';

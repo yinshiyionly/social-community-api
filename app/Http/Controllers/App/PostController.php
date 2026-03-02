@@ -153,7 +153,7 @@ class PostController extends Controller
             $postId = $this->postService->createPost($memberId, $data);
 
             return AppApiResponse::success([
-                'data' => ['post_id' => $postId]
+                'data' => ['postId' => $postId]
             ]);
         } catch (\Exception $e) {
             Log::error('发表文章动态失败', [

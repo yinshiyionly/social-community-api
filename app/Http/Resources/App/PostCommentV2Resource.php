@@ -43,7 +43,7 @@ class PostCommentV2Resource extends JsonResource
         return [
             // 'id' => $this->post_id . '_comment_' . $this->comment_id,
             'id' => $this->comment_id ?? 0,
-            'postId' => (string)$this->post_id,
+            'postId' => $this->post_id,
             'memberId' => $this->member_id,
 //            'parentCommentId' => $this->parent_id > 0
 //                ? ($this->post_id . '_comment_' . $this->parent_id)

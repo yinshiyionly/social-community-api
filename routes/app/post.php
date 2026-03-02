@@ -16,10 +16,15 @@ Route::prefix('v1/post')->group(function () {
     Route::middleware('app.auth.optional')->group(function () {
         Route::get('comments', [PostCommentController::class, 'listV2']);
     });
-    // 发表评论
-    Route::middleware('app.auth')->group(function () {
-        Route::post('comment', [PostCommentController::class, 'storeV2']);
+    Route::middleware('app.auth')->prefix('comment')->group(function () {
+        // 发表评论
+        Route::post('', [PostCommentController::class, 'storeV2']);
+        // 点赞评论
+        Route::post('like', [PostCommentController::class, 'like']);
+        // 取消点赞评论
+        Route::post('unlike', [PostCommentController::class, 'unlike']);
     });
+
     // 公开接口（可选鉴权，有 token 时返回收藏状态）
     Route::middleware('app.auth.optional')->group(function () {
         // 动态列表-普通分页-在用

@@ -259,7 +259,7 @@ class PostCommentController extends Controller
     public function like(Request $request)
     {
         $memberId = $this->getMemberId($request);
-        $commentId = $request->input('id', 0);
+        $commentId = $request->input('commentId', 0);
 
         if (empty($commentId)) {
             return AppApiResponse::error('评论ID不能为空');
@@ -303,7 +303,7 @@ class PostCommentController extends Controller
     public function unlike(Request $request)
     {
         $memberId = $this->getMemberId($request);
-        $commentId = $request->input('id', 0);
+        $commentId = $request->input('commentId', 0);
 
         if (empty($commentId)) {
             return AppApiResponse::error('评论ID不能为空');

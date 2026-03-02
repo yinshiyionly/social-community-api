@@ -4,9 +4,11 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\App\PostCommentRequest;
+use App\Http\Requests\App\PostCommentV2Request;
 use App\Http\Resources\App\AppApiResponse;
 use App\Http\Resources\App\PostCommentResource;
 use App\Http\Resources\App\PostCommentReplyResource;
+use App\Http\Resources\App\PostCommentV2Resource;
 use App\Services\App\PostCommentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -329,6 +331,102 @@ class PostCommentController extends Controller
             Log::error('取消点赞评论失败', [
                 'member_id' => $memberId,
                 'comment_id' => $commentId,
+                'error' => $e->getMessage()
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 获取帖子评论列表 V2（普通分页，新版响应格式）
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function listV2(Request $request)
+    {
+        $memberId = $this->getMemberId($request);
+        $postId = (int) $request->input('postId', 0);
+        $page = (int) $request->input('page', 1);
+        $pageSize = (int) $request->input('pageSize', 20);
+
+        if ($postId <= 0) {
+            return AppApiResponse::error('帖子ID不能为空');
+        }
+
+        try {
+            $result = $this->commentService->getCommentListPaginate($postId, $memberId, $page, $pageSize);
+
+            PostCommentV2Resource::setLikedCommentIds($result['likedCommentIds']);
+
+            $paginator = $result['paginator'];
+            $items = PostCommentV2Resource::collection(collect($paginator->items()))->resolve();
+
+            return AppApiResponse::success([
+                'data' => [
+                    'list' => $items,
+                    'total' => $paginator->total(),
+                    'page' => $paginator->currentPage(),
+                    'pageSize' => $paginator->perPage(),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('获取评论列表失败', [
+                'post_id' => $postId,
+                'error' => $e->getMessage()
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 发表评论 V2（新版请求/响应格式）
+     *
+     * @param PostCommentV2Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function storeV2(PostCommentV2Request $request)
+    {
+        $memberId = $this->getMemberId($request);
+        $postId = (int) $request->input('postId');
+        $content = $request->input('content');
+        $parentCommentId = (int) $request->input('parentCommentId', 0);
+
+        // 获取IP和地域信息
+        $ipAddress = $this->getClientIp($request);
+        $ipRegion = $this->getIpRegion($ipAddress);
+
+        try {
+            $result = $this->commentService->createComment(
+                $memberId,
+                $postId,
+                $content,
+                $parentCommentId,
+                0,
+                $ipAddress,
+                $ipRegion
+            );
+
+            if (!$result['success']) {
+                if ($result['message'] === 'post_not_found') {
+                    return AppApiResponse::dataNotFound('内容不存在');
+                }
+                if ($result['message'] === 'parent_not_found') {
+                    return AppApiResponse::dataNotFound('评论不存在');
+                }
+                return AppApiResponse::error('评论失败，请稍后重试');
+            }
+
+            $comment = $result['comment'];
+            PostCommentV2Resource::setLikedCommentIds([]);
+
+            return AppApiResponse::resource($comment, PostCommentV2Resource::class);
+        } catch (\Exception $e) {
+            Log::error('发表评论失败', [
+                'member_id' => $memberId,
+                'post_id' => $postId,
                 'error' => $e->getMessage()
             ]);
 

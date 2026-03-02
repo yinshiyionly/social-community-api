@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\App\PostController;
+use App\Http\Controllers\App\PostCommentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -10,6 +11,15 @@ use App\Http\Controllers\App\PostController;
 */
 
 Route::prefix('v1/post')->group(function () {
+    // === 新版评论接口 ===
+    // 获取帖子评论列表（普通分页）
+    Route::middleware('app.auth.optional')->group(function () {
+        Route::get('comments', [PostCommentController::class, 'listV2']);
+    });
+    // 发表评论
+    Route::middleware('app.auth')->group(function () {
+        Route::post('comment', [PostCommentController::class, 'storeV2']);
+    });
     // 公开接口（可选鉴权，有 token 时返回收藏状态）
     Route::middleware('app.auth.optional')->group(function () {
         // 动态列表-普通分页-在用

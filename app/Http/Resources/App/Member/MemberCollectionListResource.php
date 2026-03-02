@@ -26,14 +26,15 @@ class MemberCollectionListResource extends JsonResource
         }
 
         $cover = $post->cover;
+        $author = $post->member;
 
         return [
             'id' => $post->post_id,
             'cover' => isset($cover['url']) ? $cover['url'] : '',
             'title' => $post->title ?: ($post->content ?: ''),
-            'avatar' => $this->member ? $this->member->avatar : '',
-            'nickname' => $this->member ? $this->member->nickname : '',
-            'views' => $this->stat ? $this->stat->view_count : 0,
+            'avatar' => $author ? ($author->avatar ?? '') : '',
+            'nickname' => $author ? ($author->nickname ?? '') : '',
+            'views' => $post->stat ? $post->stat->view_count : 0,
             'likes' => $post->stat ? $post->stat->like_count : 0,
             'postType' => $post->post_type,
             'isVideo' => $post->post_type == AppPostBase::POST_TYPE_VIDEO,

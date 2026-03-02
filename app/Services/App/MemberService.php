@@ -125,11 +125,13 @@ class MemberService
             ->with([
                 'post' => function ($query) {
                     $query->select(self::POST_LIST_COLUMNS)
-                        ->with(self::POST_STAT_RELATION)
+                        ->with([
+                            self::POST_STAT_RELATION,
+                            'member:member_id,nickname,avatar',
+                        ])
                         ->approved()
                         ->visible();
                 },
-                'member:member_id,nickname,avatar'
             ])
             ->byMember($memberId)
             ->orderByDesc('collection_id')

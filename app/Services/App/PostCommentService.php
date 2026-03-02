@@ -29,8 +29,7 @@ class PostCommentService
                 'replies' => function ($query) {
                     $query->with(['member', 'replyToMember'])
                         ->normal()
-                        ->orderBy('created_at')
-                        ->limit(3);
+                        ->orderBy('created_at');
                 }
             ])
             ->byPost($postId)
@@ -89,8 +88,7 @@ class PostCommentService
                 'replies' => function ($query) {
                     $query->with(['member', 'replyToMember'])
                         ->normal()
-                        ->orderBy('created_at')
-                        ->limit(3);
+                        ->orderBy('created_at');
                 }
             ])
             ->byPost($postId)

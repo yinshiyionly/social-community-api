@@ -91,6 +91,8 @@ class PostCommentResource extends JsonResource
             return [];
         }
 
+        $replies = $replies->take(3);
+
         // 传递点赞状态给回复资源
         PostCommentReplyResource::setLikedCommentIds(self::$likedCommentIds);
 

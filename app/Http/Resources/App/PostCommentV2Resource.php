@@ -75,6 +75,8 @@ class PostCommentV2Resource extends JsonResource
             return [];
         }
 
+        $replies = $replies->take(3);
+
         return $replies->map(function ($reply) {
             $member = $reply->member;
 

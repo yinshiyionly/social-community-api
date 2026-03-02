@@ -7,10 +7,6 @@ use Illuminate\Foundation\Http\FormRequest;
 /**
  * 学习页课程列表筛选请求验证
  */
-
-/**
- * 学习页课程列表筛选请求验证
- */
 class StudyCourseListRequest extends FormRequest
 {
     public function authorize()

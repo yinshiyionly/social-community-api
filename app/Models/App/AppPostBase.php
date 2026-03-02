@@ -256,4 +256,69 @@ class AppPostBase extends Model
 
         return $data;
     }
+
+    /**
+     * 获取 content - 将富文本中的相对媒体路径转为绝对路径
+     *
+     * @param string|null $value
+     * @return string
+     */
+    public function getContentAttribute($value): string
+    {
+        $content = is_string($value) ? $value : '';
+        if ($content === '' || stripos($content, '<') === false) {
+            return $content;
+        }
+
+        if (!preg_match('/\\b(src|poster)\\s*=\\s*/i', $content)) {
+            return $content;
+        }
+
+        $dom = new \DOMDocument('1.0', 'UTF-8');
+        $wrappedHtml = '<div id="post-content-root">' . $content . '</div>';
+
+        $previous = libxml_use_internal_errors(true);
+        $loaded = $dom->loadHTML('<?xml encoding="UTF-8" ?>' . $wrappedHtml, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        if (!$loaded) {
+            return $content;
+        }
+
+        $root = $dom->getElementsByTagName('div')->item(0);
+        if (!$root) {
+            return $content;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $nodes = $xpath->query('//*[(self::img or self::video or self::audio or self::source) and (@src or @poster)]');
+        if ($nodes) {
+            /** @var \DOMElement $node */
+            foreach ($nodes as $node) {
+                foreach (['src', 'poster'] as $attribute) {
+                    if (!$node->hasAttribute($attribute)) {
+                        continue;
+                    }
+
+                    $url = trim(html_entity_decode($node->getAttribute($attribute), ENT_QUOTES, 'UTF-8'));
+                    if ($url === ''
+                        || stripos($url, 'data:') === 0
+                        || stripos($url, 'blob:') === 0
+                        || stripos($url, 'javascript:') === 0) {
+                        continue;
+                    }
+
+                    $node->setAttribute($attribute, $this->getTosUrl($url) ?? $url);
+                }
+            }
+        }
+
+        $html = '';
+        foreach ($root->childNodes as $childNode) {
+            $html .= $root->ownerDocument->saveHTML($childNode);
+        }
+
+        return $html;
+    }
 }

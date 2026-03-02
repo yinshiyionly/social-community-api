@@ -11,7 +11,7 @@ use App\Http\Controllers\App\PostCommentController;
 
 Route::prefix('v1/comment')->group(function () {
     // 公开接口
-    Route::middleware('app.auth.optional')->group(function () {
+    /*Route::middleware('app.auth.optional')->group(function () {
         // 获取帖子评论列表（游标分页）
         Route::get('post/{postId}', [PostCommentController::class, 'list'])->where('postId', '[0-9]+');
         // 获取帖子评论列表（普通分页）
@@ -20,17 +20,17 @@ Route::prefix('v1/comment')->group(function () {
         Route::get('{commentId}/replies', [PostCommentController::class, 'replies'])->where('commentId', '[0-9]+');
         // 获取评论的回复列表（普通分页）
         Route::get('{commentId}/replies/page', [PostCommentController::class, 'repliesPaginate'])->where('commentId', '[0-9]+');
-    });
+    });*/
 
     // 需要登录的接口
     Route::middleware('app.auth')->group(function () {
         // 发表评论
-        Route::post('post', [PostCommentController::class, 'store']);
+        // Route::post('post', [PostCommentController::class, 'store']);
         // 删除评论
         Route::delete('post', [PostCommentController::class, 'destroy']);
         // 点赞评论
-        Route::post('like', [PostCommentController::class, 'like']);
+        // Route::post('like', [PostCommentController::class, 'like']);
         // 取消点赞评论
-        Route::post('unlike', [PostCommentController::class, 'unlike']);
+        // Route::post('unlike', [PostCommentController::class, 'unlike']);
     });
 });

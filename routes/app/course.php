@@ -82,8 +82,11 @@ Route::prefix('v1/study/course')->group(function () {
 
     // 以下接口需要登录
     Route::middleware('app.auth')->group(function () {
-        // 学习页总览数据
-        Route::get('/overview', [StudyCourseController::class, 'overview']);
+        // 今日学习任务
+        Route::get('/today-tasks', [StudyCourseController::class, 'todayTasks']);
+
+        // 学习页分组数据（最近学习 / 待学习 / 已结课）
+        Route::get('/sections', [StudyCourseController::class, 'sections']);
 
         // 筛选后的课程列表
         Route::get('/list', [StudyCourseController::class, 'list']);

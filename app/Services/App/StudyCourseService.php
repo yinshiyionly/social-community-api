@@ -61,9 +61,14 @@ class StudyCourseService
      * @param int $memberId
      * @return array
      */
-    public function getOverview(int $memberId): array
+    /**
+     * 获取今日学习任务
+     *
+     * @param int $memberId
+     * @return array
+     */
+    public function getTodayTasks(int $memberId): array
     {
-        // 今日任务：今日课表
         $todaySchedules = AppMemberSchedule::byMember($memberId)
             ->today()
             ->select(['id', 'course_id', 'chapter_id', 'schedule_time', 'is_learned'])
@@ -77,7 +82,6 @@ class StudyCourseService
         $todayTasks = [];
         foreach ($todaySchedules as $schedule) {
             $chapter = $schedule->chapter;
-            $course = $schedule->course;
 
             $statusText = '待学习';
             if ($schedule->is_learned) {
@@ -95,7 +99,17 @@ class StudyCourseService
             ];
         }
 
-        // 查询用户所有未过期课程，预加载课程信息
+        return $todayTasks;
+    }
+
+    /**
+     * 获取学习页分组数据（最近学习 / 待学习 / 已结课）
+     *
+     * @param int $memberId
+     * @return array
+     */
+    public function getCourseSections(int $memberId): array
+    {
         $memberCourses = AppMemberCourse::byMember($memberId)
             ->notExpired()
             ->select([
@@ -107,7 +121,6 @@ class StudyCourseService
             ->orderBy('enroll_time', 'desc')
             ->get();
 
-        // 分组：最近学习（有学习记录且未完课）、待学习（无学习记录且未完课）、已结课
         $recentList = [];
         $pendingList = [];
         $finishedList = [];
@@ -130,7 +143,6 @@ class StudyCourseService
         }
 
         return [
-            'todayTasks' => $todayTasks,
             'recentSection' => [
                 'title' => '最近学习',
                 'list' => $recentList,

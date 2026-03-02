@@ -63,16 +63,40 @@ class StudyCourseController extends Controller
     /**
      * 获取学习页总览数据
      */
-    public function overview(Request $request)
+    /**
+     * 获取今日学习任务
+     */
+    public function todayTasks(Request $request)
     {
         $memberId = $request->attributes->get('member_id');
 
         try {
-            $data = $this->studyCourseService->getOverview($memberId);
+            $data = $this->studyCourseService->getTodayTasks($memberId);
 
             return AppApiResponse::success(['data' => $data]);
         } catch (\Exception $e) {
-            Log::error('获取学习页总览数据失败', [
+            Log::error('获取今日学习任务失败', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 获取学习页分组数据（最近学习 / 待学习 / 已结课）
+     */
+    public function sections(Request $request)
+    {
+        $memberId = $request->attributes->get('member_id');
+
+        try {
+            $data = $this->studyCourseService->getCourseSections($memberId);
+
+            return AppApiResponse::success(['data' => $data]);
+        } catch (\Exception $e) {
+            Log::error('获取学习页分组数据失败', [
                 'member_id' => $memberId,
                 'error' => $e->getMessage(),
             ]);

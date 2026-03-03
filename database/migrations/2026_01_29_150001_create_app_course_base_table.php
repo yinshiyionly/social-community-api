@@ -15,7 +15,7 @@ class CreateAppCourseBaseTable extends Migration
         DB::statement("
             CREATE TABLE app_course_base (
                 course_id int8 NOT NULL GENERATED ALWAYS AS IDENTITY (INCREMENT 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 100000001 CACHE 1),
-                course_no varchar(32) NOT NULL DEFAULT '',
+                course_no varchar(32) NULL,
                 category_id int4 NOT NULL DEFAULT 0,
                 course_title varchar(200) NOT NULL DEFAULT '',
                 course_subtitle varchar(300) NULL,
@@ -111,7 +111,8 @@ class CreateAppCourseBaseTable extends Migration
         DB::statement("COMMENT ON COLUMN app_course_base.deleted_by IS '删除人'");
 
         // 索引
-        DB::statement('CREATE UNIQUE INDEX uk_app_course_base_course_no_del ON app_course_base (course_no)');
+        // 禁用-课程编号唯一索引
+        // DB::statement('CREATE UNIQUE INDEX uk_app_course_base_course_no_del ON app_course_base (course_no)');
         DB::statement('CREATE INDEX idx_app_course_base_category_id ON app_course_base (category_id)');
         DB::statement('CREATE INDEX idx_app_course_base_pay_type ON app_course_base (pay_type)');
         DB::statement('CREATE INDEX idx_app_course_base_play_type ON app_course_base (play_type)');

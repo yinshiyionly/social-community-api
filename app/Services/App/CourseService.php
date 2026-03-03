@@ -6,6 +6,7 @@ use App\Models\App\AppCourseBase;
 use App\Models\App\AppCourseCategory;
 use App\Models\App\AppMemberCourse;
 use App\Services\App\LearningCenterService;
+use App\Services\AppFileUploadService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -70,6 +71,8 @@ class CourseService
         $result = [];
         foreach (AppCourseBase::PAY_TYPE_CONFIG as $payType => $config) {
             if ($grouped->has($payType)) {
+                // 为课程付费类型 icon 追加 CDN 域名
+                $config['typeIcon'] = (new AppFileUploadService())->generateFileUrl($config['typeIcon']);
                 $result[] = array_merge($config, [
                     'list' => $grouped->get($payType)->values(),
                 ]);

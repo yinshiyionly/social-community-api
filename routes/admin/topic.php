@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Route;
 
 // 需要认证的路由
 Route::middleware('system.auth')->group(function () {
-    Route::prefix('admin/topic')->group(function () {
+    Route::prefix('topic')->group(function () {
         // 话题列表
         Route::get('/list', [TopicController::class, 'list']);
 

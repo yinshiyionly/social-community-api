@@ -37,7 +37,7 @@ class RouteServiceProvider extends ServiceProvider
                 ->group(base_path('routes/app.php'));
 
             // Admin 后台管理系统路由 api/admin/*
-            Route::prefix('api')
+            Route::prefix('api/admin')
                 ->group(base_path('routes/admin.php'));
 
             // 文件上传模块路由

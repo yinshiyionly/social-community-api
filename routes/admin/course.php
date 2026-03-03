@@ -18,7 +18,7 @@ use App\Http\Controllers\Admin\LiveChapterController;
 Route::middleware('system.auth')->group(function () {
 
     // 课程分类管理
-    Route::prefix('admin/course/category')->group(function () {
+    Route::prefix('/course/category')->group(function () {
         // 列表
         Route::get('/list', [CourseCategoryController::class, 'list']);
         // 树形列表
@@ -38,7 +38,7 @@ Route::middleware('system.auth')->group(function () {
     });
 
     // 课程管理
-    Route::prefix('admin/course')->group(function () {
+    Route::prefix('/course')->group(function () {
         // 列表
         Route::get('/list', [CourseController::class, 'list']);
         // 下拉框列表
@@ -56,7 +56,7 @@ Route::middleware('system.auth')->group(function () {
     });
 
     // 录播课章节管理
-    Route::prefix('admin/course/video/chapter')->group(function () {
+    Route::prefix('/course/video/chapter')->group(function () {
         // 章节列表（分页）
         Route::get('/list/{courseId}', [VideoChapterController::class, 'list'])->where('courseId', '[0-9]+');
         // 章节列表（全部，用于排序）
@@ -76,7 +76,7 @@ Route::middleware('system.auth')->group(function () {
     });
 
     // 直播课章节管理
-    Route::prefix('admin/course/live/chapter')->group(function () {
+    Route::prefix('/course/live/chapter')->group(function () {
         // 章节列表（分页）
         Route::get('/list/{courseId}', [LiveChapterController::class, 'list'])->where('courseId', '[0-9]+');
         // 章节详情

@@ -46,9 +46,9 @@ class AppCourseBase extends Model
     ];
 
     // 播放类型
-    const PLAY_TYPE_ARTICLE = 1;   // 图文课
+    const PLAY_TYPE_LIVE = 1;      // 直播课
     const PLAY_TYPE_VIDEO = 2;     // 录播课
-    const PLAY_TYPE_LIVE = 3;      // 直播课
+    const PLAY_TYPE_ARTICLE = 3;   // 图文课
     const PLAY_TYPE_AUDIO = 4;     // 音频课
 
     // 排课类型
@@ -69,11 +69,13 @@ class AppCourseBase extends Model
         'play_type',
         'schedule_type',
         'cover_image',
+        'item_image',
         'cover_video',
         'banner_images',
         'intro_video',
         'brief',
         'description',
+        'remark',
         'suitable_crowd',
         'learn_goal',
         'teacher_id',
@@ -293,6 +295,17 @@ class AppCourseBase extends Model
      * @return string
      */
     public function getCoverImageAttribute($value): string
+    {
+        return $this->getTosUrl($value);
+    }
+
+    /**
+     * 获取 item_image - 将相对路径转为绝对路径
+     *
+     * @param string $value
+     * @return string|null
+     */
+    public function getItemImageAttribute($value)
     {
         return $this->getTosUrl($value);
     }

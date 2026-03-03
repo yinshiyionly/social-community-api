@@ -23,11 +23,13 @@ class CreateAppCourseBaseTable extends Migration
                 play_type int2 NOT NULL DEFAULT 1,
                 schedule_type int2 NOT NULL DEFAULT 1,
                 cover_image varchar(500) NULL,
+                item_image varchar(500) NULL,
                 cover_video varchar(500) NULL,
                 banner_images jsonb NOT NULL DEFAULT '[]',
                 intro_video varchar(500) NULL,
                 brief text NULL,
                 description text NULL,
+                remark text NULL,
                 suitable_crowd text NULL,
                 learn_goal text NULL,
                 teacher_id int8 NULL,
@@ -70,14 +72,16 @@ class CreateAppCourseBaseTable extends Migration
         DB::statement("COMMENT ON COLUMN app_course_base.course_title IS '课程标题'");
         DB::statement("COMMENT ON COLUMN app_course_base.course_subtitle IS '课程副标题'");
         DB::statement("COMMENT ON COLUMN app_course_base.pay_type IS '付费类型：1=体验课 2=小白课 3=进阶课 4=付费课'");
-        DB::statement("COMMENT ON COLUMN app_course_base.play_type IS '播放类型：1=图文课 2=录播课 3=直播课 4=音频课'");
+        DB::statement("COMMENT ON COLUMN app_course_base.play_type IS '播放类型：1=直播课 2=录播课 3=图文课 4=音频课'");
         DB::statement("COMMENT ON COLUMN app_course_base.schedule_type IS '排课类型：1=固定日期 2=动态解锁'");
         DB::statement("COMMENT ON COLUMN app_course_base.cover_image IS '封面图'");
+        DB::statement("COMMENT ON COLUMN app_course_base.item_image IS '详情图'");
         DB::statement("COMMENT ON COLUMN app_course_base.cover_video IS '封面视频'");
         DB::statement("COMMENT ON COLUMN app_course_base.banner_images IS '轮播图列表'");
         DB::statement("COMMENT ON COLUMN app_course_base.intro_video IS '课程介绍视频'");
         DB::statement("COMMENT ON COLUMN app_course_base.brief IS '课程简介'");
         DB::statement("COMMENT ON COLUMN app_course_base.description IS '课程详情（富文本）'");
+        DB::statement("COMMENT ON COLUMN app_course_base.remark IS '备注'");
         DB::statement("COMMENT ON COLUMN app_course_base.suitable_crowd IS '适合人群'");
         DB::statement("COMMENT ON COLUMN app_course_base.learn_goal IS '学习目标'");
         DB::statement("COMMENT ON COLUMN app_course_base.teacher_id IS '主讲师ID'");
@@ -111,8 +115,6 @@ class CreateAppCourseBaseTable extends Migration
         DB::statement("COMMENT ON COLUMN app_course_base.deleted_by IS '删除人'");
 
         // 索引
-        // 禁用-课程编号唯一索引
-        // DB::statement('CREATE UNIQUE INDEX uk_app_course_base_course_no_del ON app_course_base (course_no)');
         DB::statement('CREATE INDEX idx_app_course_base_category_id ON app_course_base (category_id)');
         DB::statement('CREATE INDEX idx_app_course_base_pay_type ON app_course_base (pay_type)');
         DB::statement('CREATE INDEX idx_app_course_base_play_type ON app_course_base (play_type)');

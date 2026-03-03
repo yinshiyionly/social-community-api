@@ -340,7 +340,7 @@ class AdminFileUploadService
     /**
      * 提取媒体文件信息（图片尺寸、视频/音频时长等）
      */
-    protected function extractMediaInfo(UploadedFile $file, $storagePath): array
+    protected function extractMediaInfo(UploadedFile $file, string $storagePath): array
     {
         $info = [
             'width' => 0,
@@ -376,6 +376,41 @@ class AdminFileUploadService
             $info['width'] = $width;
             $info['height'] = $height;
             $info['duration'] = $duration;
+        }
+
+        // 使用 TOS 提供的媒体处理来生成视频封面
+        // @doc https://www.volcengine.com/docs/6349/336155?lang=zh
+        if (substr($mimeType, 0, 6) === 'video/') {
+            try {
+                // 将目录中的 /video/ 替换为 /video-cover/
+                $path = preg_replace('#/video/#', '/video-cover/', $storagePath, 1);
+                $fileInfo = pathinfo($path);
+                $videoCoverPath = $fileInfo['dirname'] . '/' . $fileInfo['filename'] . '.jpg';
+
+                $snapshotTime = 100; // 0.1 秒
+                $format = 'jpg';
+                $mode = 'fast';
+
+                $processParam = sprintf(
+                    'video/snapshot,t_%d,f_%s,m_%s',
+                    $snapshotTime,
+                    $format,
+                    $mode
+                );
+
+                $processURL = sprintf('%s?x-tos-process=%s', $this->getBucketEndpoint($storagePath), $processParam);
+                $videoCoverContent = $this->fetchSnapshot($processURL);
+
+                if ($this->uploadCoverToTos($videoCoverContent, $videoCoverPath)) {
+                    $info['extra'] = [
+                        'cover' => $videoCoverPath,
+                    ];
+                }
+            } catch (\Exception $e) {
+                Log::channel('daily')->error('使用TOS视频截帧失败: ' . $e->getMessage(), [
+                    'storage_path' => $storagePath,
+                ]);
+            }
         }
 
         return $info;
@@ -538,5 +573,127 @@ class AdminFileUploadService
         $bucket = $config['bucket'] ?? '';
 
         return $schema . '://' . $bucket . '.' . $endpoint . '/' . $cleanPath;
+    }
+
+    /**
+     * 批量上传文件
+     *
+     * @param array $files 上传的文件数组 (UploadedFile[])
+     * @param array $options 上传选项
+     * @return array 上传结果数组
+     * @throws FileValidationException
+     */
+    public function uploadMultiple(array $files, array $options = []): array
+    {
+        $maxFiles = $options['max_files'] ?? 9;
+
+        if (count($files) > $maxFiles) {
+            throw new FileValidationException(
+                sprintf('Maximum %d files allowed, %d provided', $maxFiles, count($files))
+            );
+        }
+
+        $results = [
+            'success' => [],
+            'failed' => [],
+        ];
+
+        foreach ($files as $index => $file) {
+            if (!$file instanceof UploadedFile) {
+                $results['failed'][] = [
+                    'index' => $index,
+                    'error' => 'Invalid file object',
+                ];
+                continue;
+            }
+
+            try {
+                $uploadResult = $this->upload($file, $options);
+                $results['success'][] = $uploadResult;
+            } catch (FileValidationException $e) {
+                $results['failed'][] = [
+                    'index' => $index,
+                    'original_name' => $file->getClientOriginalName(),
+                    'error' => $e->getMessage(),
+                ];
+            } catch (FileUploadException $e) {
+                $results['failed'][] = [
+                    'index' => $index,
+                    'original_name' => $file->getClientOriginalName(),
+                    'error' => $e->getMessage(),
+                ];
+            } catch (\Exception $e) {
+                Log::error('Admin batch upload file failed', [
+                    'index' => $index,
+                    'original_name' => $file->getClientOriginalName(),
+                    'error' => $e->getMessage(),
+                ]);
+                $results['failed'][] = [
+                    'index' => $index,
+                    'original_name' => $file->getClientOriginalName(),
+                    'error' => 'Upload failed',
+                ];
+            }
+        }
+
+        Log::info('Admin batch upload completed', [
+            'total' => count($files),
+            'success_count' => count($results['success']),
+            'failed_count' => count($results['failed']),
+        ]);
+
+        return $results;
+    }
+
+    /**
+     * 上传封面到 TOS
+     *
+     * @param string $imageContent
+     * @param string $coverPath
+     * @return bool
+     * @throws \Exception
+     */
+    protected function uploadCoverToTos(string $imageContent, string $coverPath): bool
+    {
+        $disk = Storage::disk('volcengine');
+        $uploaded = $disk->put($coverPath, $imageContent);
+
+        if (!$uploaded) {
+            throw new \Exception('封面上传到 TOS 失败');
+        }
+
+        return $uploaded;
+    }
+
+    /**
+     * 获取截图图片流
+     *
+     * @param string $snapshotUrl
+     * @return string
+     * @throws \Exception
+     */
+    protected function fetchSnapshot(string $snapshotUrl): string
+    {
+        $response = Http::timeout(60)->get($snapshotUrl);
+
+        if (!$response->successful()) {
+            throw new \Exception(sprintf(
+                '获取视频截图失败: HTTP %d, %s',
+                $response->status(),
+                $response->body()
+            ));
+        }
+
+        $content = $response->body();
+        if (empty($content)) {
+            throw new \Exception('获取视频截图失败: 返回内容为空');
+        }
+
+        $imageInfo = @getimagesizefromstring($content);
+        if ($imageInfo === false) {
+            throw new \Exception('获取视频截图失败: 返回内容不是有效图片');
+        }
+
+        return $content;
     }
 }

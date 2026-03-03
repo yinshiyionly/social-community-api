@@ -21,26 +21,20 @@ class CourseCategoryService
      */
     public function getList(array $filters, int $pageNum = 1, int $pageSize = 10): LengthAwarePaginator
     {
-        $query = AppCourseCategory::query();
+        $query = AppCourseCategory::query()
+            ->select([
+                'category_id', 'parent_id', 'category_name',
+                'icon', 'sort_order', 'status', 'created_at',
+            ]);
 
         // 分类名称搜索
         if (!empty($filters['categoryName'])) {
             $query->where('category_name', 'like', '%' . $filters['categoryName'] . '%');
         }
 
-        // 分类编码搜索
-        if (!empty($filters['categoryCode'])) {
-            $query->where('category_code', 'like', '%' . $filters['categoryCode'] . '%');
-        }
-
         // 状态筛选
         if (isset($filters['status']) && $filters['status'] !== '') {
             $query->where('status', $filters['status']);
-        }
-
-        // 父分类筛选
-        if (isset($filters['parentId']) && $filters['parentId'] !== '') {
-            $query->where('parent_id', $filters['parentId']);
         }
 
         // 时间范围筛选
@@ -66,7 +60,6 @@ class CourseCategoryService
     public function getDetail(int $categoryId): ?AppCourseCategory
     {
         return AppCourseCategory::query()
-            ->with('parent:category_id,category_name')
             ->where('category_id', $categoryId)
             ->first();
     }
@@ -80,15 +73,10 @@ class CourseCategoryService
     public function create(array $data): AppCourseCategory
     {
         return AppCourseCategory::create([
-            'parent_id' => $data['parentId'] ?? 0,
+            'parent_id' => 0,
             'category_name' => $data['categoryName'],
-            'category_code' => $data['categoryCode'] ?? '',
-            'icon' => $data['icon'] ?? null,
-            'cover' => $data['cover'] ?? null,
-            'description' => $data['description'] ?? null,
-            'sort_order' => $data['sortOrder'] ?? 0,
-            'status' => $data['status'] ?? AppCourseCategory::STATUS_ENABLED,
-            'create_by' => $data['createBy'] ?? null,
+            'icon' => $data['icon'],
+            'status' => $data['status'],
         ]);
     }
 
@@ -101,7 +89,9 @@ class CourseCategoryService
      */
     public function update(int $categoryId, array $data): bool
     {
-        $category = AppCourseCategory::query()->where('category_id', $categoryId)->first();
+        $category = AppCourseCategory::query()
+            ->where('category_id', $categoryId)
+            ->first();
 
         if (!$category) {
             return false;
@@ -109,36 +99,19 @@ class CourseCategoryService
 
         $updateData = [];
 
-        if (isset($data['parentId'])) {
-            $updateData['parent_id'] = $data['parentId'];
-        }
         if (isset($data['categoryName'])) {
             $updateData['category_name'] = $data['categoryName'];
         }
-        if (array_key_exists('categoryCode', $data)) {
-            $updateData['category_code'] = $data['categoryCode'] ?? '';
-        }
-        if (array_key_exists('icon', $data)) {
+        if (isset($data['icon'])) {
             $updateData['icon'] = $data['icon'];
-        }
-        if (array_key_exists('cover', $data)) {
-            $updateData['cover'] = $data['cover'];
-        }
-        if (array_key_exists('description', $data)) {
-            $updateData['description'] = $data['description'];
-        }
-        if (isset($data['sortOrder'])) {
-            $updateData['sort_order'] = $data['sortOrder'];
         }
         if (isset($data['status'])) {
             $updateData['status'] = $data['status'];
         }
-        if (isset($data['updateBy'])) {
-            $updateData['update_by'] = $data['updateBy'];
-        }
 
         return $category->update($updateData);
     }
+
 
     /**
      * 删除分类（支持批量，软删除）
@@ -217,7 +190,10 @@ class CourseCategoryService
     public function getTreeList(): Collection
     {
         return AppCourseCategory::query()
-            ->select(['category_id', 'parent_id', 'category_name', 'category_code', 'icon', 'sort_order', 'status', 'created_at'])
+            ->select([
+                'category_id', 'parent_id', 'category_name',
+                'icon', 'sort_order', 'status', 'created_at',
+            ])
             ->orderByDesc('sort_order')
             ->orderByDesc('category_id')
             ->get();
@@ -234,24 +210,6 @@ class CourseCategoryService
         return AppCourseCategory::query()
             ->where('category_id', $categoryId)
             ->exists();
-    }
-
-    /**
-     * 检查分类编码是否已存在
-     *
-     * @param string $categoryCode
-     * @param int|null $excludeId 排除的分类ID（用于更新时）
-     * @return bool
-     */
-    public function codeExists(string $categoryCode, ?int $excludeId = null): bool
-    {
-        $query = AppCourseCategory::query()->where('category_code', $categoryCode);
-
-        if ($excludeId) {
-            $query->where('category_id', '!=', $excludeId);
-        }
-
-        return $query->exists();
     }
 
     /**

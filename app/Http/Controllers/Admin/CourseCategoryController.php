@@ -41,9 +41,7 @@ class CourseCategoryController extends Controller
     {
         $filters = [
             'categoryName' => $request->input('categoryName'),
-            'categoryCode' => $request->input('categoryCode'),
             'status' => $request->input('status'),
-            'parentId' => $request->input('parentId'),
             'beginTime' => $request->input('beginTime'),
             'endTime' => $request->input('endTime'),
         ];
@@ -82,21 +80,10 @@ class CourseCategoryController extends Controller
     public function store(CourseCategoryStoreRequest $request)
     {
         try {
-            // 检查分类编码是否已存在
-            $categoryCode = $request->input('categoryCode');
-            if ($categoryCode && $this->categoryService->codeExists($categoryCode)) {
-                return ApiResponse::error('分类编码已存在');
-            }
-
             $data = [
-                'parentId' => $request->input('parentId', 0),
                 'categoryName' => $request->input('categoryName'),
-                'categoryCode' => $categoryCode,
                 'icon' => $request->input('icon'),
-                'cover' => $request->input('cover'),
-                'description' => $request->input('description'),
-                'sortOrder' => $request->input('sortOrder', 0),
-                'status' => $request->input('status', 1),
+                'status' => $request->input('status'),
             ];
 
             $this->categoryService->create($data);
@@ -122,26 +109,9 @@ class CourseCategoryController extends Controller
         try {
             $categoryId = (int) $request->input('categoryId');
 
-            // 检查分类编码是否已存在（排除自身）
-            $categoryCode = $request->input('categoryCode');
-            if ($categoryCode && $this->categoryService->codeExists($categoryCode, $categoryId)) {
-                return ApiResponse::error('分类编码已存在');
-            }
-
-            // 检查是否将自己设为父分类
-            $parentId = $request->input('parentId');
-            if ($parentId !== null && $parentId == $categoryId) {
-                return ApiResponse::error('不能将自己设为父分类');
-            }
-
             $data = [
-                'parentId' => $parentId,
                 'categoryName' => $request->input('categoryName'),
-                'categoryCode' => $categoryCode,
                 'icon' => $request->input('icon'),
-                'cover' => $request->input('cover'),
-                'description' => $request->input('description'),
-                'sortOrder' => $request->input('sortOrder'),
                 'status' => $request->input('status'),
             ];
 
@@ -161,6 +131,7 @@ class CourseCategoryController extends Controller
             return ApiResponse::error('操作失败，请稍后重试');
         }
     }
+
 
     /**
      * 删除分类（支持批量）

@@ -64,9 +64,7 @@ Authorization: Bearer {token}
 | pageNum | number | 否 | 页码，默认 `1` |
 | pageSize | number | 否 | 每页条数，默认 `10` |
 | categoryName | string | 否 | 分类名称（模糊搜索） |
-| categoryCode | string | 否 | 分类编码（模糊搜索） |
 | status | number | 否 | 状态：`1` 启用，`2` 禁用 |
-| parentId | number | 否 | 父分类 ID |
 | beginTime | string | 否 | 创建时间起始（`created_at >= beginTime`） |
 | endTime | string | 否 | 创建时间结束（`created_at <= endTime`） |
 
@@ -81,9 +79,7 @@ Authorization: Bearer {token}
       "categoryId": 10,
       "parentId": 0,
       "categoryName": "健康课程",
-      "categoryCode": "HEALTH",
       "icon": "https://cdn.example.com/icon/health.png",
-      "cover": "https://cdn.example.com/cover/health.png",
       "sortOrder": 100,
       "status": 1,
       "createTime": "2026-02-18 14:20:00"
@@ -92,9 +88,7 @@ Authorization: Bearer {token}
       "categoryId": 11,
       "parentId": 10,
       "categoryName": "中医养生",
-      "categoryCode": "TCM",
-      "icon": null,
-      "cover": null,
+      "icon": "https://cdn.example.com/icon/tcm.png",
       "sortOrder": 90,
       "status": 1,
       "createTime": "2026-02-19 10:30:00"
@@ -109,9 +103,7 @@ Authorization: Bearer {token}
 | categoryId | number | 分类 ID |
 | parentId | number | 父分类 ID，顶级分类为 `0` |
 | categoryName | string | 分类名称 |
-| categoryCode | string | 分类编码 |
 | icon | string\|null | 图标地址 |
-| cover | string\|null | 封面地址 |
 | sortOrder | number | 排序值（降序） |
 | status | number | 状态：`1` 启用，`2` 禁用 |
 | createTime | string\|null | 创建时间，格式：`Y-m-d H:i:s` |
@@ -133,9 +125,7 @@ Authorization: Bearer {token}
       "categoryId": 10,
       "parentId": 0,
       "categoryName": "健康课程",
-      "categoryCode": "HEALTH",
       "icon": "https://cdn.example.com/icon/health.png",
-      "cover": "https://cdn.example.com/cover/health.png",
       "sortOrder": 100,
       "status": 1,
       "createTime": "2026-02-18 14:20:00"
@@ -144,9 +134,7 @@ Authorization: Bearer {token}
       "categoryId": 11,
       "parentId": 10,
       "categoryName": "中医养生",
-      "categoryCode": "TCM",
-      "icon": null,
-      "cover": null,
+      "icon": "https://cdn.example.com/icon/tcm.png",
       "sortOrder": 90,
       "status": 1,
       "createTime": "2026-02-19 10:30:00"
@@ -208,17 +196,13 @@ Authorization: Bearer {token}
     "categoryId": 11,
     "parentId": 10,
     "categoryName": "中医养生",
-    "categoryCode": "TCM",
     "icon": "https://cdn.example.com/icon/tcm.png",
-    "cover": "https://cdn.example.com/cover/tcm.png",
-    "description": "中医相关课程分类",
     "sortOrder": 90,
     "status": 1,
     "createBy": 1,
     "updateBy": 1,
     "createTime": "2026-02-19 10:30:00",
-    "updateTime": "2026-02-20 09:00:00",
-    "parentName": "健康课程"
+    "updateTime": "2026-02-20 09:00:00"
   }
 }
 ```
@@ -229,17 +213,13 @@ Authorization: Bearer {token}
 | categoryId | number | 分类 ID |
 | parentId | number | 父分类 ID |
 | categoryName | string | 分类名称 |
-| categoryCode | string | 分类编码 |
 | icon | string\|null | 图标地址 |
-| cover | string\|null | 封面地址 |
-| description | string\|null | 分类描述 |
 | sortOrder | number | 排序值 |
 | status | number | 状态：`1` 启用，`2` 禁用 |
 | createBy | number\|null | 创建人 ID |
 | updateBy | number\|null | 更新人 ID |
 | createTime | string\|null | 创建时间 |
 | updateTime | string\|null | 更新时间 |
-| parentName | string\|null | 父分类名称 |
 
 ---
 
@@ -250,25 +230,15 @@ Authorization: Bearer {token}
 #### Body 参数（JSON）
 | 参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| parentId | number | 否 | 父分类 ID，`>= 0`，默认 `0` |
 | categoryName | string | 是 | 分类名称，最长 `50` 字符，且唯一 |
-| categoryCode | string | 否 | 分类编码，最长 `50` 字符（业务上要求唯一） |
-| icon | string | 否 | 图标地址，最长 `255` 字符 |
-| cover | string | 否 | 封面地址，最长 `255` 字符 |
-| description | string | 否 | 描述，最长 `500` 字符 |
-| sortOrder | number | 否 | 排序值，`>= 0`，默认 `0` |
-| status | number | 否 | 状态：`1` 启用，`2` 禁用，默认 `1` |
+| icon | string | 是 | 图标地址，最长 `255` 字符 |
+| status | number | 是 | 状态：`1` 启用，`2` 禁用 |
 
 #### 请求示例 JSON
 ```json
 {
-  "parentId": 10,
   "categoryName": "运动康复",
-  "categoryCode": "SPORT_RECOVERY",
   "icon": "https://cdn.example.com/icon/recovery.png",
-  "cover": "https://cdn.example.com/cover/recovery.png",
-  "description": "运动康复相关课程",
-  "sortOrder": 80,
   "status": 1
 }
 ```
@@ -286,7 +256,7 @@ Authorization: Bearer {token}
 ```json
 {
   "code": 1201,
-  "msg": "分类编码已存在",
+  "msg": "分类名称已存在",
   "data": []
 }
 ```
@@ -301,26 +271,16 @@ Authorization: Bearer {token}
 | 参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | categoryId | number | 是 | 分类 ID，`>= 1` |
-| parentId | number | 否 | 父分类 ID，`>= 0` |
 | categoryName | string | 是 | 分类名称，最长 `50` 字符，且唯一（排除自身） |
-| categoryCode | string | 否 | 分类编码，最长 `50` 字符（业务上要求唯一，排除自身） |
-| icon | string | 否 | 图标地址，最长 `255` 字符 |
-| cover | string | 否 | 封面地址，最长 `255` 字符 |
-| description | string | 否 | 描述，最长 `500` 字符 |
-| sortOrder | number | 否 | 排序值，`>= 0` |
-| status | number | 否 | 状态：`1` 启用，`2` 禁用 |
+| icon | string | 是 | 图标地址，最长 `255` 字符 |
+| status | number | 是 | 状态：`1` 启用，`2` 禁用 |
 
 #### 请求示例 JSON
 ```json
 {
   "categoryId": 11,
-  "parentId": 10,
   "categoryName": "中医养生课程",
-  "categoryCode": "TCM",
   "icon": "https://cdn.example.com/icon/tcm-new.png",
-  "cover": "https://cdn.example.com/cover/tcm-new.png",
-  "description": "更新后的分类描述",
-  "sortOrder": 95,
   "status": 1
 }
 ```
@@ -338,7 +298,7 @@ Authorization: Bearer {token}
 ```json
 {
   "code": 1201,
-  "msg": "不能将自己设为父分类",
+  "msg": "分类名称已存在",
   "data": []
 }
 ```

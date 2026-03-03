@@ -15,19 +15,13 @@ class CourseCategoryResource extends JsonResource
             'categoryId' => $this->category_id,
             'parentId' => $this->parent_id,
             'categoryName' => $this->category_name,
-            'categoryCode' => $this->category_code,
             'icon' => $this->icon,
-            'cover' => $this->cover,
-            'description' => $this->description,
             'sortOrder' => $this->sort_order,
             'status' => $this->status,
-            'createBy' => $this->create_by,
-            'updateBy' => $this->update_by,
-            'createTime' => $this->create_time ? $this->create_time->format('Y-m-d H:i:s') : null,
-            'updateTime' => $this->update_time ? $this->update_time->format('Y-m-d H:i:s') : null,
-            'parentName' => $this->whenLoaded('parent', function () {
-                return $this->parent ? $this->parent->category_name : null;
-            }),
+            'createBy' => $this->created_by,
+            'updateBy' => $this->updated_by,
+            'createTime' => $this->created_at ? $this->created_at->format('Y-m-d H:i:s') : null,
+            'updateTime' => $this->updated_at ? $this->updated_at->format('Y-m-d H:i:s') : null,
         ];
     }
 }

@@ -14,7 +14,7 @@ class CourseDetailResource extends JsonResource
         $isFree = $this->is_free == 1;
 
         return [
-            'contentImage' => !empty($this->banner_images) ? $this->banner_images[0] : null,
+            'contentImage' => $this->item_image ?: (!empty($this->banner_images) ? $this->banner_images[0] : null),
             'limitPrice' => $this->current_price,
             'originalPrice' => $this->original_price,
             'discountPoints' => $isFree ? (string) (intval(floatval($this->original_price) * 100)) : null,

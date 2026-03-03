@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\App;
 
+use App\Models\App\AppPostBase;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
@@ -55,6 +56,10 @@ class RecommendPostListResource extends JsonResource
         $mediaData = $this->media_data ?? [];
         $member = $this->member;
         $postType = $this->post_type;
+        $content = $this->content ?? null;
+        if ($postType == AppPostBase::POST_TYPE_ARTICLE) {
+            $content = $this->title ?? null;
+        }
 
         $data = [
             'id' => $this->post_id,
@@ -64,7 +69,7 @@ class RecommendPostListResource extends JsonResource
                 'avatar' => $member ? ($member->avatar ?? '') : '',
                 'nickname' => $member ? ($member->nickname ?? '') : '',
             ],
-            'content' => $this->content ?? '',
+            'content' => $content,
             'commentCount' => $this->stat ? $this->stat->comment_count : 0,
             'favoriteCount' => $this->stat ? $this->stat->collection_count : 0,
             'likeCount' => $this->stat ? $this->stat->like_count : 0,

@@ -16,31 +16,28 @@ class AppCourseBase extends Model
     protected $primaryKey = 'course_id';
 
     // 付费类型
-    const PAY_TYPE_TRIAL = 1;      // 体验课
-    const PAY_TYPE_BEGINNER = 2;   // 小白课
-    const PAY_TYPE_ADVANCED = 3;   // 进阶课
-    const PAY_TYPE_PAID = 4;       // 付费课
+    const PAY_TYPE_TRIAL = 1;      // 招生0元课
+    const PAY_TYPE_ADVANCED = 2;   // 进阶课
+    const PAY_TYPE_HIGHER = 3;   // 高阶课
 
     // 付费类型展示配置
     const PAY_TYPE_CONFIG = [
+        // 招生0元课
         self::PAY_TYPE_TRIAL => [
             'typeName' => '招生0元课',
-            'typeIcon' => '/static/svg/icon-free.svg',
+            'typeIcon' => '/static/icon-free.png',
             'typeIconColor' => '#4A90E2',
         ],
-        self::PAY_TYPE_BEGINNER => [
-            'typeName' => '小白课',
-            'typeIcon' => '/static/svg/icon-beginner.svg',
-            'typeIconColor' => '#F5A623',
-        ],
+        // 进阶课
         self::PAY_TYPE_ADVANCED => [
             'typeName' => '进阶课',
-            'typeIcon' => '/static/svg/icon-advance.svg',
+            'typeIcon' => '/static/icon-advance.png',
             'typeIconColor' => '#E62E2E',
         ],
-        self::PAY_TYPE_PAID => [
-            'typeName' => '付费课',
-            'typeIcon' => '/static/svg/icon-paid.svg',
+        // 高阶课
+        self::PAY_TYPE_HIGHER => [
+            'typeName' => '高阶课',
+            'typeIcon' => '/static/icon-higher.png',
             'typeIconColor' => '#7B61FF',
         ],
     ];

@@ -108,11 +108,13 @@ class CourseService
             'play_type' => $data['playType'],
             'schedule_type' => $data['scheduleType'] ?? AppCourseBase::SCHEDULE_TYPE_FIXED,
             'cover_image' => $data['coverImage'] ?? null,
+            'item_image' => $data['itemImage'] ?? null,
             'cover_video' => $data['coverVideo'] ?? null,
             'banner_images' => $data['bannerImages'] ?? [],
             'intro_video' => $data['introVideo'] ?? null,
             'brief' => $data['brief'] ?? null,
             'description' => $data['description'] ?? null,
+            'remark' => $data['remark'] ?? null,
             'suitable_crowd' => $data['suitableCrowd'] ?? null,
             'learn_goal' => $data['learnGoal'] ?? null,
             'teacher_id' => $data['teacherId'] ?? null,
@@ -170,6 +172,12 @@ class CourseService
         }
         if (array_key_exists('coverImage', $data)) {
             $updateData['cover_image'] = $data['coverImage'];
+        }
+        if (array_key_exists('itemImage', $data)) {
+            $updateData['item_image'] = $data['itemImage'];
+        }
+        if (array_key_exists('remark', $data)) {
+            $updateData['remark'] = $data['remark'];
         }
         if (array_key_exists('coverVideo', $data)) {
             $updateData['cover_video'] = $data['coverVideo'];

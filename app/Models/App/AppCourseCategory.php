@@ -3,6 +3,7 @@
 namespace App\Models\App;
 
 use App\Models\Traits\HasOperator;
+use App\Models\Traits\HasTosUrl;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class AppCourseCategory extends Model
 {
-    use HasFactory, SoftDeletes, HasOperator;
+    use HasFactory, SoftDeletes, HasOperator, HasTosUrl;
 
     protected $table = 'app_course_category';
     protected $primaryKey = 'category_id';
@@ -47,6 +48,28 @@ class AppCourseCategory extends Model
         'deleted_at' => 'datetime',
         'deleted_by' => 'integer',
     ];
+
+    /**
+     * 获取图标完整 URL
+     *
+     * @param string|null $value
+     * @return string|null
+     */
+    public function getIconAttribute($value): ?string
+    {
+        return $this->getTosUrl($value);
+    }
+
+    /**
+     * 设置图标时提取相对路径
+     *
+     * @param string|null $value
+     * @return void
+     */
+    public function setIconAttribute($value): void
+    {
+        $this->attributes['icon'] = $this->extractTosPath($value);
+    }
 
     /**
      * 父分类

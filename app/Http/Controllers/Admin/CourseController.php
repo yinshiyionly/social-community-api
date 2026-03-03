@@ -10,6 +10,7 @@ use App\Http\Resources\ApiResponse;
 use App\Http\Resources\Admin\CourseResource;
 use App\Http\Resources\Admin\CourseListResource;
 use App\Http\Resources\Admin\CourseSimpleResource;
+use App\Models\App\AppCourseBase;
 use App\Services\Admin\CourseService;
 use App\Services\Admin\CourseCategoryService;
 use Illuminate\Http\Request;
@@ -37,6 +38,40 @@ class CourseController extends Controller
     {
         $this->courseService = $courseService;
         $this->categoryService = $categoryService;
+    }
+
+    /**
+     * 课程常量选项（付费类型、播放类型、排课类型、状态）
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function constants()
+    {
+        $data = [
+
+            'payTypeOptions' => [
+                ['label' => '招生0元课', 'value' => AppCourseBase::PAY_TYPE_TRIAL],
+                ['label' => '进阶课', 'value' => AppCourseBase::PAY_TYPE_ADVANCED],
+                ['label' => '高阶课', 'value' => AppCourseBase::PAY_TYPE_HIGHER],
+            ],
+            'playTypeOptions' => [
+                ['label' => '直播课', 'value' => AppCourseBase::PLAY_TYPE_LIVE],
+                ['label' => '录播课', 'value' => AppCourseBase::PLAY_TYPE_VIDEO],
+                ['label' => '图文课', 'value' => AppCourseBase::PLAY_TYPE_ARTICLE],
+                ['label' => '音频课', 'value' => AppCourseBase::PLAY_TYPE_AUDIO],
+            ],
+            'scheduleTypeOptions' => [
+                ['label' => '固定日期', 'value' => AppCourseBase::SCHEDULE_TYPE_FIXED],
+                ['label' => '动态解锁', 'value' => AppCourseBase::SCHEDULE_TYPE_DYNAMIC],
+            ],
+            'statusOptions' => [
+                ['label' => '草稿', 'value' => AppCourseBase::STATUS_DRAFT],
+                ['label' => '上架', 'value' => AppCourseBase::STATUS_ONLINE],
+                ['label' => '下架', 'value' => AppCourseBase::STATUS_OFFLINE],
+            ],
+        ];
+
+        return ApiResponse::success(['data' => $data], '查询成功');
     }
 
     /**

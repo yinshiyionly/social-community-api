@@ -39,6 +39,8 @@ Route::middleware('system.auth')->group(function () {
 
     // 课程管理
     Route::prefix('/course')->group(function () {
+        // 常量选项（付费类型、播放类型、排课类型、状态）
+        Route::get('/constants', [CourseController::class, 'constants']);
         // 列表
         Route::get('/list', [CourseController::class, 'list']);
         // 下拉框列表

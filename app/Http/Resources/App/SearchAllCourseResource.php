@@ -43,11 +43,11 @@ class SearchAllCourseResource extends JsonResource
         }
 
         return [
-            'id' => 'course-' . $this->course_id,
+            'id' => $this->course_id,
             'title' => $this->course_title ?? '',
             'subtitle' => $this->course_subtitle ?? '',
-            'price' => (float) ($this->current_price ?? 0),
-            'originalPrice' => (float) ($this->original_price ?? 0),
+            'price' => (float)($this->current_price ?? 0),
+            'originalPrice' => (float)($this->original_price ?? 0),
             'cover' => $coverImage ?? '',
             'lessonCount' => $this->total_chapter ?? 0,
             'isLearning' => $this->isLearning,

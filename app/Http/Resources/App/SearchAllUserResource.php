@@ -37,7 +37,7 @@ class SearchAllUserResource extends JsonResource
     public function toArray($request): array
     {
         return [
-            'id' => 'user-' . $this->member_id,
+            'id' => $this->member_id,
             'name' => $this->nickname ?? '',
             'avatar' => $this->avatar ?? '',
             'fans' => $this->fans_count ?? 0,

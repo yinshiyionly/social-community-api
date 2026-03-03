@@ -14,11 +14,14 @@ Route::prefix('v1/search')->group(function () {
     Route::get('', [SearchController::class, 'search']);
 
     // 搜索全部（用户+课程混合，支持可选登录）
-    Route::get('all', [SearchController::class, 'searchAll'])->middleware('app.auth.optional');
+    Route::get('all', [SearchController::class, 'searchAll'])
+        ->middleware('app.auth.optional');
 
     // 搜索用户（支持可选登录）
-    Route::get('user', [SearchController::class, 'searchUser'])->middleware('app.auth.optional');
+    Route::get('user', [SearchController::class, 'searchUser'])
+        ->middleware('app.auth.optional');
 
     // 搜索课程（支持可选登录）
-    Route::get('course', [SearchController::class, 'searchCourse'])->middleware('app.auth.optional');
+    Route::get('course', [SearchController::class, 'searchCourse'])
+        ->middleware('app.auth.optional');
 });

@@ -63,6 +63,8 @@ class PostListResource extends JsonResource
             'id' => $this->post_id,
             'cover' => $this->cover['url'],
             'title' => $this->title ?? '',
+            // 帖子作者ID
+            'memberId' => $this->member_id ?? 0,
             'avatar' => $this->getAuthorAvatar(),
             'nickname' => $this->getAuthorNickname(),
             'likes' => $this->stat ? $this->stat->like_count : 0,

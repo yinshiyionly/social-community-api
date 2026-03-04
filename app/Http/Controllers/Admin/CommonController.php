@@ -48,7 +48,7 @@ class CommonController extends Controller
                 'data' => [
                     'fileName' => $result['original_name'],
                     'key' => $result['path'],
-                    'reused' => $result['reused'] ?? false,
+                    // 'reused' => $result['reused'] ?? false,
                     'size' => $result['file_size'],
                     'url' => $result['url'],
                 ],
@@ -116,7 +116,7 @@ class CommonController extends Controller
                     'fileName' => $item['original_name'],
                     'index' => $index,
                     'key' => $item['path'],
-                    'reused' => $item['reused'] ?? false,
+                    // 'reused' => $item['reused'] ?? false,
                     'size' => $item['file_size'],
                     'url' => $item['url'],
                 ];
@@ -180,7 +180,7 @@ class CommonController extends Controller
                 'data' => [
                     'fileName' => $result['original_name'],
                     'key' => $result['path'],
-                    'reused' => $result['reused'] ?? false,
+                    // 'reused' => $result['reused'] ?? false,
                     'size' => $result['file_size'],
                     'url' => $result['url'],
                 ],

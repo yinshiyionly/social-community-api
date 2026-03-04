@@ -13,7 +13,7 @@ class CourseCategorySimpleResource extends JsonResource
     {
         return [
             'categoryId' => $this->category_id,
-            'parentId' => $this->parent_id,
+            // 'parentId' => $this->parent_id,
             'categoryName' => $this->category_name,
         ];
     }

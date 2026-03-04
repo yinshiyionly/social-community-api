@@ -162,7 +162,11 @@ class CourseController extends Controller
 
             $course = $this->courseService->create($data);
 
-            return ApiResponse::success(['courseId' => $course->course_id], '新增成功');
+            return ApiResponse::success([
+                'data' => [
+                    'courseId' => $course->course_id,
+                ],
+            ], '新增成功');
         } catch (\Exception $e) {
             Log::error('新增课程失败', [
                 'action' => 'store',

@@ -353,9 +353,11 @@ Authorization: Bearer {token}
 #### 响应示例 JSON（成功）
 ```json
 {
-  "code": 200,
-  "msg": "新增成功",
-  "courseId": 1
+    "code": 200,
+    "msg": "新增成功",
+    "data": {
+        "courseId": 1
+    }
 }
 ```
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\CourseCategoryBatchSortRequest;
 use App\Http\Requests\Admin\CourseCategoryStoreRequest;
 use App\Http\Requests\Admin\CourseCategoryUpdateRequest;
 use App\Http\Requests\Admin\CourseCategoryStatusRequest;
@@ -191,6 +192,29 @@ class CourseCategoryController extends Controller
             Log::error('修改课程分类状态失败', [
                 'action' => 'changeStatus',
                 'category_id' => $request->input('categoryId'),
+                'error' => $e->getMessage(),
+            ]);
+            return ApiResponse::error('操作失败，请稍后重试');
+        }
+    }
+
+    /**
+     * 批量更新分类排序
+     *
+     * @param CourseCategoryBatchSortRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function batchSort(CourseCategoryBatchSortRequest $request)
+    {
+        try {
+            $category = $request->input('category', []);
+
+            $this->categoryService->batchUpdateSort($category);
+
+            return ApiResponse::success([], '排序成功');
+        } catch (\Exception $e) {
+            Log::error('批量更新课程分类排序失败', [
+                'action' => 'batchSort',
                 'error' => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');

@@ -160,6 +160,26 @@ class CourseCategoryService
     }
 
     /**
+     * 批量更新分类排序
+     *
+     * @param array $categoryData [['categoryId' => 1, 'courseSort' => 999], ...]
+     * @return bool
+     */
+    public function batchUpdateSort(array $categoryData): bool
+    {
+        return DB::transaction(function () use ($categoryData) {
+            foreach ($categoryData as $item) {
+                AppCourseCategory::query()
+                    ->where('category_id', $item['categoryId'])
+                    ->whereNull('deleted_at')
+                    ->update(['sort_order' => $item['categorySort']]);
+            }
+
+            return true;
+        });
+    }
+
+    /**
      * 获取下拉选项列表（只返回启用状态的分类）
      *
      * @return Collection

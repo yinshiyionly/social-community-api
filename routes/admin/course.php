@@ -21,20 +21,24 @@ Route::middleware('system.auth')->group(function () {
     Route::prefix('/course/category')->group(function () {
         // 列表
         Route::get('/list', [CourseCategoryController::class, 'list']);
-        // 树形列表
-        Route::get('/treeList', [CourseCategoryController::class, 'treeList']);
+        // 详情
+        Route::get('/{categoryId}', [CourseCategoryController::class, 'show'])
+            ->where('categoryId', '[0-9]+');
         // 下拉框列表
         Route::get('/optionselect', [CourseCategoryController::class, 'optionselect']);
-        // 详情
-        Route::get('/{categoryId}', [CourseCategoryController::class, 'show'])->where('categoryId', '[0-9]+');
         // 创建
         Route::post('/', [CourseCategoryController::class, 'store']);
         // 更新
         Route::put('/', [CourseCategoryController::class, 'update']);
         // 更改状态
         Route::put('/changeStatus', [CourseCategoryController::class, 'changeStatus']);
+        // 批量排序
+        Route::put('/batchSort', [CourseCategoryController::class, 'batchSort']);
         // 删除
         Route::delete('/{categoryIds}', [CourseCategoryController::class, 'destroy']);
+
+        // 树形列表
+        Route::get('/treeList', [CourseCategoryController::class, 'treeList']);
     });
 
     // 课程管理

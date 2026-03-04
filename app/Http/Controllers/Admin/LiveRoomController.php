@@ -164,7 +164,9 @@ class LiveRoomController extends Controller
     {
         try {
             $ids = array_map('intval', explode(',', $roomIds));
+            // 统计直播间是否有被正常的课程章节关联使用，如果有，提示不能删除
 
+            // 执行百家云删除房间逻辑
             $result = $this->liveRoomService->delete($ids);
 
             if (!$result['success']) {

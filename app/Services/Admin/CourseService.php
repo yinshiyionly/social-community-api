@@ -304,4 +304,70 @@ class CourseService
 
         return null;
     }
+
+    /**
+     * 获取课表详情（课程 + 章节 + 章节内容）
+     *
+     * @param int $courseId
+     * @return AppCourseBase|null
+     */
+    public function getSchedule(int $courseId): ?AppCourseBase
+    {
+        $course = AppCourseBase::query()
+            ->select([
+                'course_id', 'course_title', 'course_subtitle',
+                'play_type', 'schedule_type', 'status',
+                'total_chapter', 'total_duration', 'cover_image', 'teacher_id',
+            ])
+            ->where('course_id', $courseId)
+            ->first();
+
+        if (!$course) {
+            return null;
+        }
+
+        // 根据播放类型决定预加载的章节内容关联
+        $contentRelation = $this->getContentRelationByPlayType($course->play_type);
+
+        // 加载章节
+        $course->load([
+            'chapters' => function ($query) {
+                $query->select([
+                    'chapter_id', 'course_id', 'chapter_no', 'chapter_title', 'chapter_subtitle',
+                    'cover_image', 'is_free', 'is_preview',
+                    'unlock_type', 'unlock_days', 'unlock_date', 'unlock_time',
+                    'chapter_start_time', 'chapter_end_time',
+                    'duration', 'has_homework', 'sort_order', 'status',
+                ])
+                ->orderBy('sort_order', 'asc')
+                ->orderBy('chapter_id', 'asc');
+            },
+        ]);
+
+        // 预加载章节内容（避免 N+1）
+        if ($contentRelation && $course->chapters->isNotEmpty()) {
+            $course->chapters->load($contentRelation);
+        }
+
+        return $course;
+    }
+
+    /**
+     * 根据播放类型获取章节内容关联名
+     *
+     * @param int $playType
+     * @return string|null
+     */
+    private function getContentRelationByPlayType(int $playType): ?string
+    {
+        $map = [
+            AppCourseBase::PLAY_TYPE_VIDEO => 'videoContent',
+            AppCourseBase::PLAY_TYPE_LIVE => 'liveContent',
+            AppCourseBase::PLAY_TYPE_ARTICLE => 'articleContent',
+            AppCourseBase::PLAY_TYPE_AUDIO => 'audioContent',
+        ];
+
+        return $map[$playType] ?? null;
+    }
+
 }

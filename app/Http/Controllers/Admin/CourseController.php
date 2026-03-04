@@ -10,6 +10,7 @@ use App\Http\Requests\Admin\CourseStatusRequest;
 use App\Http\Resources\ApiResponse;
 use App\Http\Resources\Admin\CourseResource;
 use App\Http\Resources\Admin\CourseListResource;
+use App\Http\Resources\Admin\CourseScheduleResource;
 use App\Http\Resources\Admin\CourseSimpleResource;
 use App\Models\App\AppCourseBase;
 use App\Services\Admin\CourseService;
@@ -326,4 +327,22 @@ class CourseController extends Controller
 
         return ApiResponse::collection($options, CourseSimpleResource::class, '查询成功');
     }
+
+    /**
+     * 课表详情
+     *
+     * @param int $courseId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function schedule(int $courseId)
+    {
+        $course = $this->courseService->getSchedule($courseId);
+
+        if (!$course) {
+            return ApiResponse::notFound('课程不存在');
+        }
+
+        return ApiResponse::resource($course, CourseScheduleResource::class, '查询成功');
+    }
+
 }

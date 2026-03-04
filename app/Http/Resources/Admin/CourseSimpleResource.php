@@ -13,7 +13,7 @@ class CourseSimpleResource extends JsonResource
     {
         return [
             'courseId' => $this->course_id,
-            'courseNo' => $this->course_no,
+            // 'courseNo' => $this->course_no,
             'courseTitle' => $this->course_title,
         ];
     }

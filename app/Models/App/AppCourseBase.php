@@ -288,23 +288,45 @@ class AppCourseBase extends Model
     /**
      * 获取 cover - 将相对路径转为绝对路径
      *
-     * @param string $value
-     * @return string
+     * @param string|null $value
+     * @return string|null
      */
-    public function getCoverImageAttribute($value): string
+    public function getCoverImageAttribute($value): ?string
     {
         return $this->getTosUrl($value);
     }
 
     /**
+     * 设置 cover_image - 提取 TOS 相对路径
+     *
+     * @param string|null $value
+     * @return void
+     */
+    public function setCoverImageAttribute($value): void
+    {
+        $this->attributes['cover_image'] = $this->extractTosPath($value);
+    }
+
+    /**
      * 获取 item_image - 将相对路径转为绝对路径
      *
-     * @param string $value
+     * @param string|null $value
      * @return string|null
      */
-    public function getItemImageAttribute($value)
+    public function getItemImageAttribute($value): ?string
     {
         return $this->getTosUrl($value);
+    }
+
+    /**
+     * 设置 item_image - 提取 TOS 相对路径
+     *
+     * @param string|null $value
+     * @return void
+     */
+    public function setItemImageAttribute($value): void
+    {
+        $this->attributes['item_image'] = $this->extractTosPath($value);
     }
 
     /**

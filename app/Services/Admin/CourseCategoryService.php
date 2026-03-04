@@ -37,14 +37,6 @@ class CourseCategoryService
             $query->where('status', $filters['status']);
         }
 
-        // 时间范围筛选
-        if (!empty($filters['beginTime'])) {
-            $query->where('created_at', '>=', $filters['beginTime']);
-        }
-        if (!empty($filters['endTime'])) {
-            $query->where('created_at', '<=', $filters['endTime']);
-        }
-
         // 排序
         $query->orderByDesc('sort_order')->orderByDesc('category_id');
 

@@ -321,9 +321,9 @@ Authorization: Bearer {token}
 | payType | number | 是 | 付费类型：`1` 招生0元课，`2` 进阶课，`3` 高阶课 |
 | playType | number | 是 | 播放类型：`1` 直播，`2` 录播，`3` 图文，`4` 音频 |
 | scheduleType | number | 否 | 排课类型：`1` 固定日期，`2` 动态解锁，默认 `1` |
-| coverImage | string | 否 | 封面图地址，最长 `500` 字符 |
-| itemImage | string | 否 | 详情图地址，最长 `500` 字符 |
-| description | string | 否 | 课程描述 |
+| coverImage | string | 是 | 封面图地址，最长 `500` 字符 |
+| itemImage | string | 是 | 详情图地址，最长 `500` 字符 |
+| description | string | 是 | 课程描述 |
 | remark | string | 否 | 备注 |
 | originalPrice | number | 否 | 原价，`>= 0`，默认 `0` |
 | currentPrice | number | 否 | 现价，`>= 0`，默认 `0` |

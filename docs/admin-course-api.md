@@ -64,30 +64,68 @@ Authorization: Bearer {token}
 #### 响应示例 JSON
 ```json
 {
-  "code": 200,
-  "msg": "查询成功",
-  "data": {
-    "payTypeOptions": [
-      { "label": "招生0元课", "value": 1 },
-      { "label": "进阶课", "value": 2 },
-      { "label": "高阶课", "value": 3 }
-    ],
-    "playTypeOptions": [
-      { "label": "直播课", "value": 1 },
-      { "label": "录播课", "value": 2 },
-      { "label": "图文课", "value": 3 },
-      { "label": "音频课", "value": 4 }
-    ],
-    "scheduleTypeOptions": [
-      { "label": "固定日期", "value": 1 },
-      { "label": "动态解锁", "value": 2 }
-    ],
-    "statusOptions": [
-      { "label": "草稿", "value": 0 },
-      { "label": "上架", "value": 1 },
-      { "label": "下架", "value": 2 }
-    ]
-  }
+    "code": 200,
+    "msg": "查询成功",
+    "data": {
+        "payTypeOptions": [
+            {
+                "label": "招生0元课",
+                "value": 1
+            },
+            {
+                "label": "进阶课",
+                "value": 2
+            },
+            {
+                "label": "高阶课",
+                "value": 3
+            }
+        ],
+        "playTypeOptions": [
+            {
+                "label": "直播课",
+                "value": 1
+            },
+            {
+                "label": "录播课",
+                "value": 2
+            }
+        ],
+        "isFreeOptions": [
+            {
+                "label": "免费课",
+                "value": 1
+            },
+            {
+                "label": "付费课",
+                "value": 0
+            }
+        ],
+        "scheduleTypeOptions": [
+            {
+                "label": "固定日期",
+                "value": 1
+            },
+            {
+                "label": "动态解锁",
+                "value": 2
+            }
+        ],
+        "statusOptions": [
+            {
+                "label": "草稿",
+                "value": 0
+            },
+            {
+                "label": "上架",
+                "value": 1
+            },
+            {
+                "label": "下架",
+                "value": 2
+            }
+        ]
+    }
 }
 ```
 
@@ -135,7 +173,6 @@ Authorization: Bearer {token}
   "rows": [
     {
       "courseId": 1,
-      "courseNo": "C202602181420001234",
       "categoryId": 10,
       "categoryName": "健康课程",
       "courseTitle": "中医基础入门",
@@ -159,7 +196,6 @@ Authorization: Bearer {token}
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | courseId | number | 课程 ID |
-| courseNo | string | 课程编号（系统自动生成） |
 | categoryId | number | 分类 ID |
 | categoryName | string\|null | 分类名称（关联查询） |
 | courseTitle | string | 课程标题 |
@@ -191,7 +227,6 @@ Authorization: Bearer {token}
   "data": [
     {
       "courseId": 1,
-      "courseNo": "C202602181420001234",
       "courseTitle": "中医基础入门"
     }
   ]
@@ -202,7 +237,6 @@ Authorization: Bearer {token}
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | courseId | number | 课程 ID |
-| courseNo | string | 课程编号 |
 | courseTitle | string | 课程标题 |
 
 ---
@@ -223,7 +257,6 @@ Authorization: Bearer {token}
   "msg": "查询成功",
   "data": {
     "courseId": 1,
-    "courseNo": "C202602181420001234",
     "categoryId": 10,
     "courseTitle": "中医基础入门",
     "courseSubtitle": "零基础也能学的中医课",
@@ -254,7 +287,6 @@ Authorization: Bearer {token}
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | courseId | number | 课程 ID |
-| courseNo | string | 课程编号 |
 | categoryId | number | 分类 ID |
 | courseTitle | string | 课程标题 |
 | courseSubtitle | string\|null | 课程副标题 |

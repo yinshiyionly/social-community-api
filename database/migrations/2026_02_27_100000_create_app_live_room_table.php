@@ -23,6 +23,18 @@ class CreateAppLiveRoomTable extends Migration
                 third_party_room_id varchar(100) NULL,
                 push_url varchar(500) NULL,
                 pull_url varchar(500) NULL,
+                mock_video_source int2 NULL,
+                material_video_id int8 NULL,
+                playback_id int8 NULL,
+                mock_video_id int8 NULL,
+                mock_room_id int8 NULL,
+                mock_session_id varchar(100) NULL,
+                app_template int2 NOT NULL DEFAULT 2,
+                enable_live_sell int2 NOT NULL DEFAULT 0,
+                admin_code varchar(100) NULL,
+                teacher_code varchar(100) NULL,
+                student_code varchar(100) NULL,
+                entrance int2 NOT NULL DEFAULT 1,
                 video_url varchar(500) NULL,
                 anchor_id int8 NULL,
                 anchor_name varchar(100) NOT NULL DEFAULT '',
@@ -59,6 +71,18 @@ class CreateAppLiveRoomTable extends Migration
         DB::statement("COMMENT ON COLUMN app_live_room.third_party_room_id IS '第三方平台直播间ID'");
         DB::statement("COMMENT ON COLUMN app_live_room.push_url IS '推流地址'");
         DB::statement("COMMENT ON COLUMN app_live_room.pull_url IS '拉流地址'");
+        DB::statement("COMMENT ON COLUMN app_live_room.mock_video_source IS '伪直播素材来源: 1=回放 2=百家云视频文件 3=系统视频文件'");
+        DB::statement("COMMENT ON COLUMN app_live_room.material_video_id IS '本地素材视频文件ID'");
+        DB::statement("COMMENT ON COLUMN app_live_room.playback_id IS '百家云回放ID'");
+        DB::statement("COMMENT ON COLUMN app_live_room.mock_video_id IS '伪直播关联的点播视频ID'");
+        DB::statement("COMMENT ON COLUMN app_live_room.mock_room_id IS '伪直播关联的回放教室号'");
+        DB::statement("COMMENT ON COLUMN app_live_room.mock_session_id IS '伪直播关联的回放教室session_id'");
+        DB::statement("COMMENT ON COLUMN app_live_room.app_template IS 'APP端模板样式，1是横屏，2是竖屏'");
+        DB::statement("COMMENT ON COLUMN app_live_room.enable_live_sell IS '是否使用带货直播模板。0:不使用 1:纯视频带货模板 2:ppt 带货模板'");
+        DB::statement("COMMENT ON COLUMN app_live_room.admin_code IS '助教参加码'");
+        DB::statement("COMMENT ON COLUMN app_live_room.teacher_code IS '老师参加码'");
+        DB::statement("COMMENT ON COLUMN app_live_room.student_code IS '学生参加码'");
+        DB::statement("COMMENT ON COLUMN app_live_room.entrance IS '入口 1是直播，2是回放'");
         DB::statement("COMMENT ON COLUMN app_live_room.video_url IS '伪直播视频地址'");
         DB::statement("COMMENT ON COLUMN app_live_room.anchor_id IS '主播用户ID'");
         DB::statement("COMMENT ON COLUMN app_live_room.anchor_name IS '主播名称'");

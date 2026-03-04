@@ -50,7 +50,8 @@ Route::middleware('system.auth')->group(function () {
         // 下拉框列表
         Route::get('/optionselect', [CourseController::class, 'optionselect']);
         // 详情
-        Route::get('/{courseId}', [CourseController::class, 'show'])->where('courseId', '[0-9]+');
+        Route::get('/{courseId}', [CourseController::class, 'show'])
+            ->where('courseId', '[0-9]+');
         // 创建
         Route::post('/', [CourseController::class, 'store']);
         // 更新

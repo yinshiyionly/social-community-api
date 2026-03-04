@@ -10,6 +10,7 @@
 | 新增分类 | POST | `/api/admin/course/category` |
 | 更新分类 | PUT | `/api/admin/course/category` |
 | 修改分类状态 | PUT | `/api/admin/course/category/changeStatus` |
+| 批量修改分类排序 | PUT | `/api/admin/course/category/batchSort` |
 | 删除分类（支持批量） | DELETE | `/api/admin/course/category/{categoryIds}` |
 
 ## 2. 通用说明
@@ -77,7 +78,6 @@ Authorization: Bearer {token}
   "rows": [
     {
       "categoryId": 10,
-      "parentId": 0,
       "categoryName": "健康课程",
       "icon": "https://cdn.example.com/icon/health.png",
       "sortOrder": 100,
@@ -86,7 +86,6 @@ Authorization: Bearer {token}
     },
     {
       "categoryId": 11,
-      "parentId": 10,
       "categoryName": "中医养生",
       "icon": "https://cdn.example.com/icon/tcm.png",
       "sortOrder": 90,
@@ -101,7 +100,6 @@ Authorization: Bearer {token}
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | categoryId | number | 分类 ID |
-| parentId | number | 父分类 ID，顶级分类为 `0` |
 | categoryName | string | 分类名称 |
 | icon | string\|null | 图标地址 |
 | sortOrder | number | 排序值（降序） |
@@ -123,7 +121,6 @@ Authorization: Bearer {token}
   "data": [
     {
       "categoryId": 10,
-      "parentId": 0,
       "categoryName": "健康课程",
       "icon": "https://cdn.example.com/icon/health.png",
       "sortOrder": 100,
@@ -132,7 +129,6 @@ Authorization: Bearer {token}
     },
     {
       "categoryId": 11,
-      "parentId": 10,
       "categoryName": "中医养生",
       "icon": "https://cdn.example.com/icon/tcm.png",
       "sortOrder": 90,
@@ -157,12 +153,10 @@ Authorization: Bearer {token}
   "data": [
     {
       "categoryId": 10,
-      "parentId": 0,
       "categoryName": "健康课程"
     },
     {
       "categoryId": 11,
-      "parentId": 10,
       "categoryName": "中医养生"
     }
   ]
@@ -173,7 +167,6 @@ Authorization: Bearer {token}
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | categoryId | number | 分类 ID |
-| parentId | number | 父分类 ID |
 | categoryName | string | 分类名称 |
 
 ---
@@ -194,7 +187,6 @@ Authorization: Bearer {token}
   "msg": "查询成功",
   "data": {
     "categoryId": 11,
-    "parentId": 10,
     "categoryName": "中医养生",
     "icon": "https://cdn.example.com/icon/tcm.png",
     "sortOrder": 90,
@@ -211,7 +203,6 @@ Authorization: Bearer {token}
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | categoryId | number | 分类 ID |
-| parentId | number | 父分类 ID |
 | categoryName | string | 分类名称 |
 | icon | string\|null | 图标地址 |
 | sortOrder | number | 排序值 |
@@ -343,7 +334,66 @@ Authorization: Bearer {token}
 
 ---
 
-### 3.8 删除分类（支持批量）
+### 3.8 批量修改分类排序
+- 方法：`PUT`
+- 路径：`/api/admin/course/category/batchSort`
+
+#### Body 参数（JSON）
+| 参数                      | 类型 | 必填 | 说明 |
+|-------------------------| --- | --- | --- |
+| category                | array | 是 | 分类排序数组，至少 1 项 |
+| category[].categoryId   | number | 是 | 分类 ID，`>= 1`，且不能重复 |
+| category[].categorySort | number | 是 | 排序值，`>= 0` |
+
+#### 请求示例 JSON
+```json
+{
+  "category": [
+    {
+      "categoryId": 1,
+      "categorySort": 999
+    },
+    {
+      "categoryId": 8,
+      "categorySort": 0
+    },
+    {
+      "categoryId": 7,
+      "categorySort": 0
+    },
+    {
+      "categoryId": 4,
+      "categorySort": 0
+    },
+    {
+      "categoryId": 2,
+      "categorySort": 0
+    }
+  ]
+}
+```
+
+#### 响应示例 JSON（成功）
+```json
+{
+  "code": 200,
+  "msg": "排序成功",
+  "data": []
+}
+```
+
+#### 响应示例 JSON（失败）
+```json
+{
+  "code": 1202,
+  "msg": "排序数据不能为空",
+  "data": []
+}
+```
+
+---
+
+### 3.9 删除分类（支持批量）
 - 方法：`DELETE`
 - 路径：`/api/admin/course/category/{categoryIds}`
 

@@ -27,6 +27,8 @@ class CreateAppCourseChapterTable extends Migration
                 unlock_days int4 NOT NULL DEFAULT 0,
                 unlock_date date NULL,
                 unlock_time time NULL,
+                chapter_start_time timestamp(0) NULL,
+                chapter_end_time timestamp(0) NULL,
                 has_homework int2 NOT NULL DEFAULT 0,
                 homework_required int2 NOT NULL DEFAULT 0,
                 duration int4 NOT NULL DEFAULT 0,
@@ -62,6 +64,8 @@ class CreateAppCourseChapterTable extends Migration
         DB::statement("COMMENT ON COLUMN app_course_chapter.unlock_days IS '解锁天数（相对于领取/购买日期）'");
         DB::statement("COMMENT ON COLUMN app_course_chapter.unlock_date IS '固定解锁日期'");
         DB::statement("COMMENT ON COLUMN app_course_chapter.unlock_time IS '解锁时间点'");
+        DB::statement("COMMENT ON COLUMN app_course_chapter.chapter_start_time IS '章节开始时间'");
+        DB::statement("COMMENT ON COLUMN app_course_chapter.chapter_end_time IS '章节结束时间'");
         DB::statement("COMMENT ON COLUMN app_course_chapter.has_homework IS '是否有作业：0=否 1=是'");
         DB::statement("COMMENT ON COLUMN app_course_chapter.homework_required IS '作业是否必做：0=否 1=是'");
         DB::statement("COMMENT ON COLUMN app_course_chapter.duration IS '时长（秒）'");

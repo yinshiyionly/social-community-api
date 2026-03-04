@@ -34,6 +34,7 @@ class LiveChapterService
         $query = AppCourseChapter::query()
             ->select([
                 'chapter_id', 'course_id', 'chapter_no', 'chapter_title',
+                'chapter_start_time', 'chapter_end_time',
                 'sort_order', 'status', 'created_at',
             ])
             ->with('liveContent')
@@ -100,6 +101,8 @@ class LiveChapterService
             'chapter_no' => $data['chapterNo'] ?? 0,
             'chapter_title' => $data['chapterTitle'],
             'chapter_subtitle' => $data['chapterSubtitle'] ?? '',
+            'chapter_start_time' => $data['chapterStartTime'],
+            'chapter_end_time' => $data['chapterEndTime'],
             'cover_image' => $data['coverImage'] ?? '',
             'brief' => $data['brief'] ?? '',
             'sort_order' => $data['sortOrder'] ?? 0,
@@ -257,6 +260,8 @@ class LiveChapterService
             'chapterTitle'    => 'chapter_title',
             'chapterNo'       => 'chapter_no',
             'chapterSubtitle' => 'chapter_subtitle',
+            'chapterStartTime' => 'chapter_start_time',
+            'chapterEndTime'   => 'chapter_end_time',
             'coverImage'      => 'cover_image',
             'brief'           => 'brief',
             'sortOrder'       => 'sort_order',

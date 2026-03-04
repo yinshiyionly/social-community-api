@@ -17,6 +17,8 @@ class LiveChapterListResource extends JsonResource
             'chapterId'     => $this->chapter_id,
             'chapterNo'     => $this->chapter_no,
             'chapterTitle'  => $this->chapter_title,
+            'chapterStartTime' => $this->chapter_start_time ? $this->chapter_start_time->format('Y-m-d H:i:s') : null,
+            'chapterEndTime' => $this->chapter_end_time ? $this->chapter_end_time->format('Y-m-d H:i:s') : null,
             'liveStatus'    => $live ? $live->live_status : null,
             'liveStartTime' => $live && $live->live_start_time ? $live->live_start_time->format('Y-m-d H:i:s') : null,
             'liveEndTime'   => $live && $live->live_end_time ? $live->live_end_time->format('Y-m-d H:i:s') : null,

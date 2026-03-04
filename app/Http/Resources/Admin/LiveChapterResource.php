@@ -20,6 +20,8 @@ class LiveChapterResource extends JsonResource
             'chapterNo'        => $this->chapter_no,
             'chapterTitle'     => $this->chapter_title,
             'chapterSubtitle'  => $this->chapter_subtitle,
+            'chapterStartTime' => $this->chapter_start_time ? $this->chapter_start_time->format('Y-m-d H:i:s') : null,
+            'chapterEndTime'   => $this->chapter_end_time ? $this->chapter_end_time->format('Y-m-d H:i:s') : null,
             'coverImage'       => $this->cover_image,
             'brief'            => $this->brief,
             'sortOrder'        => $this->sort_order,

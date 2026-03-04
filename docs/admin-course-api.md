@@ -10,6 +10,7 @@
 | 新增课程 | POST | `/api/admin/course` |
 | 更新课程 | PUT | `/api/admin/course` |
 | 修改课程状态 | PUT | `/api/admin/course/changeStatus` |
+| 批量修改课程排序 | PUT | `/api/admin/course/batchSort` |
 | 删除课程（支持批量） | DELETE | `/api/admin/course/{courseIds}` |
 
 ## 2. 通用说明
@@ -430,7 +431,66 @@ Authorization: Bearer {token}
 
 ---
 
-### 3.8 删除课程（支持批量）
+### 3.8 批量修改课程排序
+- 方法：`PUT`
+- 路径：`/api/admin/course/batchSort`
+
+#### Body 参数（JSON）
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| course | array | 是 | 课程排序数组，至少 1 项 |
+| course[].courseId | number | 是 | 课程 ID，`>= 1`，且不能重复 |
+| course[].courseSort | number | 是 | 排序值，`>= 0` |
+
+#### 请求示例 JSON
+```json
+{
+  "course": [
+    {
+      "courseId": 1,
+      "courseSort": 999
+    },
+    {
+      "courseId": 8,
+      "courseSort": 0
+    },
+    {
+      "courseId": 7,
+      "courseSort": 0
+    },
+    {
+      "courseId": 4,
+      "courseSort": 0
+    },
+    {
+      "courseId": 2,
+      "courseSort": 0
+    }
+  ]
+}
+```
+
+#### 响应示例 JSON（成功）
+```json
+{
+  "code": 200,
+  "msg": "排序成功",
+  "data": []
+}
+```
+
+#### 响应示例 JSON（失败）
+```json
+{
+  "code": 6000,
+  "msg": "排序数据不能为空",
+  "data": []
+}
+```
+
+---
+
+### 3.9 删除课程（支持批量）
 - 方法：`DELETE`
 - 路径：`/api/admin/course/{courseIds}`
 - 说明：软删除。如果课程下存在章节则不允许删除。

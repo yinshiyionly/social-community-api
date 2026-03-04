@@ -197,7 +197,7 @@ class CourseService
             ->whereNull('deleted_at')
             ->update([
                 'deleted_at' => now(),
-                'deleted_by' => $this->getCurrentOperatorId(),
+                // 'deleted_by' => $this->getCurrentOperatorId(),
             ]);
     }
 

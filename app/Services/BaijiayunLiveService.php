@@ -180,6 +180,20 @@ class BaijiayunLiveService
         return $this->sendRequest('/openapi/room/update', $params);
     }
 
+    /**
+     * 删除房间
+     * @see https://dev.baijiayun.com/wiki/detail/79#-h6-10
+     * @param int $roomId
+     * @return array
+     */
+    public function deleteRoom(int $roomId)
+    {
+        $params = [
+            'room_id' => $roomId
+        ];
+        return $this->sendRequest('/openapi/room/delete', $params);
+
+    }
 
     /**
      * 查询直播间信息
@@ -190,7 +204,7 @@ class BaijiayunLiveService
     public function getRoomInfo(string $roomId): array
     {
         $params = [
-            'room_id' => $roomId,
+            'room_id' => $roomId
         ];
 
         $result = $this->sendRequest('/openapi/room/info', $params);
@@ -416,6 +430,8 @@ class BaijiayunLiveService
     protected function sendRequest(string $path, array $params = [], string $method = 'POST'): array
     {
         try {
+            // 自动附加 timestamp 参数
+            $params['timestamp'] = time();
             // 自动附加 partner_id（签名前添加，确保 partner_id 参与签名计算）
             $params['partner_id'] = $this->config['partner_id'] ?? '';
 

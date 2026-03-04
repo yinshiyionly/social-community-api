@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use App\Models\App\AppLiveRoom;
 use App\Models\App\AppLiveRoomStat;
+use App\Services\BaijiayunLiveService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
 
@@ -92,38 +93,27 @@ class LiveRoomService
      */
     public function create(array $data): AppLiveRoom
     {
-        $liveType = (int) ($data['liveType'] ?? AppLiveRoom::LIVE_TYPE_REAL);
+        $liveType = (int)($data['liveType'] ?? AppLiveRoom::LIVE_TYPE_REAL);
 
         $roomData = [
-            'room_title'          => $data['roomTitle'],
-            'room_cover'          => $data['roomCover'] ?? null,
-            'room_intro'          => $data['roomIntro'] ?? '',
-            'live_type'           => $liveType,
-            'anchor_name'         => $data['anchorName'] ?? '',
-            'anchor_avatar'       => $data['anchorAvatar'] ?? null,
-            'scheduled_start_time'=> $data['scheduledStartTime'] ?? null,
-            'scheduled_end_time'  => $data['scheduledEndTime'] ?? null,
-            'live_duration'       => $data['liveDuration'] ?? 0,
-            'live_status'         => AppLiveRoom::LIVE_STATUS_NOT_STARTED,
-            'allow_chat'          => $data['allowChat'] ?? 1,
-            'allow_gift'          => $data['allowGift'] ?? 0,
-            'allow_like'          => $data['allowLike'] ?? 1,
-            'password'            => $data['password'] ?? null,
-            'ext_config'          => $data['extConfig'] ?? [],
-            'status'              => $data['status'] ?? AppLiveRoom::STATUS_ENABLED,
+            'room_title' => $data['roomTitle'],
+            'live_type' => $liveType,
+            'scheduled_start_time' => $data['scheduledStartTime'] ?? null,
+            'scheduled_end_time' => $data['scheduledEndTime'] ?? null,
+            'live_status' => AppLiveRoom::LIVE_STATUS_NOT_STARTED
         ];
 
         if ($liveType === AppLiveRoom::LIVE_TYPE_PSEUDO) {
             // 伪直播
-            $roomData['live_platform'] = AppLiveRoom::PLATFORM_CUSTOM;
             $roomData['video_url'] = $data['videoUrl'];
-        } else {
-            // 真实直播/主播模式
-            $roomData['live_platform'] = $data['livePlatform'] ?? AppLiveRoom::PLATFORM_CUSTOM;
-            $roomData['push_url'] = $data['pushUrl'] ?? null;
-            $roomData['pull_url'] = $data['pullUrl'] ?? null;
-            $roomData['video_url'] = $data['videoUrl'] ?? null;
         }
+
+        // 1. 先调用百家云服务创建房间
+        $service = new BaijiayunLiveService();
+
+        $thirdResult = $service->createRoom();
+
+        // 2. 创建房间成功后将有用的返回信息保存数据库
 
         $room = AppLiveRoom::create($roomData);
 
@@ -167,23 +157,23 @@ class LiveRoomService
         }
 
         $fieldMap = [
-            'roomTitle'          => 'room_title',
-            'roomCover'          => 'room_cover',
-            'roomIntro'          => 'room_intro',
-            'videoUrl'           => 'video_url',
-            'anchorName'         => 'anchor_name',
-            'anchorAvatar'       => 'anchor_avatar',
+            'roomTitle' => 'room_title',
+            'roomCover' => 'room_cover',
+            'roomIntro' => 'room_intro',
+            'videoUrl' => 'video_url',
+            'anchorName' => 'anchor_name',
+            'anchorAvatar' => 'anchor_avatar',
             'scheduledStartTime' => 'scheduled_start_time',
-            'scheduledEndTime'   => 'scheduled_end_time',
-            'liveDuration'       => 'live_duration',
-            'allowChat'          => 'allow_chat',
-            'allowGift'          => 'allow_gift',
-            'allowLike'          => 'allow_like',
-            'password'           => 'password',
-            'extConfig'          => 'ext_config',
-            'status'             => 'status',
-            'pushUrl'            => 'push_url',
-            'pullUrl'            => 'pull_url',
+            'scheduledEndTime' => 'scheduled_end_time',
+            'liveDuration' => 'live_duration',
+            'allowChat' => 'allow_chat',
+            'allowGift' => 'allow_gift',
+            'allowLike' => 'allow_like',
+            'password' => 'password',
+            'extConfig' => 'ext_config',
+            'status' => 'status',
+            'pushUrl' => 'push_url',
+            'pullUrl' => 'pull_url',
         ];
 
         $updateData = [];

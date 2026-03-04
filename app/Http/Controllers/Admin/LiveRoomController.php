@@ -40,18 +40,18 @@ class LiveRoomController extends Controller
     {
         try {
             $filters = [
-                'liveType'     => $request->input('liveType'),
-                'liveStatus'   => $request->input('liveStatus'),
-                'status'       => $request->input('status'),
-                'roomTitle'    => $request->input('roomTitle'),
-                'anchorName'   => $request->input('anchorName'),
+                'liveType' => $request->input('liveType'),
+                'liveStatus' => $request->input('liveStatus'),
+                'status' => $request->input('status'),
+                'roomTitle' => $request->input('roomTitle'),
+                'anchorName' => $request->input('anchorName'),
                 'livePlatform' => $request->input('livePlatform'),
-                'beginTime'    => $request->input('beginTime'),
-                'endTime'      => $request->input('endTime'),
+                'beginTime' => $request->input('beginTime'),
+                'endTime' => $request->input('endTime'),
             ];
 
-            $pageNum = (int) $request->input('pageNum', 1);
-            $pageSize = (int) $request->input('pageSize', 10);
+            $pageNum = (int)$request->input('pageNum', 1);
+            $pageSize = (int)$request->input('pageSize', 10);
 
             $paginator = $this->liveRoomService->getList($filters, $pageNum, $pageSize);
 
@@ -74,7 +74,7 @@ class LiveRoomController extends Controller
     public function show($roomId)
     {
         try {
-            $room = $this->liveRoomService->getDetail((int) $roomId);
+            $room = $this->liveRoomService->getDetail((int)$roomId);
 
             if (!$room) {
                 return ApiResponse::error('直播间不存在');
@@ -101,25 +101,10 @@ class LiveRoomController extends Controller
     {
         try {
             $data = [
-                'roomTitle'          => $request->input('roomTitle'),
-                'liveType'           => $request->input('liveType'),
-                'roomCover'          => $request->input('roomCover'),
-                'roomIntro'          => $request->input('roomIntro'),
-                'videoUrl'           => $request->input('videoUrl'),
-                'livePlatform'       => $request->input('livePlatform'),
-                'pushUrl'            => $request->input('pushUrl'),
-                'pullUrl'            => $request->input('pullUrl'),
-                'anchorName'         => $request->input('anchorName'),
-                'anchorAvatar'       => $request->input('anchorAvatar'),
+                'roomTitle' => $request->input('roomTitle'),
+                'liveType' => $request->input('liveType'),
                 'scheduledStartTime' => $request->input('scheduledStartTime'),
-                'scheduledEndTime'   => $request->input('scheduledEndTime'),
-                'liveDuration'       => $request->input('liveDuration'),
-                'allowChat'          => $request->input('allowChat'),
-                'allowGift'          => $request->input('allowGift'),
-                'allowLike'          => $request->input('allowLike'),
-                'password'           => $request->input('password'),
-                'extConfig'          => $request->input('extConfig'),
-                'status'             => $request->input('status'),
+                'scheduledEndTime' => $request->input('scheduledEndTime'),
             ];
 
             $this->liveRoomService->create($data);
@@ -143,26 +128,13 @@ class LiveRoomController extends Controller
     public function update(LiveRoomUpdateRequest $request)
     {
         try {
-            $roomId = (int) $request->input('roomId');
+            $roomId = (int)$request->input('roomId');
 
             $data = [
-                'roomTitle'          => $request->input('roomTitle'),
-                'roomCover'          => $request->input('roomCover'),
-                'roomIntro'          => $request->input('roomIntro'),
-                'videoUrl'           => $request->input('videoUrl'),
-                'pushUrl'            => $request->input('pushUrl'),
-                'pullUrl'            => $request->input('pullUrl'),
-                'anchorName'         => $request->input('anchorName'),
-                'anchorAvatar'       => $request->input('anchorAvatar'),
+                'roomTitle' => $request->input('roomTitle'),
+                'liveType' => $request->input('liveType'),
                 'scheduledStartTime' => $request->input('scheduledStartTime'),
-                'scheduledEndTime'   => $request->input('scheduledEndTime'),
-                'liveDuration'       => $request->input('liveDuration'),
-                'allowChat'          => $request->input('allowChat'),
-                'allowGift'          => $request->input('allowGift'),
-                'allowLike'          => $request->input('allowLike'),
-                'password'           => $request->input('password'),
-                'extConfig'          => $request->input('extConfig'),
-                'status'             => $request->input('status'),
+                'scheduledEndTime' => $request->input('scheduledEndTime'),
             ];
 
             $result = $this->liveRoomService->update($roomId, $data);
@@ -219,8 +191,8 @@ class LiveRoomController extends Controller
     public function changeStatus(LiveRoomStatusRequest $request)
     {
         try {
-            $roomId = (int) $request->input('roomId');
-            $status = (int) $request->input('status');
+            $roomId = (int)$request->input('roomId');
+            $status = (int)$request->input('status');
 
             $result = $this->liveRoomService->changeStatus($roomId, $status);
 

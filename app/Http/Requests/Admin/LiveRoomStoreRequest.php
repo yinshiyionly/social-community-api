@@ -24,13 +24,6 @@ class LiveRoomStoreRequest extends FormRequest
             'anchorAvatar'       => 'nullable|string|max:500',
             'scheduledStartTime' => 'nullable|date',
             'scheduledEndTime'   => 'nullable|date|after:scheduledStartTime',
-            'liveDuration'       => 'nullable|integer|min:0',
-            'allowChat'          => 'nullable|integer|in:0,1',
-            'allowGift'          => 'nullable|integer|in:0,1',
-            'allowLike'          => 'nullable|integer|in:0,1',
-            'password'           => 'nullable|string|max:100',
-            'extConfig'          => 'nullable|array',
-            'status'             => 'nullable|integer|in:0,1',
         ];
 
         if ($liveType === 2) {
@@ -38,12 +31,6 @@ class LiveRoomStoreRequest extends FormRequest
             $rules['videoUrl']            = 'required|string|max:500';
             $rules['scheduledStartTime']  = 'required|date|after:now';
             $rules['scheduledEndTime']    = 'required|date|after:scheduledStartTime';
-        } else {
-            // 真实直播/主播模式：videoUrl 可选
-            $rules['videoUrl']       = 'nullable|string|max:500';
-            $rules['livePlatform']   = 'nullable|string|in:custom,baijiayun,aliyun,tencent,agora';
-            $rules['pushUrl']        = 'nullable|string|max:500';
-            $rules['pullUrl']        = 'nullable|string|max:500';
         }
 
         return $rules;

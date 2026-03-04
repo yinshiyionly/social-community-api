@@ -386,9 +386,9 @@ Authorization: Bearer {token}
 | payType | number | 否 | 付费类型：`1` 招生0元课，`2` 进阶课，`3` 高阶课 |
 | playType | number | 否 | 播放类型：`1` 直播，`2` 录播，`3` 图文，`4` 音频 |
 | scheduleType | number | 否 | 排课类型：`1` 固定日期，`2` 动态解锁 |
-| coverImage | string | 否 | 封面图地址，最长 `500` 字符 |
-| itemImage | string | 否 | 详情图地址，最长 `500` 字符 |
-| description | string | 否 | 课程描述 |
+| coverImage | string | 是 | 封面图地址，最长 `500` 字符 |
+| itemImage | string | 是 | 详情图地址，最长 `500` 字符 |
+| description | string | 是 | 课程描述 |
 | remark | string | 否 | 备注 |
 | originalPrice | number | 否 | 原价，`>= 0` |
 | currentPrice | number | 否 | 现价，`>= 0` |
@@ -401,6 +401,9 @@ Authorization: Bearer {token}
 {
   "courseId": 1,
   "courseTitle": "中医基础入门（修订版）",
+  "coverImage": "https://cdn.example.com/cover/course1_v2.png",
+  "itemImage": "https://cdn.example.com/item/course1_v2.png",
+  "description": "课程详细介绍（修订版）...",
   "currentPrice": 49.00,
   "isFree": 0
 }

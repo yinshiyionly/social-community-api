@@ -20,8 +20,8 @@ class CourseCategoryResource extends JsonResource
             'status' => $this->status,
             //'createBy' => $this->created_by,
             //'updateBy' => $this->updated_by,
-            'createTime' => $this->created_at ? $this->created_at->format('Y-m-d H:i:s') : null,
-            'updateTime' => $this->updated_at ? $this->updated_at->format('Y-m-d H:i:s') : null,
+            'createdAt' => $this->created_at ? $this->created_at->format('Y-m-d H:i:s') : null,
+            'updatedAt' => $this->updated_at ? $this->updated_at->format('Y-m-d H:i:s') : null,
         ];
     }
 }

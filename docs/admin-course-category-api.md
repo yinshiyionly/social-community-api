@@ -82,7 +82,7 @@ Authorization: Bearer {token}
       "icon": "https://cdn.example.com/icon/health.png",
       "sortOrder": 100,
       "status": 1,
-      "createTime": "2026-02-18 14:20:00"
+      "createdAt": "2026-02-18 14:20:00"
     },
     {
       "categoryId": 11,
@@ -90,7 +90,7 @@ Authorization: Bearer {token}
       "icon": "https://cdn.example.com/icon/tcm.png",
       "sortOrder": 90,
       "status": 1,
-      "createTime": "2026-02-19 10:30:00"
+      "createdAt": "2026-02-19 10:30:00"
     }
   ]
 }
@@ -104,7 +104,7 @@ Authorization: Bearer {token}
 | icon | string\|null | 图标地址 |
 | sortOrder | number | 排序值（降序） |
 | status | number | 状态：`1` 启用，`2` 禁用 |
-| createTime | string\|null | 创建时间，格式：`Y-m-d H:i:s` |
+| createdAt | string\|null | 创建时间，格式：`Y-m-d H:i:s` |
 
 ---
 
@@ -125,7 +125,7 @@ Authorization: Bearer {token}
       "icon": "https://cdn.example.com/icon/health.png",
       "sortOrder": 100,
       "status": 1,
-      "createTime": "2026-02-18 14:20:00"
+      "createdAt": "2026-02-18 14:20:00"
     },
     {
       "categoryId": 11,
@@ -133,7 +133,7 @@ Authorization: Bearer {token}
       "icon": "https://cdn.example.com/icon/tcm.png",
       "sortOrder": 90,
       "status": 1,
-      "createTime": "2026-02-19 10:30:00"
+      "createdAt": "2026-02-19 10:30:00"
     }
   ]
 }
@@ -193,8 +193,8 @@ Authorization: Bearer {token}
     "status": 1,
     "createBy": 1,
     "updateBy": 1,
-    "createTime": "2026-02-19 10:30:00",
-    "updateTime": "2026-02-20 09:00:00"
+    "createdAt": "2026-02-19 10:30:00",
+    "updatedAt": "2026-02-20 09:00:00"
   }
 }
 ```
@@ -209,8 +209,8 @@ Authorization: Bearer {token}
 | status | number | 状态：`1` 启用，`2` 禁用 |
 | createBy | number\|null | 创建人 ID |
 | updateBy | number\|null | 更新人 ID |
-| createTime | string\|null | 创建时间 |
-| updateTime | string\|null | 更新时间 |
+| createdAt | string\|null | 创建时间 |
+| updatedAt | string\|null | 更新时间 |
 
 ---
 

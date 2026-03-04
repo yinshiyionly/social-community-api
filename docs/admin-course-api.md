@@ -9,7 +9,6 @@
 | 课程详情 | GET | `/api/admin/course/{courseId}` |
 | 新增课程 | POST | `/api/admin/course` |
 | 更新课程 | PUT | `/api/admin/course` |
-| 修改课程状态 | PUT | `/api/admin/course/changeStatus` |
 | 批量修改课程排序 | PUT | `/api/admin/course/batchSort` |
 | 删除课程（支持批量） | DELETE | `/api/admin/course/{courseIds}` |
 

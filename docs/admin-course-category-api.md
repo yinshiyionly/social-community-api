@@ -9,7 +9,6 @@
 | 分类详情 | GET | `/api/admin/course/category/{categoryId}` |
 | 新增分类 | POST | `/api/admin/course/category` |
 | 更新分类 | PUT | `/api/admin/course/category` |
-| 修改分类状态 | PUT | `/api/admin/course/category/changeStatus` |
 | 批量修改分类排序 | PUT | `/api/admin/course/category/batchSort` |
 | 删除分类（支持批量） | DELETE | `/api/admin/course/category/{categoryIds}` |
 

@@ -223,6 +223,26 @@ class CourseService
     }
 
     /**
+     * 批量更新课程排序
+     *
+     * @param array $courseData [['courseId' => 1, 'courseSort' => 999], ...]
+     * @return bool
+     */
+    public function batchUpdateSort(array $courseData): bool
+    {
+        return DB::transaction(function () use ($courseData) {
+            foreach ($courseData as $item) {
+                AppCourseBase::query()
+                    ->where('course_id', $item['courseId'])
+                    ->whereNull('deleted_at')
+                    ->update(['sort_order' => $item['courseSort']]);
+            }
+
+            return true;
+        });
+    }
+
+    /**
      * 获取下拉选项列表（只返回上架状态的课程）
      *
      * @return Collection

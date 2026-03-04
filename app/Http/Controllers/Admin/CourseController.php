@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\CourseBatchSortRequest;
 use App\Http\Requests\Admin\CourseStoreRequest;
 use App\Http\Requests\Admin\CourseUpdateRequest;
 use App\Http\Requests\Admin\CourseStatusRequest;
@@ -273,6 +274,29 @@ class CourseController extends Controller
             Log::error('修改课程状态失败', [
                 'action' => 'changeStatus',
                 'course_id' => $request->input('courseId'),
+                'error' => $e->getMessage(),
+            ]);
+            return ApiResponse::error('操作失败，请稍后重试');
+        }
+    }
+
+    /**
+     * 批量更新课程排序
+     *
+     * @param CourseBatchSortRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function batchSort(CourseBatchSortRequest $request)
+    {
+        try {
+            $course = $request->input('course', []);
+
+            $this->courseService->batchUpdateSort($course);
+
+            return ApiResponse::success([], '排序成功');
+        } catch (\Exception $e) {
+            Log::error('批量更新课程排序失败', [
+                'action' => 'batchSort',
                 'error' => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');

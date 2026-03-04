@@ -30,8 +30,6 @@ Route::middleware('system.auth')->group(function () {
         Route::post('/', [CourseCategoryController::class, 'store']);
         // 更新
         Route::put('/', [CourseCategoryController::class, 'update']);
-        // 更改状态
-        Route::put('/changeStatus', [CourseCategoryController::class, 'changeStatus']);
         // 批量排序
         Route::put('/batchSort', [CourseCategoryController::class, 'batchSort']);
         // 删除
@@ -39,6 +37,8 @@ Route::middleware('system.auth')->group(function () {
 
         // 树形列表
         Route::get('/treeList', [CourseCategoryController::class, 'treeList']);
+        // 更改状态
+        Route::put('/changeStatus', [CourseCategoryController::class, 'changeStatus']);
     });
 
     // 课程管理
@@ -55,10 +55,13 @@ Route::middleware('system.auth')->group(function () {
         Route::post('/', [CourseController::class, 'store']);
         // 更新
         Route::put('/', [CourseController::class, 'update']);
-        // 更改状态
-        Route::put('/changeStatus', [CourseController::class, 'changeStatus']);
+        // 批量排序
+        Route::put('/batchSort', [CourseController::class, 'batchSort']);
         // 删除
         Route::delete('/{courseIds}', [CourseController::class, 'destroy']);
+
+        // 更改状态
+        Route::put('/changeStatus', [CourseController::class, 'changeStatus']);
     });
 
     // 录播课章节管理

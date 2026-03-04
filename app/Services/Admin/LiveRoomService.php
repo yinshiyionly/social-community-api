@@ -100,7 +100,8 @@ class LiveRoomService
             'live_type' => $liveType,
             'scheduled_start_time' => $data['scheduledStartTime'] ?? null,
             'scheduled_end_time' => $data['scheduledEndTime'] ?? null,
-            'live_status' => AppLiveRoom::LIVE_STATUS_NOT_STARTED
+            'live_status' => AppLiveRoom::LIVE_STATUS_NOT_STARTED,
+            'enable_live_sell' => 2, // ppt 带货模版
         ];
 
         if ($liveType === AppLiveRoom::LIVE_TYPE_PSEUDO) {
@@ -111,24 +112,38 @@ class LiveRoomService
         // 1. 先调用百家云服务创建房间
         $service = new BaijiayunLiveService();
 
-        $thirdResult = $service->createRoom();
+        $thirdResult = $service->createRoom(
+            $roomData['room_title'],
+            $roomData['scheduled_start_time'],
+            $roomData['scheduled_end_time'],
+            [
+                'enable_live_sell' => $roomData['enable_live_sell']
+            ]
+        );
+        if (isset($thirdResult['success']) && $thirdResult['success']) {
+            $roomData['third_party_room_id'] = $thirdResult['data']['room_id'] ?? 0;
+            $roomData['student_code'] = $thirdResult['data']['student_code'] ?? 0;
+            $roomData['admin_code'] = $thirdResult['data']['admin_code'] ?? 0;
+            $roomData['teacher_code'] = $thirdResult['data']['teacher_code'] ?? 0;
 
-        // 2. 创建房间成功后将有用的返回信息保存数据库
+            // 2. 创建房间成功后将有用的返回信息保存数据库
 
-        $room = AppLiveRoom::create($roomData);
+            $room = AppLiveRoom::create($roomData);
 
-        // 初始化统计记录
-        AppLiveRoomStat::create([
-            'room_id' => $room->room_id,
-        ]);
+            // 初始化统计记录
+//            AppLiveRoomStat::create([
+//                'room_id' => $room->room_id,
+//            ]);
 
-        Log::info('直播间创建成功', [
-            'room_id' => $room->room_id,
-            'live_type' => $liveType,
-            'room_title' => $room->room_title,
-        ]);
+            Log::info('直播间创建成功', [
+                'room_id' => $room->room_id,
+                'live_type' => $liveType,
+                'room_title' => $room->room_title,
+            ]);
+            return $room;
 
-        return $room;
+        }
+        throw new \Exception('创建房间失败');
     }
 
     /**

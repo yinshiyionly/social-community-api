@@ -49,22 +49,30 @@ class CourseController extends Controller
     public function constants()
     {
         $data = [
-
+            // 付费类型
             'payTypeOptions' => [
                 ['label' => '招生0元课', 'value' => AppCourseBase::PAY_TYPE_TRIAL],
                 ['label' => '进阶课', 'value' => AppCourseBase::PAY_TYPE_ADVANCED],
                 ['label' => '高阶课', 'value' => AppCourseBase::PAY_TYPE_HIGHER],
             ],
+            // 播放类型
             'playTypeOptions' => [
                 ['label' => '直播课', 'value' => AppCourseBase::PLAY_TYPE_LIVE],
                 ['label' => '录播课', 'value' => AppCourseBase::PLAY_TYPE_VIDEO],
-                ['label' => '图文课', 'value' => AppCourseBase::PLAY_TYPE_ARTICLE],
-                ['label' => '音频课', 'value' => AppCourseBase::PLAY_TYPE_AUDIO],
+                // ['label' => '图文课', 'value' => AppCourseBase::PLAY_TYPE_ARTICLE],
+                // ['label' => '音频课', 'value' => AppCourseBase::PLAY_TYPE_AUDIO],
             ],
+            // 是否免费课程
+            'isFreeOptions' => [
+                ['label' => '免费课', 'value' => 1],
+                ['label' => '付费课', 'value' => 0],
+            ],
+            // 排课类型
             'scheduleTypeOptions' => [
                 ['label' => '固定日期', 'value' => AppCourseBase::SCHEDULE_TYPE_FIXED],
                 ['label' => '动态解锁', 'value' => AppCourseBase::SCHEDULE_TYPE_DYNAMIC],
             ],
+            // 状态
             'statusOptions' => [
                 ['label' => '草稿', 'value' => AppCourseBase::STATUS_DRAFT],
                 ['label' => '上架', 'value' => AppCourseBase::STATUS_ONLINE],
@@ -94,8 +102,8 @@ class CourseController extends Controller
             'endTime' => $request->input('endTime'),
         ];
 
-        $pageNum = (int) $request->input('pageNum', 1);
-        $pageSize = (int) $request->input('pageSize', 10);
+        $pageNum = (int)$request->input('pageNum', 1);
+        $pageSize = (int)$request->input('pageSize', 10);
 
         $paginator = $this->courseService->getList($filters, $pageNum, $pageSize);
 
@@ -110,7 +118,7 @@ class CourseController extends Controller
      */
     public function show($courseId)
     {
-        $course = $this->courseService->getDetail((int) $courseId);
+        $course = $this->courseService->getDetail((int)$courseId);
 
         if (!$course) {
             return ApiResponse::error('课程不存在');
@@ -173,7 +181,7 @@ class CourseController extends Controller
     public function update(CourseUpdateRequest $request)
     {
         try {
-            $courseId = (int) $request->input('courseId');
+            $courseId = (int)$request->input('courseId');
 
             // 检查分类是否存在
             $categoryId = $request->input('categoryId');
@@ -260,8 +268,8 @@ class CourseController extends Controller
     public function changeStatus(CourseStatusRequest $request)
     {
         try {
-            $courseId = (int) $request->input('courseId');
-            $status = (int) $request->input('status');
+            $courseId = (int)$request->input('courseId');
+            $status = (int)$request->input('status');
 
             $result = $this->courseService->changeStatus($courseId, $status);
 

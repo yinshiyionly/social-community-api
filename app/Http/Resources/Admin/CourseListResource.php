@@ -13,7 +13,7 @@ class CourseListResource extends JsonResource
     {
         return [
             'courseId' => $this->course_id,
-            'courseNo' => $this->course_no,
+            // 'courseNo' => $this->course_no,
             'categoryId' => $this->category_id,
             'categoryName' => $this->whenLoaded('category', function () {
                 return $this->category ? $this->category->category_name : null;

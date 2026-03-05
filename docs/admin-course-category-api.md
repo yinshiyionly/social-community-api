@@ -10,7 +10,7 @@
 | 新增分类 | POST | `/api/admin/course/category` |
 | 更新分类 | PUT | `/api/admin/course/category` |
 | 批量修改分类排序 | PUT | `/api/admin/course/category/batchSort` |
-| 删除分类（支持批量） | DELETE | `/api/admin/course/category/{categoryIds}` |
+| 删除分类 | DELETE | `/api/admin/course/category/{categoryId}` |
 
 ## 2. 通用说明
 - 鉴权：所有接口都需要 `Authorization: Bearer {token}`
@@ -392,14 +392,14 @@ Authorization: Bearer {token}
 
 ---
 
-### 3.9 删除分类（支持批量）
+### 3.9 删除分类
 - 方法：`DELETE`
-- 路径：`/api/admin/course/category/{categoryIds}`
+- 路径：`/api/admin/course/category/{categoryId}`
 
 #### Path 参数
 | 参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| categoryIds | string | 是 | 分类 ID 字符串；单个如 `1`，批量如 `1,2,3` |
+| categoryId | number | 是 | 分类 ID（正整数） |
 
 #### 响应示例 JSON（成功）
 ```json
@@ -414,7 +414,16 @@ Authorization: Bearer {token}
 ```json
 {
   "code": 1201,
-  "msg": "存在子分类，无法删除",
+  "msg": "分类下存在正常课程，无法删除",
+  "data": []
+}
+```
+
+#### 响应示例 JSON（失败：分类不存在）
+```json
+{
+  "code": 1201,
+  "msg": "删除失败，分类不存在",
   "data": []
 }
 ```

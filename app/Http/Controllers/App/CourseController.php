@@ -5,12 +5,14 @@ namespace App\Http\Controllers\App;
 use App\Constant\AppResponseCode;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\App\CourseEnrollRequest;
+use App\Http\Requests\App\CourseOrderStatusRequest;
 use App\Http\Resources\App\AppApiResponse;
 use App\Http\Resources\App\CourseCategoryResource;
 use App\Http\Resources\App\CourseDetailResource;
 use App\Http\Resources\App\CourseListResource;
 use App\Http\Resources\App\LiveCourseListResource;
 use App\Http\Resources\App\NewCourseListResource;
+use App\Services\App\CourseOrderService;
 use App\Services\App\CourseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -22,9 +24,15 @@ class CourseController extends Controller
      */
     protected $courseService;
 
-    public function __construct(CourseService $courseService)
+    /**
+     * @var CourseOrderService
+     */
+    protected $courseOrderService;
+
+    public function __construct(CourseService $courseService, CourseOrderService $courseOrderService)
     {
         $this->courseService = $courseService;
+        $this->courseOrderService = $courseOrderService;
     }
 
     /**
@@ -184,13 +192,20 @@ class CourseController extends Controller
      */
     public function purchase(CourseEnrollRequest $request)
     {
-        $memberId = $request->attributes->get('member_id');
+        $memberId = (int)$request->attributes->get('member_id');
         $courseId = (int) $request->input('courseId');
         $phone = $request->input('phone');
         $ageRange = $request->input('ageRange');
 
         try {
-            $paymentInfo = $this->courseService->preparePurchase($memberId, $courseId, $phone, $ageRange);
+            $paymentInfo = $this->courseOrderService->createWechatAppOrder(
+                $memberId,
+                $courseId,
+                $phone,
+                $ageRange,
+                $request->ip(),
+                (string)$request->userAgent()
+            );
 
             return AppApiResponse::success(['data' => $paymentInfo]);
         } catch (\Exception $e) {
@@ -201,6 +216,53 @@ class CourseController extends Controller
             ]);
 
             return AppApiResponse::error($e->getMessage());
+        }
+    }
+
+    /**
+     * 查询订单状态
+     */
+    public function orderStatus(CourseOrderStatusRequest $request)
+    {
+        $memberId = (int)$request->attributes->get('member_id');
+        $orderNo = (string)$request->input('orderNo');
+
+        try {
+            $data = $this->courseOrderService->getOrderStatus($memberId, $orderNo);
+
+            return AppApiResponse::success(['data' => $data]);
+        } catch (\Exception $e) {
+            Log::error('查询课程订单状态失败', [
+                'member_id' => $memberId,
+                'order_no' => $orderNo,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::error($e->getMessage());
+        }
+    }
+
+    /**
+     * 微信支付回调
+     */
+    public function wechatPayNotify(Request $request)
+    {
+        try {
+            $this->courseOrderService->handleWechatNotify($request->ip());
+
+            return response()->json([
+                'code' => 'SUCCESS',
+                'message' => '成功',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('微信支付回调处理失败', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'code' => 'FAIL',
+                'message' => '失败',
+            ], 500);
         }
     }
 

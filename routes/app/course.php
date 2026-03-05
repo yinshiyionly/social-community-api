@@ -34,11 +34,20 @@ Route::prefix('v1/course')->group(function () {
     // 大咖直播列表
     Route::get('/live', [CourseController::class, 'liveCourses']);
 
-    // 免费领取课程（需登录）
-    Route::post('/claim', [CourseController::class, 'claim'])->middleware('app.jwt');
+    // 微信支付回调（无需登录）
+    Route::post('/pay/wechat/notify', [CourseController::class, 'wechatPayNotify']);
 
-    // 购买课程（需登录）
-    Route::post('/purchase', [CourseController::class, 'purchase'])->middleware('app.jwt');
+    // 以下接口需要登录
+    Route::middleware('app.auth')->group(function () {
+        // 免费领取课程
+        Route::post('/claim', [CourseController::class, 'claim']);
+
+        // 购买课程（创建/复用订单并返回微信支付参数）
+        Route::post('/purchase', [CourseController::class, 'purchase']);
+
+        // 订单状态查询
+        Route::get('/order/status', [CourseController::class, 'orderStatus']);
+    });
 });
 
 
@@ -48,7 +57,7 @@ Route::prefix('v1/course')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('app/learning')->middleware('app.jwt')->group(function () {
+Route::prefix('app/learning')->middleware('app.auth')->group(function () {
     // 我的课程列表
     Route::get('/courses', [LearningCenterController::class, 'myCourses']);
 

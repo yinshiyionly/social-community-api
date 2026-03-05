@@ -29,6 +29,7 @@ class AppCourseOrderPayLog extends Model
         'pay_result',
         'pay_response',
         'client_ip',
+        'created_at',
     ];
 
     protected $casts = [

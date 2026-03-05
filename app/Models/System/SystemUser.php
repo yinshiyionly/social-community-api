@@ -18,7 +18,7 @@ class SystemUser extends Authenticatable
         'dept_id', 'user_name', 'nick_name', 'user_type', 'email',
         'phonenumber', 'sex', 'avatar', 'password', 'password_plain', 'status', 'del_flag',
         'login_ip', 'login_date', 'pwd_update_date', 'create_by', 'create_time',
-        'update_by', 'update_time', 'remark', 'sale_group_id', 'sync_teching_user_flag', 'force_change_password_flag'
+        'update_by', 'update_time', 'remark', 'force_change_password_flag','password_plain'
     ];
 
     protected $hidden = [

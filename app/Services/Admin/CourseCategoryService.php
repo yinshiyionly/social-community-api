@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin;
 
+use App\Models\App\AppCourseBase;
 use App\Models\App\AppCourseCategory;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
@@ -106,15 +107,16 @@ class CourseCategoryService
 
 
     /**
-     * 删除分类（支持批量，软删除）
+     * 删除分类-不支持批量删除
+     * 软删除
      *
-     * @param array $categoryIds
+     * @param int $categoryId
      * @return int 删除数量
      */
-    public function delete(array $categoryIds): int
+    public function delete(int $categoryId): int
     {
         return AppCourseCategory::query()
-            ->whereIn('category_id', $categoryIds)
+            ->where('category_id', $categoryId)
             ->whereNull('deleted_at')
             ->update([
                 'deleted_at' => now(),
@@ -234,6 +236,20 @@ class CourseCategoryService
     {
         return AppCourseCategory::query()
             ->where('parent_id', $categoryId)
+            ->exists();
+    }
+
+    /**
+     * 检查分类下是否有正常课程（上架）
+     *
+     * @param int $categoryId
+     * @return bool
+     */
+    public function hasNormalCourses(int $categoryId): bool
+    {
+        return AppCourseBase::query()
+            ->where('category_id', $categoryId)
+            ->where('status', AppCourseBase::STATUS_ONLINE)
             ->exists();
     }
 }

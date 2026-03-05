@@ -135,24 +135,27 @@ class CourseCategoryController extends Controller
 
 
     /**
-     * 删除分类（支持批量）
+     * 删除分类-不支持批量删除
      *
-     * @param string $categoryIds 逗号分隔的分类ID
+     * @param int $categoryId 分类ID
      * @return \Illuminate\Http\JsonResponse
      */
-    public function destroy($categoryIds)
+    public function destroy($categoryId)
     {
         try {
-            $ids = array_map('intval', explode(',', $categoryIds));
+            $categoryId = (int) $categoryId;
+
+            // 检查是否有正常课程（上架课程）
+            if ($this->categoryService->hasNormalCourses($categoryId)) {
+                return ApiResponse::error('分类下存在正常课程，无法删除');
+            }
 
             // 检查是否有子分类
-            /*foreach ($ids as $id) {
-                if ($this->categoryService->hasChildren($id)) {
-                    return ApiResponse::error('存在子分类，无法删除');
-                }
+            /*if ($this->categoryService->hasChildren($categoryId)) {
+                return ApiResponse::error('存在子分类，无法删除');
             }*/
 
-            $deletedCount = $this->categoryService->delete($ids);
+            $deletedCount = $this->categoryService->delete($categoryId);
 
             if ($deletedCount > 0) {
                 return ApiResponse::success([], '删除成功');
@@ -162,7 +165,7 @@ class CourseCategoryController extends Controller
         } catch (\Exception $e) {
             Log::error('删除课程分类失败', [
                 'action' => 'destroy',
-                'category_ids' => $categoryIds,
+                'category_id' => $categoryId,
                 'error' => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');

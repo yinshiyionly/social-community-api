@@ -33,7 +33,8 @@ Route::middleware('system.auth')->group(function () {
         // 批量排序
         Route::put('/batchSort', [CourseCategoryController::class, 'batchSort']);
         // 删除
-        Route::delete('/{categoryIds}', [CourseCategoryController::class, 'destroy']);
+        Route::delete('/{categoryId}', [CourseCategoryController::class, 'destroy'])
+            ->where('categoryId', '[0-9]+');
 
         // 树形列表
         Route::get('/treeList', [CourseCategoryController::class, 'treeList']);

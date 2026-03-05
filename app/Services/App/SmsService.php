@@ -60,6 +60,17 @@ class SmsService
     }
 
     /**
+     * 发送绑定手机号验证码
+     *
+     * @param string $phone
+     * @return array
+     */
+    public function sendBindPhoneCode(string $phone)
+    {
+        return $this->sendCode($phone, self::SCOPE_BIND_PHONE);
+    }
+
+    /**
      * 发送验证码（通用方法）
      *
      * @param string $phone 手机号

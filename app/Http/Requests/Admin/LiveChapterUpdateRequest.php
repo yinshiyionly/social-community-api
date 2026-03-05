@@ -15,6 +15,7 @@ class LiveChapterUpdateRequest extends FormRequest
     {
         return [
             'courseId' => 'required|integer',
+            'chapterId' => 'required|integer',
             'chapterTitle' => 'required|string|max:100',
             'liveStartTime' => 'required|date',
             'liveEndTime' => 'required|date|after:live_start_time',
@@ -28,6 +29,8 @@ class LiveChapterUpdateRequest extends FormRequest
         return [
             'courseId.required' => '请选择课程。',
             'courseId.integer' => '课程不存在。',
+            'chapterId.required' => '请选择章节。',
+            'chapterId.integer' => '章节不存在。',
             'chapterTitle.required' => '章节标题不能为空。',
             'chapterTitle.max' => '章节标题不能超过100个字符。',
             'liveStartTime.required' => '直播开始时间不能为空。',

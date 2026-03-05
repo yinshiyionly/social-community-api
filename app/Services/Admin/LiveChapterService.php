@@ -2,569 +2,153 @@
 
 namespace App\Services\Admin;
 
-use App\Models\App\AppChapterContentLive;
 use App\Models\App\AppCourseChapter;
-use App\Services\BaijiayunLiveService;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use App\Models\App\AppChapterContentLive;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class LiveChapterService
 {
     /**
-     * @var BaijiayunLiveService
-     */
-    protected $baijiayunService;
-
-    public function __construct(BaijiayunLiveService $baijiayunService)
-    {
-        $this->baijiayunService = $baijiayunService;
-    }
-
-    /**
-     * 获取直播课章节列表（分页）
+     * 获取直播课章节分页列表
      *
-     * @param int $courseId 课程ID
-     * @param array $filters 筛选条件
-     * @param int $pageNum 页码
-     * @param int $pageSize 每页数量
-     * @return LengthAwarePaginator
+     * @param int $courseId
+     * @param array $params
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getList(int $courseId, array $filters, int $pageNum = 1, int $pageSize = 10): LengthAwarePaginator
+    public function getList(int $courseId, array $params = [])
     {
-        $query = AppCourseChapter::query()
+        return AppCourseChapter::with('liveContent:id,chapter_id,live_room_id,live_status')
             ->select([
                 'chapter_id', 'course_id', 'chapter_no', 'chapter_title',
-                'chapter_start_time', 'chapter_end_time',
+                'is_free', 'chapter_start_time', 'chapter_end_time',
                 'sort_order', 'status', 'created_at',
             ])
-            ->with('liveContent')
-            ->where('course_id', $courseId);
-
-        // 按直播状态筛选
-        if (isset($filters['liveStatus']) && $filters['liveStatus'] !== '') {
-            $liveStatus = $filters['liveStatus'];
-            $query->whereHas('liveContent', function ($q) use ($liveStatus) {
-                $q->where('live_status', $liveStatus);
-            });
-        }
-
-        // 按章节标题关键词筛选
-        if (!empty($filters['chapterTitle'])) {
-            $query->where('chapter_title', 'like', '%' . $filters['chapterTitle'] . '%');
-        }
-
-        $query->orderBy('sort_order', 'asc')
-            ->orderBy('chapter_id', 'asc');
-
-        return $query->paginate($pageSize, ['*'], 'pageNum', $pageNum);
+            ->byCourse($courseId)
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('chapter_id', 'asc')
+            ->paginate($params['pageSize'] ?? 20);
     }
 
     /**
      * 获取直播课章节详情
      *
-     * @param int $chapterId 章节ID
-     * @return AppCourseChapter|null
+     * @param int $chapterId
+     * @return AppCourseChapter
      */
     public function getDetail(int $chapterId)
     {
-        return AppCourseChapter::query()
-            ->with('liveContent')
-            ->where('chapter_id', $chapterId)
-            ->first();
+        return AppCourseChapter::with('liveContent:id,chapter_id,live_room_id,live_status')
+            ->select([
+                'chapter_id', 'course_id', 'chapter_no', 'chapter_title',
+                'is_free', 'chapter_start_time', 'chapter_end_time',
+                'sort_order', 'status', 'created_at', 'updated_at',
+            ])
+            ->findOrFail($chapterId);
     }
 
     /**
-     * 修改章节状态（上下架）
+     * 新增直播课章节
      *
-     * @param int $chapterId 章节ID
-     * @param int $status 目标状态
-     * @return bool
+     * @param int $courseId
+     * @param array $data
+     * @return AppCourseChapter
      */
-    public function changeStatus(int $chapterId, int $status): bool
+    public function store(int $courseId, array $data)
     {
-        return AppCourseChapter::query()
-                ->where('chapter_id', $chapterId)
-                ->update(['status' => $status]) > 0;
-    }
+        return DB::transaction(function () use ($courseId, $data) {
+            // 计算章节序号
+            $maxNo = AppCourseChapter::byCourse($courseId)->max('chapter_no');
 
-    /**
-     * 创建直播课章节
-     *
-     * @param array $data 创建数据
-     * @return array ['success' => bool, 'chapter' => ?AppCourseChapter, 'error' => ?string]
-     */
-    public function create(array $data): array
-    {
-        // 创建章节记录
-        $chapter = AppCourseChapter::create([
-            'course_id' => $data['courseId'],
-            'chapter_no' => $data['chapterNo'] ?? 0,
-            'chapter_title' => $data['chapterTitle'],
-            'chapter_subtitle' => $data['chapterSubtitle'] ?? '',
-            'chapter_start_time' => $data['chapterStartTime'],
-            'chapter_end_time' => $data['chapterEndTime'],
-            'cover_image' => $data['coverImage'] ?? '',
-            'brief' => $data['brief'] ?? '',
-            'sort_order' => $data['sortOrder'] ?? 0,
-            'status' => AppCourseChapter::STATUS_ONLINE,
-        ]);
-
-        // 调用百家云获取直播间信息（通过前端传入的 liveRoomId）
-        $liveRoomId = $data['liveRoomId'];
-
-        Log::info('调用百家云获取直播间信息', [
-            'chapter_id' => $chapter->chapter_id,
-            'room_id' => $liveRoomId,
-            'action' => 'getRoomInfo',
-        ]);
-
-        $result = $this->baijiayunService->getRoomInfo($liveRoomId);
-
-        if (!$result['success']) {
-            Log::error('百家云获取直播间信息失败', [
-                'chapter_id' => $chapter->chapter_id,
-                'room_id' => $liveRoomId,
-                'error_code' => $result['error_code'],
-                'error_message' => $result['error_message'],
+            // 创建章节
+            $chapter = AppCourseChapter::create([
+                'course_id' => $courseId,
+                'chapter_no' => ($maxNo ?? 0) + 1,
+                'chapter_title' => $data['chapter_title'],
+                'is_free' => $data['is_free'],
+                'chapter_start_time' => $data['live_start_time'],
+                'chapter_end_time' => $data['live_end_time'],
+                'sort_order' => ($maxNo ?? 0) + 1,
+                'status' => AppCourseChapter::STATUS_DRAFT,
             ]);
 
-            // 删除已创建的章节记录
-            $chapter->forceDelete();
-
-            return [
-                'success' => false,
-                'chapter' => null,
-                'error' => '获取直播间信息失败',
-            ];
-        }
-
-        $roomData = $result['data'];
-
-        // 检查直播间是否存在
-        if (empty($roomData['room_id'])) {
-            Log::error('百家云直播间不存在', [
+            // 创建直播内容记录
+            AppChapterContentLive::create([
                 'chapter_id' => $chapter->chapter_id,
-                'room_id' => $liveRoomId,
+                'live_room_id' => $data['room_id'],
+                'live_start_time' => $data['live_start_time'],
+                'live_end_time' => $data['live_end_time'],
             ]);
 
-            $chapter->forceDelete();
+            Log::info('直播课章节创建成功', [
+                'course_id' => $courseId,
+                'chapter_id' => $chapter->chapter_id,
+                'room_id' => $data['room_id'],
+            ]);
 
-            return [
-                'success' => false,
-                'chapter' => null,
-                'error' => '直播间不存在',
-            ];
-        }
-
-        Log::info('百家云获取直播间信息成功', [
-            'chapter_id' => $chapter->chapter_id,
-            'room_id' => $roomData['room_id'],
-        ]);
-
-        // 创建直播内容记录，时间优先使用百家云返回的数据，前端传入值为备选
-        AppChapterContentLive::create([
-            'chapter_id' => $chapter->chapter_id,
-            'live_platform' => AppChapterContentLive::PLATFORM_BAIJIAYUN,
-            'live_room_id' => $roomData['room_id'],
-            'live_push_url' => $roomData['push_url'] ?? '',
-            'live_pull_url' => $roomData['pull_url'] ?? '',
-            'live_cover' => $data['liveCover'] ?? '',
-            'live_start_time' => $roomData['start_time'] ?? ($data['liveStartTime'] ?? null),
-            'live_end_time' => $roomData['end_time'] ?? ($data['liveEndTime'] ?? null),
-            'live_duration' => $data['liveDuration'] ?? 0,
-            'live_status' => AppChapterContentLive::LIVE_STATUS_NOT_STARTED,
-            'allow_chat' => $data['allowChat'] ?? 1,
-            'allow_gift' => $data['allowGift'] ?? 0,
-            'attachments' => $data['attachments'] ?? [],
-        ]);
-
-        // 重新加载关联
-        $chapter->load('liveContent');
-
-        return [
-            'success' => true,
-            'chapter' => $chapter,
-            'error' => null,
-        ];
+            return $chapter;
+        });
     }
 
     /**
      * 更新直播课章节
      *
-     * @param int $chapterId 章节ID
-     * @param array $data 更新数据
-     * @return array ['success' => bool, 'error' => ?string]
+     * @param int $chapterId
+     * @param array $data
+     * @return AppCourseChapter
      */
-    public function update(int $chapterId, array $data): array
+    public function update(int $chapterId, array $data)
     {
-        $chapter = AppCourseChapter::query()
-            ->with('liveContent')
-            ->where('chapter_id', $chapterId)
-            ->first();
+        return DB::transaction(function () use ($chapterId, $data) {
+            $chapter = AppCourseChapter::findOrFail($chapterId);
 
-        if (!$chapter) {
-            return ['success' => false, 'error' => '直播课章节不存在'];
-        }
-
-        $live = $chapter->liveContent;
-
-        // 如果传入了 liveRoomId，表示要切换直播间
-        if (!empty($data['liveRoomId'])) {
-            // 直播中禁止切换直播间
-            if ($live && $live->isLiving()) {
-                return ['success' => false, 'error' => '直播进行中，无法切换直播间'];
-            }
-
-            $liveRoomId = $data['liveRoomId'];
-
-            Log::info('调用百家云获取直播间信息', [
-                'chapter_id' => $chapterId,
-                'room_id' => $liveRoomId,
-                'action' => 'getRoomInfo',
+            // 更新章节
+            $chapter->update([
+                'chapter_title' => $data['chapter_title'],
+                'is_free' => $data['is_free'],
+                'chapter_start_time' => $data['live_start_time'],
+                'chapter_end_time' => $data['live_end_time'],
             ]);
 
-            $result = $this->baijiayunService->getRoomInfo($liveRoomId);
+            // 更新或创建直播内容记录
+            AppChapterContentLive::updateOrCreate(
+                ['chapter_id' => $chapterId],
+                [
+                    'live_room_id' => $data['room_id'],
+                    'live_start_time' => $data['live_start_time'],
+                    'live_end_time' => $data['live_end_time'],
+                ]
+            );
 
-            if (!$result['success']) {
-                Log::error('百家云获取直播间信息失败', [
-                    'chapter_id' => $chapterId,
-                    'room_id' => $liveRoomId,
-                    'error_code' => $result['error_code'],
-                    'error_message' => $result['error_message'],
-                ]);
-
-                return ['success' => false, 'error' => '获取直播间信息失败'];
-            }
-
-            $roomData = $result['data'];
-
-            Log::info('百家云获取直播间信息成功，切换直播间', [
+            Log::info('直播课章节更新成功', [
                 'chapter_id' => $chapterId,
-                'room_id' => $roomData['room_id'],
+                'room_id' => $data['room_id'],
             ]);
 
-            // 更新直播内容的直播间相关字段
-            if ($live) {
-                $live->update([
-                    'live_room_id' => $roomData['room_id'],
-                    'live_push_url' => $roomData['push_url'] ?? '',
-                    'live_pull_url' => $roomData['pull_url'] ?? '',
-                    'live_start_time' => $roomData['start_time'] ?? $live->live_start_time,
-                    'live_end_time' => $roomData['end_time'] ?? $live->live_end_time,
-                ]);
-            }
-        }
-
-        // 更新章节字段
-        $chapterFields = [
-            'chapterTitle'    => 'chapter_title',
-            'chapterNo'       => 'chapter_no',
-            'chapterSubtitle' => 'chapter_subtitle',
-            'chapterStartTime' => 'chapter_start_time',
-            'chapterEndTime'   => 'chapter_end_time',
-            'coverImage'      => 'cover_image',
-            'brief'           => 'brief',
-            'sortOrder'       => 'sort_order',
-        ];
-
-        $chapterUpdate = [];
-        foreach ($chapterFields as $inputKey => $dbKey) {
-            if (array_key_exists($inputKey, $data)) {
-                $chapterUpdate[$dbKey] = $data[$inputKey];
-            }
-        }
-
-        if (!empty($chapterUpdate)) {
-            $chapter->update($chapterUpdate);
-        }
-
-        // 同步更新直播内容其他字段（不含直播间相关字段，已在切换逻辑中处理）
-        if ($live) {
-            $liveFields = [
-                'liveCover'     => 'live_cover',
-                'allowChat'     => 'allow_chat',
-                'allowGift'     => 'allow_gift',
-                'attachments'   => 'attachments',
-                'liveDuration'  => 'live_duration',
-                'liveStartTime' => 'live_start_time',
-                'liveEndTime'   => 'live_end_time',
-            ];
-
-            $liveUpdate = [];
-            foreach ($liveFields as $inputKey => $dbKey) {
-                if (array_key_exists($inputKey, $data)) {
-                    $liveUpdate[$dbKey] = $data[$inputKey];
-                }
-            }
-
-            if (!empty($liveUpdate)) {
-                $live->update($liveUpdate);
-            }
-        }
-
-        return ['success' => true, 'error' => null];
+            return $chapter->fresh(['liveContent']);
+        });
     }
 
     /**
-     * 删除直播课章节（支持批量）
+     * 删除直播课章节
      *
-     * @param array $chapterIds 章节ID数组
-     * @return array ['success' => bool, 'deleted' => int, 'error' => ?string]
+     * @param int $chapterId
+     * @return void
      */
-    public function delete(array $chapterIds): array
+    public function destroy(int $chapterId)
     {
-        $chapters = AppCourseChapter::query()
-            ->with('liveContent')
-            ->whereIn('chapter_id', $chapterIds)
-            ->get();
+        DB::transaction(function () use ($chapterId) {
+            $chapter = AppCourseChapter::findOrFail($chapterId);
 
-        if ($chapters->isEmpty()) {
-            return ['success' => false, 'deleted' => 0, 'error' => '删除失败，直播课章节不存在'];
-        }
+            // 删除直播内容
+            AppChapterContentLive::where('chapter_id', $chapterId)->delete();
 
-        // 检查是否有直播中的章节
-        foreach ($chapters as $chapter) {
-            $live = $chapter->liveContent;
-            if ($live && $live->isLiving()) {
-                return [
-                    'success' => false,
-                    'deleted' => 0,
-                    'error' => '直播进行中，无法删除',
-                ];
-            }
-        }
+            // 删除章节
+            $chapter->delete();
 
-        // 对未开始且有直播间的章节关闭百家云直播间
-        foreach ($chapters as $chapter) {
-            $live = $chapter->liveContent;
-            if ($live && $live->isNotStarted() && !empty($live->live_room_id)) {
-                Log::info('调用百家云关闭直播间', [
-                    'chapter_id' => $chapter->chapter_id,
-                    'room_id' => $live->live_room_id,
-                    'action' => 'closeRoom',
-                ]);
-
-                $result = $this->baijiayunService->closeRoom($live->live_room_id);
-
-                if (!$result['success']) {
-                    Log::warning('百家云关闭直播间失败，继续执行本地删除', [
-                        'chapter_id' => $chapter->chapter_id,
-                        'room_id' => $live->live_room_id,
-                        'error_code' => $result['error_code'],
-                        'error_message' => $result['error_message'],
-                    ]);
-                }
-            }
-        }
-
-        // 软删除关联的直播内容记录
-        AppChapterContentLive::query()
-            ->whereIn('chapter_id', $chapterIds)
-            ->delete();
-
-        // 软删除章节记录
-        $deleted = AppCourseChapter::query()
-            ->whereIn('chapter_id', $chapterIds)
-            ->delete();
-
-        return ['success' => true, 'deleted' => $deleted, 'error' => null];
-    }
-
-    /**
-     * 同步直播间状态
-     *
-     * @param int $chapterId 章节ID
-     * @return array ['success' => bool, 'data' => ?array, 'error' => ?string]
-     */
-    public function syncLiveStatus(int $chapterId): array
-    {
-        $chapter = AppCourseChapter::query()
-            ->with('liveContent')
-            ->where('chapter_id', $chapterId)
-            ->first();
-
-        if (!$chapter) {
-            return ['success' => false, 'data' => null, 'error' => '直播课章节不存在或无直播间'];
-        }
-
-        $live = $chapter->liveContent;
-        if (!$live || empty($live->live_room_id)) {
-            return ['success' => false, 'data' => null, 'error' => '直播课章节不存在或无直播间'];
-        }
-
-        Log::info('调用百家云查询直播间状态', [
-            'chapter_id' => $chapterId,
-            'room_id' => $live->live_room_id,
-            'action' => 'getRoomInfo',
-        ]);
-
-        $result = $this->baijiayunService->getRoomInfo($live->live_room_id);
-
-        if (!$result['success']) {
-            Log::error('百家云查询直播间状态失败', [
+            Log::info('直播课章节删除成功', [
                 'chapter_id' => $chapterId,
-                'room_id' => $live->live_room_id,
-                'error_code' => $result['error_code'],
-                'error_message' => $result['error_message'],
             ]);
-
-            return [
-                'success' => false,
-                'data' => null,
-                'error' => '同步失败：' . $result['error_message'],
-            ];
-        }
-
-        $roomData = $result['data'];
-        $newStatus = isset($roomData['status']) ? (int) $roomData['status'] : $live->live_status;
-
-        $live->update(['live_status' => $newStatus]);
-
-        Log::info('同步直播间状态成功', [
-            'chapter_id' => $chapterId,
-            'room_id' => $live->live_room_id,
-            'old_status' => $live->getOriginal('live_status'),
-            'new_status' => $newStatus,
-        ]);
-
-        return [
-            'success' => true,
-            'data' => ['liveStatus' => $newStatus],
-            'error' => null,
-        ];
+        });
     }
-
-    /**
-     * 获取直播回放列表
-     *
-     * @param int $chapterId 章节ID
-     * @return array ['success' => bool, 'data' => ?array, 'error' => ?string]
-     */
-    public function getPlaybackList(int $chapterId): array
-    {
-        $chapter = AppCourseChapter::query()
-            ->with('liveContent')
-            ->where('chapter_id', $chapterId)
-            ->first();
-
-        if (!$chapter) {
-            return ['success' => false, 'data' => null, 'error' => '直播课章节不存在或无直播间'];
-        }
-
-        $live = $chapter->liveContent;
-        if (!$live || empty($live->live_room_id)) {
-            return ['success' => false, 'data' => null, 'error' => '直播课章节不存在或无直播间'];
-        }
-
-        Log::info('调用百家云获取回放列表', [
-            'chapter_id' => $chapterId,
-            'room_id' => $live->live_room_id,
-            'action' => 'getPlaybackList',
-        ]);
-
-        $result = $this->baijiayunService->getPlaybackList($live->live_room_id);
-
-        if (!$result['success']) {
-            Log::error('百家云获取回放列表失败', [
-                'chapter_id' => $chapterId,
-                'room_id' => $live->live_room_id,
-                'error_code' => $result['error_code'],
-                'error_message' => $result['error_message'],
-            ]);
-
-            return [
-                'success' => false,
-                'data' => null,
-                'error' => '获取回放列表失败：' . $result['error_message'],
-            ];
-        }
-
-        return [
-            'success' => true,
-            'data' => $result['data'],
-            'error' => null,
-        ];
-    }
-
-    /**
-     * 同步直播回放信息
-     *
-     * @param int $chapterId 章节ID
-     * @return array ['success' => bool, 'data' => ?array, 'error' => ?string]
-     */
-    public function syncPlayback(int $chapterId): array
-    {
-        $chapter = AppCourseChapter::query()
-            ->with('liveContent')
-            ->where('chapter_id', $chapterId)
-            ->first();
-
-        if (!$chapter) {
-            return ['success' => false, 'data' => null, 'error' => '直播课章节不存在或无直播间'];
-        }
-
-        $live = $chapter->liveContent;
-        if (!$live || empty($live->live_room_id)) {
-            return ['success' => false, 'data' => null, 'error' => '直播课章节不存在或无直播间'];
-        }
-
-        Log::info('调用百家云同步回放信息', [
-            'chapter_id' => $chapterId,
-            'room_id' => $live->live_room_id,
-            'action' => 'syncPlayback',
-        ]);
-
-        $result = $this->baijiayunService->getPlaybackList($live->live_room_id);
-
-        if (!$result['success']) {
-            Log::error('百家云获取回放信息失败', [
-                'chapter_id' => $chapterId,
-                'room_id' => $live->live_room_id,
-                'error_code' => $result['error_code'],
-                'error_message' => $result['error_message'],
-            ]);
-
-            return [
-                'success' => false,
-                'data' => null,
-                'error' => '同步回放失败：' . $result['error_message'],
-            ];
-        }
-
-        $playbackList = $result['data'];
-        $hasPlayback = is_array($playbackList) && count($playbackList) > 0 ? 1 : 0;
-        $playbackUrl = null;
-        $playbackDuration = null;
-
-        if ($hasPlayback) {
-            $firstPlayback = $playbackList[0];
-            $playbackUrl = isset($firstPlayback['playback_url']) ? $firstPlayback['playback_url'] : null;
-            $playbackDuration = isset($firstPlayback['duration']) ? (int) $firstPlayback['duration'] : null;
-        }
-
-        $live->update([
-            'has_playback' => $hasPlayback,
-            'playback_url' => $playbackUrl,
-            'playback_duration' => $playbackDuration,
-        ]);
-
-        Log::info('同步回放信息成功', [
-            'chapter_id' => $chapterId,
-            'room_id' => $live->live_room_id,
-            'has_playback' => $hasPlayback,
-            'playback_url' => $playbackUrl,
-            'playback_duration' => $playbackDuration,
-        ]);
-
-        return [
-            'success' => true,
-            'data' => [
-                'hasPlayback' => $hasPlayback,
-                'playbackUrl' => $playbackUrl,
-                'playbackDuration' => $playbackDuration,
-            ],
-            'error' => null,
-        ];
-    }
-
 }

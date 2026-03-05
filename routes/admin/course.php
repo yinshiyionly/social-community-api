@@ -47,10 +47,14 @@ Route::middleware('system.auth')->group(function () {
         Route::get('/constants', [CourseController::class, 'constants']);
         // 列表
         Route::get('/list', [CourseController::class, 'list']);
+
         // 下拉框列表
         Route::get('/optionselect', [CourseController::class, 'optionselect']);
         // 详情
         Route::get('/{courseId}', [CourseController::class, 'show'])
+            ->where('courseId', '[0-9]+');
+        // 课表详情
+        Route::get('/{courseId}/schedule', [CourseController::class, 'schedule'])
             ->where('courseId', '[0-9]+');
         // 创建
         Route::post('/', [CourseController::class, 'store']);

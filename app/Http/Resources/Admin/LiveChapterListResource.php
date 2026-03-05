@@ -5,27 +5,26 @@ namespace App\Http\Resources\Admin;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * 直播课章节列表资源 - 用于列表展示
+ * 直播课章节列表资源
  */
 class LiveChapterListResource extends JsonResource
 {
     public function toArray($request)
     {
-        $live = $this->liveContent;
-
         return [
-            'chapterId'     => $this->chapter_id,
-            'chapterNo'     => $this->chapter_no,
-            'chapterTitle'  => $this->chapter_title,
-            'chapterStartTime' => $this->chapter_start_time ? $this->chapter_start_time->format('Y-m-d H:i:s') : null,
-            'chapterEndTime' => $this->chapter_end_time ? $this->chapter_end_time->format('Y-m-d H:i:s') : null,
-            'liveStatus'    => $live ? $live->live_status : null,
-            'liveStartTime' => $live && $live->live_start_time ? $live->live_start_time->format('Y-m-d H:i:s') : null,
-            'liveEndTime'   => $live && $live->live_end_time ? $live->live_end_time->format('Y-m-d H:i:s') : null,
-            'liveRoomId'    => $live ? $live->live_room_id : null,
-            'onlineCount'   => $live ? $live->online_count : 0,
-            'hasPlayback'   => $live ? $live->has_playback : 0,
-            'createdAt'     => $this->created_at ? $this->created_at->format('Y-m-d H:i:s') : null,
+            'chapterId' => $this->chapter_id,
+            'courseId' => $this->course_id,
+            'chapterNo' => $this->chapter_no,
+            'chapterTitle' => $this->chapter_title,
+            'isFree' => $this->is_free,
+            'liveStartTime' => $this->chapter_start_time ? $this->chapter_start_time->format('Y-m-d H:i:s') : null,
+            'liveEndTime' => $this->chapter_end_time ? $this->chapter_end_time->format('Y-m-d H:i:s') : null,
+            'liveStatus' => $this->liveContent ? $this->liveContent->live_status : null,
+            'liveStatusText' => $this->liveContent ? $this->liveContent->live_status_text : null,
+            'roomId' => $this->liveContent ? $this->liveContent->live_room_id : null,
+            'sortOrder' => $this->sort_order,
+            'status' => $this->status,
+            'createTime' => $this->created_at ? $this->created_at->format('Y-m-d H:i:s') : null,
         ];
     }
 }

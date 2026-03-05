@@ -4,6 +4,7 @@ namespace App\Services\App;
 
 use App\Models\App\AppCourseBase;
 use App\Models\App\AppCourseCategory;
+use App\Models\App\AppMemberBase;
 use App\Models\App\AppMemberCourse;
 use App\Services\App\LearningCenterService;
 use App\Services\AppFileUploadService;
@@ -103,6 +104,33 @@ class CourseService
             ->online()
             ->where('course_id', $courseId)
             ->first();
+    }
+
+    /**
+     * 获取入学信息详情
+     *
+     * @param int $memberId
+     * @param int $courseId
+     * @return array|null
+     */
+    public function getEnrollmentDetail(int $memberId, int $courseId): ?array
+    {
+        $course = $this->getCourseDetail($courseId);
+        if (!$course) {
+            return null;
+        }
+
+        $phone = AppMemberBase::query()
+            ->where('member_id', $memberId)
+            ->value('phone');
+
+        $price = $course->current_price;
+        $isFree = (int)$course->is_free === 1 || (float)$price <= 0;
+
+        return [
+            'phone' => (string)($phone ?? ''),
+            'payAmount' => $isFree ? '' : number_format((float)$price, 2, '.', ''),
+        ];
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\App;
 
+use App\Constant\AppResponseCode;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\App\CourseEnrollRequest;
 use App\Http\Resources\App\AppApiResponse;
@@ -56,6 +57,40 @@ class CourseController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('获取课程详情失败', [
+                'course_id' => $courseId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 获取入学信息详情
+     */
+    public function enrollmentDetail(Request $request)
+    {
+        $courseId = (int) $request->input('id', 0);
+        if ($courseId <= 0) {
+            return AppApiResponse::error('参数错误', AppResponseCode::INVALID_PARAMS);
+        }
+
+        $memberId = (int) $request->attributes->get('member_id', 0);
+        if ($memberId <= 0) {
+            return AppApiResponse::unauthorized();
+        }
+
+        try {
+            $data = $this->courseService->getEnrollmentDetail($memberId, $courseId);
+
+            if (!$data) {
+                return AppApiResponse::dataNotFound('课程不存在');
+            }
+
+            return AppApiResponse::success(['data' => $data]);
+        } catch (\Exception $e) {
+            Log::error('获取入学信息详情失败', [
+                'member_id' => $memberId,
                 'course_id' => $courseId,
                 'error' => $e->getMessage(),
             ]);

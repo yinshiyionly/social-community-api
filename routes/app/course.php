@@ -22,6 +22,9 @@ Route::prefix('v1/course')->group(function () {
     // Route::get('/detail', [CourseController::class, 'detail'])->middleware('app.jwt.optional');
     Route::get('/detail', [CourseController::class, 'detail'])->middleware('app.auth.optional');
 
+    // 获取入学信息详情（需登录）
+    Route::get('/enrollment-detail', [CourseController::class, 'enrollmentDetail'])->middleware('app.auth');
+
     // 好课上新列表
     Route::get('/new', [CourseController::class, 'newCourses']);
 

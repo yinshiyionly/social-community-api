@@ -44,10 +44,10 @@ class LiveChapterController extends Controller
     /**
      * 新增直播课章节
      */
-    public function store(LiveChapterStoreRequest $request, int $courseId)
+    public function store(LiveChapterStoreRequest $request)
     {
         $data = $request->validated();
-        $chapter = $this->liveChapterService->store($courseId, $data);
+        $chapter = $this->liveChapterService->store($data['courseId'], $data);
 
         return ApiResponse::created();
     }
@@ -55,10 +55,10 @@ class LiveChapterController extends Controller
     /**
      * 更新直播课章节
      */
-    public function update(LiveChapterUpdateRequest $request, int $courseId, int $chapterId)
+    public function update(LiveChapterUpdateRequest $request)
     {
         $data = $request->validated();
-        $this->liveChapterService->update($chapterId, $data);
+        $this->liveChapterService->update($data['chapterId'], $data);
 
         return ApiResponse::updated();
     }

@@ -200,8 +200,13 @@ class MemberAuthController extends Controller
     public function sendSms(SendSmsRequest $request)
     {
         $phone = $request->input('phone');
+        $scope = $request->input('scope', 'login');
 
-        $result = $this->smsService->sendLoginCode($phone);
+        if ($scope == 'login') {
+            $result = $this->smsService->sendLoginCode($phone);
+        } else {
+            $result = $this->smsService->sendBindPhoneCode($phone);
+        }
 
         if (!$result['success']) {
             return AppApiResponse::error($result['message']);

@@ -25,6 +25,9 @@ class AppVideoBaijiayun extends Model
     const PUBLISH_STATUS_UNPUBLISHED = 0; // 未发布
     const PUBLISH_STATUS_PUBLISHED = 1;   // 已发布
 
+    // 来源
+    const SOURCE_BAIJIAYUN = 'baijiayun';
+
     protected $fillable = [
         'video_id',
         'name',
@@ -84,5 +87,132 @@ class AppVideoBaijiayun extends Model
     public function isPublished(): bool
     {
         return $this->publish_status === self::PUBLISH_STATUS_PUBLISHED;
+    }
+
+    /**
+     * 获取转码状态文本
+     */
+    public function getStatusTextAttribute(): string
+    {
+        $map = self::getStatusTextMap();
+        return isset($map[$this->status]) ? $map[$this->status] : '未知状态';
+    }
+
+    /**
+     * 获取发布状态文本
+     */
+    public function getPublishStatusTextAttribute(): string
+    {
+        $map = self::getPublishStatusTextMap();
+        return isset($map[$this->publish_status]) ? $map[$this->publish_status] : '未知状态';
+    }
+
+    /**
+     * 获取格式化总大小
+     */
+    public function getFormattedTotalSizeAttribute(): string
+    {
+        if (!is_numeric($this->total_size)) {
+            return (string) $this->total_size;
+        }
+
+        return self::formatBytes((float) $this->total_size);
+    }
+
+    /**
+     * 获取格式化时长（HH:MM:SS）
+     */
+    public function getFormattedLengthAttribute(): string
+    {
+        $seconds = (int) $this->length;
+        if ($seconds < 0) {
+            $seconds = 0;
+        }
+
+        $hours = floor($seconds / 3600);
+        $minutes = floor(($seconds % 3600) / 60);
+        $remainSeconds = $seconds % 60;
+
+        return sprintf('%02d:%02d:%02d', $hours, $minutes, $remainSeconds);
+    }
+
+    /**
+     * 转码状态映射
+     */
+    public static function getStatusTextMap(): array
+    {
+        return [
+            self::STATUS_UPLOADING => '上传中',
+            self::STATUS_TRANSCODING => '转码中',
+            self::STATUS_TRANSCODE_FAILED => '转码失败',
+            self::STATUS_TRANSCODE_TIMEOUT => '转码超时',
+            self::STATUS_UPLOAD_TIMEOUT => '上传超时',
+            self::STATUS_TRANSCODE_SUCCESS => '转码成功',
+        ];
+    }
+
+    /**
+     * 发布状态映射
+     */
+    public static function getPublishStatusTextMap(): array
+    {
+        return [
+            self::PUBLISH_STATUS_UNPUBLISHED => '未发布',
+            self::PUBLISH_STATUS_PUBLISHED => '已发布',
+        ];
+    }
+
+    /**
+     * 转码状态选项
+     */
+    public static function getStatusOptions(): array
+    {
+        $options = [];
+        foreach (self::getStatusTextMap() as $value => $label) {
+            $options[] = [
+                'label' => $label,
+                'value' => $value,
+            ];
+        }
+
+        return $options;
+    }
+
+    /**
+     * 发布状态选项
+     */
+    public static function getPublishStatusOptions(): array
+    {
+        $options = [];
+        foreach (self::getPublishStatusTextMap() as $value => $label) {
+            $options[] = [
+                'label' => $label,
+                'value' => $value,
+            ];
+        }
+
+        return $options;
+    }
+
+    /**
+     * 格式化字节大小
+     */
+    protected static function formatBytes(float $bytes): string
+    {
+        $bytes = max($bytes, 0);
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $index = 0;
+
+        while ($bytes >= 1024 && $index < count($units) - 1) {
+            $bytes /= 1024;
+            $index++;
+        }
+
+        $value = round($bytes, 2);
+        if (floor($value) == $value) {
+            $value = (int) $value;
+        }
+
+        return $value . ' ' . $units[$index];
     }
 }

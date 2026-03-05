@@ -10,7 +10,7 @@
 | 新增课程 | POST | `/api/admin/course` |
 | 更新课程 | PUT | `/api/admin/course` |
 | 批量修改课程排序 | PUT | `/api/admin/course/batchSort` |
-| 删除课程（支持批量） | DELETE | `/api/admin/course/{courseIds}` |
+| 删除课程 | DELETE | `/api/admin/course/{courseId}` |
 
 ## 2. 通用说明
 - 鉴权：所有接口都需要 `Authorization: Bearer {token}`
@@ -526,15 +526,15 @@ Authorization: Bearer {token}
 
 ---
 
-### 3.9 删除课程（支持批量）
+### 3.9 删除课程
 - 方法：`DELETE`
-- 路径：`/api/admin/course/{courseIds}`
+- 路径：`/api/admin/course/{courseId}`
 - 说明：软删除。如果课程下存在章节则不允许删除。
 
 #### Path 参数
 | 参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| courseIds | string | 是 | 课程 ID 字符串；单个如 `1`，批量如 `1,2,3` |
+| courseId | number | 是 | 课程 ID（正整数） |
 
 #### 响应示例 JSON（成功）
 ```json

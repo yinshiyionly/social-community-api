@@ -66,7 +66,10 @@ return [
             'endpoint' => env('VOLCENGINE_SMS_ENDPOINT', 'sms.volcengineapi.com'),
             'sign_name' => env('VOLCENGINE_SMS_SIGN_NAME'),
             'account' => env('VOLCENGINE_SMS_ACCOUNT'),
-            'template_login' => env('VOLCENGINE_SMS_SIGN_TEMPLATE_LOGIN')
+            // 短信模版-注册
+            'template_login' => env('VOLCENGINE_SMS_SIGN_TEMPLATE_LOGIN'),
+            // 短信模版-绑定手机号(复用注册)
+            'template_bind_phone' => env('VOLCENGINE_SMS_SIGN_TEMPLATE_LOGIN')
         ]
     ],
 

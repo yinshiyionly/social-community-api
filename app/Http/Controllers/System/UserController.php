@@ -277,7 +277,9 @@ class UserController extends Controller
                 'required',
                 'string',
                 'max:30',
-                //   Rule::exists('sys_user', 'user_name')
+                Rule::unique('sys_user', 'user_name')->where(function ($query) {
+                    return $query->where('del_flag', '0');
+                }),
             ],
             'nickName' => 'required|string|max:30',
             'password' => 'required|string|min:6',

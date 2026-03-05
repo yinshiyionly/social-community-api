@@ -2,10 +2,12 @@
 
 namespace App\Services\Admin;
 
+use App\Models\App\AppCourseBase;
 use App\Models\App\AppLiveRoom;
 use App\Models\App\AppLiveRoomStat;
 use App\Services\BaijiayunLiveService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class LiveRoomService
@@ -206,42 +208,60 @@ class LiveRoomService
     }
 
     /**
-     * 删除直播间（支持批量，软删除）
+     * 删除直播间-不支持批量删除
+     * 软删除
      *
-     * @param array $roomIds
+     * @param int $roomId
      * @return array ['success' => bool, 'deleted' => int, 'error' => ?string]
      */
-    public function delete(array $roomIds): array
+    public function delete(int $roomId): array
     {
-        $rooms = AppLiveRoom::query()
-            ->whereIn('room_id', $roomIds)
-            ->get();
+        $room = AppLiveRoom::query()
+            ->where('room_id', $roomId)
+            ->first();
 
-        if ($rooms->isEmpty()) {
+        if (!$room) {
             return ['success' => false, 'deleted' => 0, 'error' => '直播间不存在'];
         }
 
-        // 检查是否有直播中的直播间
-        foreach ($rooms as $room) {
-            if ($room->isLiving()) {
-                return [
-                    'success' => false,
-                    'deleted' => 0,
-                    'error' => '直播间"' . $room->room_title . '"正在直播中，无法删除',
-                ];
-            }
+        if ($room->isLiving()) {
+            return [
+                'success' => false,
+                'deleted' => 0,
+                'error' => '直播间"' . $room->room_title . '"正在直播中，无法删除',
+            ];
         }
 
-        $deleted = AppLiveRoom::query()
-            ->whereIn('room_id', $roomIds)
-            ->delete();
+        $deleted = $room->delete() ? 1 : 0;
 
         Log::info('直播间删除成功', [
-            'room_ids' => $roomIds,
-            'deleted' => $deleted,
+            'room_id' => $roomId,
+            'deleted' => $deleted
         ]);
 
         return ['success' => true, 'deleted' => $deleted, 'error' => null];
+    }
+
+    /**
+     * 检查直播间是否被直播课程章节使用
+     *
+     * @param int $roomId
+     * @return bool
+     */
+    public function isUsedByLiveCourseChapter(int $roomId): bool
+    {
+        return DB::table('app_chapter_content_live as l')
+            ->join('app_course_chapter as ch', 'ch.chapter_id', '=', 'l.chapter_id')
+            ->join('app_course_base as c', 'c.course_id', '=', 'ch.course_id')
+            ->whereNull('l.deleted_at')
+            ->whereNull('ch.deleted_at')
+            ->whereNull('c.deleted_at')
+            ->where('c.play_type', AppCourseBase::PLAY_TYPE_LIVE)
+            ->where(function ($query) use ($roomId) {
+                $query->where('l.room_id', $roomId)
+                    ->orWhere('l.live_room_id', (string) $roomId);
+            })
+            ->exists();
     }
 
     /**

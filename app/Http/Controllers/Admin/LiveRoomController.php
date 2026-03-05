@@ -155,19 +155,23 @@ class LiveRoomController extends Controller
     }
 
     /**
-     * 删除直播间（支持批量）
+     * 删除直播间-不支持批量删除
      *
-     * @param string $roomIds 逗号分隔的直播间ID
+     * @param int $roomId 直播间ID
      * @return \Illuminate\Http\JsonResponse
      */
-    public function destroy($roomIds)
+    public function destroy($roomId)
     {
         try {
-            $ids = array_map('intval', explode(',', $roomIds));
-            // 统计直播间是否有被正常的课程章节关联使用，如果有，提示不能删除
+            $roomId = (int) $roomId;
+
+            // 直播间是否被直播课程章节关联使用
+            if ($this->liveRoomService->isUsedByLiveCourseChapter($roomId)) {
+                return ApiResponse::error('直播间已被直播课程章节使用，无法删除');
+            }
 
             // 执行百家云删除房间逻辑
-            $result = $this->liveRoomService->delete($ids);
+            $result = $this->liveRoomService->delete($roomId);
 
             if (!$result['success']) {
                 return ApiResponse::error($result['error']);
@@ -177,7 +181,7 @@ class LiveRoomController extends Controller
         } catch (\Exception $e) {
             Log::error('直播间操作失败', [
                 'action' => 'destroy',
-                'room_ids' => $roomIds,
+                'room_id' => $roomId,
                 'error' => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');

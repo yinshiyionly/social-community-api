@@ -26,8 +26,9 @@ Route::middleware('system.auth')->group(function () {
         Route::put('/', [LiveRoomController::class, 'update']);
         // 更改状态
         Route::put('/changeStatus', [LiveRoomController::class, 'changeStatus']);
-        // 删除
-        Route::delete('/{roomIds}', [LiveRoomController::class, 'destroy']);
+        // 删除-不支持批量删除
+        Route::delete('/{roomId}', [LiveRoomController::class, 'destroy'])
+            ->where('roomId', '[0-9]+');
     });
 
 });

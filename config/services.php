@@ -55,6 +55,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | 微信支付配置
+    |--------------------------------------------------------------------------
+    */
+    'wechat_pay' => [
+        // APP 支付使用的 appid，默认复用微信登录 appid
+        'app_id' => env('WECHAT_PAY_APP_ID', env('WECHAT_APP_APPID')),
+        'mch_id' => env('WECHAT_PAY_MCH_ID'),
+        'mch_secret_key' => env('WECHAT_PAY_MCH_SECRET_KEY'),
+        'mch_secret_cert' => env('WECHAT_PAY_MCH_SECRET_CERT'),
+        'mch_public_cert_path' => env('WECHAT_PAY_MCH_PUBLIC_CERT_PATH'),
+        // 若未显式配置，默认使用 APP_URL + 固定回调路径
+        'notify_url' => env(
+            'WECHAT_PAY_NOTIFY_URL',
+            rtrim(env('APP_URL', ''), '/') . '/api/app/v1/course/pay/wechat/notify'
+        ),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | 火山云短信服务配置
     |--------------------------------------------------------------------------
     */

@@ -146,11 +146,11 @@ class CourseCategoryController extends Controller
             $ids = array_map('intval', explode(',', $categoryIds));
 
             // 检查是否有子分类
-            foreach ($ids as $id) {
+            /*foreach ($ids as $id) {
                 if ($this->categoryService->hasChildren($id)) {
                     return ApiResponse::error('存在子分类，无法删除');
                 }
-            }
+            }*/
 
             $deletedCount = $this->categoryService->delete($ids);
 

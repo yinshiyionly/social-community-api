@@ -28,12 +28,6 @@ class UserResource extends JsonResource
             'updateBy' => $this->update_by,
             'updateTime' => $this->update_time ? $this->update_time->format('Y-m-d H:i:s') : null,
             'remark' => $this->remark,
-            // 是否同步添加教职人员
-            'syncTechingUserFlag' => $this->sync_teching_user_flag ?? false,
-            //
-            'saleGroupId' => !empty($this->sale_group_id)
-                ? $this->sale_group_id
-                : null,
             'dept' => $this->whenLoaded('dept', function () {
                 return new DeptResource($this->dept);
             }),

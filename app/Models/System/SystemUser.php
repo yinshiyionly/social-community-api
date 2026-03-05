@@ -29,8 +29,7 @@ class SystemUser extends Authenticatable
         'create_time' => 'datetime',
         'update_time' => 'datetime',
         'login_date' => 'datetime',
-        'pwd_update_date' => 'datetime',
-        'sync_teching_user_flag' => 'boolean'
+        'pwd_update_date' => 'datetime'
     ];
 
     // 关联部门

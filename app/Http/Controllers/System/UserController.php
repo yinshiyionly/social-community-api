@@ -277,11 +277,7 @@ class UserController extends Controller
                 'required',
                 'string',
                 'max:30',
-                Rule::unique('sys_user', 'user_name')
-                    ->where(function ($q) {
-                        $q->where('del_flag', 0)
-                            ->where('user_name', request()->get('userName', ''));
-                    }),
+                //   Rule::exists('sys_user', 'user_name')
             ],
             'nickName' => 'required|string|max:30',
             'password' => 'required|string|min:6',
@@ -340,8 +336,6 @@ class UserController extends Controller
                 'email' => $params['email'] ?? '',
                 'contact_email' => $params['contactEmail'] ?? '',
                 'phonenumber' => $params['phonenumber'] ?? '',
-                'sync_teching_user_flag' => 0,
-                'sale_group_id' => $params['saleGroupId'] ?? 0,
                 // 强制跳改密
                 'force_change_password_flag' => 0,
                 'sex' => $params['sex'] ?? '0',

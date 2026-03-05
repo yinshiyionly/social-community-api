@@ -230,24 +230,22 @@ class CourseController extends Controller
     }
 
     /**
-     * 删除课程（支持批量）
+     * 删除课程-不支持批量删除
      *
-     * @param string $courseIds 逗号分隔的课程ID
+     * @param int $courseId 课程ID
      * @return \Illuminate\Http\JsonResponse
      */
-    public function destroy($courseIds)
+    public function destroy($courseId)
     {
         try {
-            $ids = array_map('intval', explode(',', $courseIds));
+            $courseId = (int) $courseId;
 
             // 检查是否有章节
-            foreach ($ids as $id) {
-                if ($this->courseService->hasChapters($id)) {
-                    return ApiResponse::error('课程下存在章节，无法删除');
-                }
+            if ($this->courseService->hasChapters($courseId)) {
+                return ApiResponse::error('课程下存在章节，无法删除');
             }
 
-            $deletedCount = $this->courseService->delete($ids);
+            $deletedCount = $this->courseService->delete($courseId);
 
             if ($deletedCount > 0) {
                 return ApiResponse::success([], '删除成功');
@@ -257,7 +255,7 @@ class CourseController extends Controller
         } catch (\Exception $e) {
             Log::error('删除课程失败', [
                 'action' => 'destroy',
-                'course_ids' => $courseIds,
+                'course_id' => $courseId,
                 'error' => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');

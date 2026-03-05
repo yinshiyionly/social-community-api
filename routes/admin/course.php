@@ -64,7 +64,8 @@ Route::middleware('system.auth')->group(function () {
         // 批量排序
         Route::put('/batchSort', [CourseController::class, 'batchSort']);
         // 删除
-        Route::delete('/{courseIds}', [CourseController::class, 'destroy']);
+        Route::delete('/{courseId}', [CourseController::class, 'destroy'])
+            ->where('courseId', '[0-9]+');
 
         // 更改状态
         Route::put('/changeStatus', [CourseController::class, 'changeStatus']);

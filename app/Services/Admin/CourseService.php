@@ -185,15 +185,16 @@ class CourseService
     }
 
     /**
-     * 删除课程（支持批量，软删除）
+     * 删除课程-不支持批量删除
+     * 软删除
      *
-     * @param array $courseIds
+     * @param int $courseId
      * @return int 删除数量
      */
-    public function delete(array $courseIds): int
+    public function delete(int $courseId): int
     {
         return AppCourseBase::query()
-            ->whereIn('course_id', $courseIds)
+            ->where('course_id', $courseId)
             ->whereNull('deleted_at')
             ->update([
                 'deleted_at' => now(),

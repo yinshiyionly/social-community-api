@@ -27,6 +27,8 @@ Route::prefix('v1/member')->group(function () {
     Route::middleware('app.auth')->group(function () {
         // 退出登录
         Route::post('logout', [MemberAuthController::class, 'logout']);
+        // 绑定手机号
+        Route::post('phone/bind', [MemberAuthController::class, 'bindPhone']);
         // 获取个人信息
         Route::get('info', [MemberController::class, 'info']);
         // 更新个人信息

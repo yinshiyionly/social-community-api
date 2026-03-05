@@ -96,6 +96,75 @@ class MemberAuthService
     }
 
     /**
+     * 绑定手机号
+     *
+     * @param int $memberId
+     * @param string $phone
+     * @return array ['success' => bool, 'message' => string]
+     */
+    public function bindPhone(int $memberId, string $phone): array
+    {
+        try {
+            return DB::transaction(function () use ($memberId, $phone) {
+                $member = AppMemberBase::query()
+                    ->where('member_id', $memberId)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$member) {
+                    return [
+                        'success' => false,
+                        'message' => '用户不存在',
+                    ];
+                }
+
+                if (!empty($member->phone)) {
+                    return [
+                        'success' => false,
+                        'message' => '当前账号已绑定手机号',
+                    ];
+                }
+
+                $phoneExists = AppMemberBase::query()
+                    ->where('phone', $phone)
+                    ->where('member_id', '<>', $memberId)
+                    ->exists();
+
+                if ($phoneExists) {
+                    return [
+                        'success' => false,
+                        'message' => '该手机号已被其他账号绑定',
+                    ];
+                }
+
+                $member->phone = $phone;
+                $member->save();
+
+                Log::info('Bind phone success', [
+                    'member_id' => $memberId,
+                    'phone' => $phone,
+                ]);
+
+                return [
+                    'success' => true,
+                    'message' => 'success',
+                ];
+            });
+        } catch (\Exception $e) {
+            Log::error('Bind phone failed', [
+                'member_id' => $memberId,
+                'phone' => $phone,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => '绑定失败，请稍后重试',
+            ];
+        }
+    }
+
+    /**
      * 通过手机号注册会员
      *
      * @param string $phone

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\App\Member\BindPhoneRequest;
 use App\Http\Requests\App\Member\LoginRequest;
 use App\Http\Requests\App\Member\SendSmsRequest;
 use App\Http\Requests\App\Member\SmsLoginRequest;
@@ -215,6 +216,32 @@ class MemberAuthController extends Controller
         return AppApiResponse::success(['data' => [
             'expireSeconds' => $result['expire_seconds']
         ]]);
+    }
+
+    /**
+     * 绑定手机号
+     *
+     * @param BindPhoneRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function bindPhone(BindPhoneRequest $request)
+    {
+        $memberId = (int)$request->attributes->get('member_id');
+        $phone = $request->input('phone');
+        $code = $request->input('code');
+
+        // 验证绑定手机号验证码
+        if (!$this->smsService->verify($phone, $code, SmsService::SCOPE_BIND_PHONE)) {
+            return AppApiResponse::error('验证码错误或已过期');
+        }
+
+        $result = $this->authService->bindPhone($memberId, $phone);
+
+        if (!$result['success']) {
+            return AppApiResponse::error($result['message']);
+        }
+
+        return AppApiResponse::success();
     }
 
     /**

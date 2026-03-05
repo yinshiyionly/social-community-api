@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class LiveChapterUpdateRequest extends FormRequest
 {
@@ -14,8 +15,18 @@ class LiveChapterUpdateRequest extends FormRequest
     public function rules()
     {
         return [
-            'courseId' => 'required|integer',
-            'chapterId' => 'required|integer',
+            'courseId' => [
+                'required',
+                'integer',
+                Rule::exists('app_course_base', 'course_id')->whereNull('deleted_at'),
+            ],
+            'chapterId' => [
+                'required',
+                'integer',
+                Rule::exists('app_course_chapter', 'chapter_id')
+                    ->where('course_id', $this->input('courseId'))
+                    ->whereNull('deleted_at'),
+            ],
             'chapterTitle' => 'required|string|max:100',
             'liveStartTime' => 'required|date',
             'liveEndTime' => 'required|date|after:live_start_time',
@@ -29,8 +40,10 @@ class LiveChapterUpdateRequest extends FormRequest
         return [
             'courseId.required' => '请选择课程。',
             'courseId.integer' => '课程不存在。',
+            'courseId.exists' => '课程不存在。',
             'chapterId.required' => '请选择章节。',
             'chapterId.integer' => '章节不存在。',
+            'chapterId.exists' => '章节不存在或不属于当前课程。',
             'chapterTitle.required' => '章节标题不能为空。',
             'chapterTitle.max' => '章节标题不能超过100个字符。',
             'liveStartTime.required' => '直播开始时间不能为空。',

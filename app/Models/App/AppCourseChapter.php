@@ -3,6 +3,7 @@
 namespace App\Models\App;
 
 use App\Models\Traits\HasOperator;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -215,5 +216,15 @@ class AppCourseChapter extends Model
         }
 
         return null;
+    }
+
+    public function setChapterStartTimeAttribute($value)
+    {
+        $this->attributes['chapter_start_time'] = Carbon::make($value)->startOfMinute()->toDateTimeString();
+    }
+
+    public function setChapterEndTimeAttribute($value)
+    {
+        $this->attributes['chapter_end_time'] = Carbon::make($value)->startOfMinute()->toDateTimeString();
     }
 }

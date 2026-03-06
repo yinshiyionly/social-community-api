@@ -70,4 +70,36 @@ class LiveController extends Controller
             ]
         ]);
     }
+
+    /**
+     * 进入直播间
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function enter(Request $request)
+    {
+        // 1. 验证 liveId 参数 判断 room_id 是否存在
+        $roomId = $request->input('liveId', 0);
+        $roomInfo = AppLiveRoom::query()
+            ->select(['room_id', 'room_title', 'room_cover', 'live_type', 'third_party_room_id', 'scheduled_start_time', 'scheduled_end_time', 'student_code'])
+            ->enabled()
+            ->where('room_id', $roomId)
+            ->first();
+        if (empty($roomInfo)) {
+            return ApiResponse::error('直播数据错误');
+        }
+
+        return ApiResponse::success([
+            'data' => [
+                'id' => $roomInfo['room_id'],
+                'liveId' => $roomInfo['third_party_room_id'],
+                'enterMode' => 'code',
+                'classType' => 'sell',
+                'code' => $roomInfo['student_code'],
+                'userType' => 0, // 0=学生 1-老师 2-助教
+                'groupId' => 0 // 分组号，默认0不分组，只有分组直播才用到，不分组则不需要传此参数
+            ]
+        ]);
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models\App;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -20,6 +21,10 @@ class AppChapterContentLive extends Model
     const PLATFORM_AGORA = 'agora';
     const PLATFORM_BAIJIAYUN = 'baijiayun';
 
+    // 直播类型
+    const LIVE_TYPE_REAL = 1;      // 真实直播
+    const LIVE_TYPE_PSEUDO = 2;    // 伪直播
+
     // 直播状态
     const LIVE_STATUS_NOT_STARTED = 0;  // 未开始
     const LIVE_STATUS_LIVING = 1;       // 直播中
@@ -28,6 +33,8 @@ class AppChapterContentLive extends Model
 
     protected $fillable = [
         'chapter_id',
+        'room_id',
+        'live_type',
         'live_platform',
         'live_room_id',
         'live_push_url',
@@ -45,11 +52,14 @@ class AppChapterContentLive extends Model
         'online_count',
         'max_online_count',
         'attachments',
+        'video_url',
     ];
 
     protected $casts = [
         'id' => 'integer',
         'chapter_id' => 'integer',
+        'room_id' => 'integer',
+        'live_type' => 'integer',
         'live_start_time' => 'datetime',
         'live_end_time' => 'datetime',
         'live_duration' => 'integer',
@@ -64,6 +74,14 @@ class AppChapterContentLive extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    /**
+     * 关联直播间
+     */
+    public function room()
+    {
+        return $this->belongsTo(AppLiveRoom::class, 'room_id', 'room_id');
+    }
 
     /**
      * 关联章节
@@ -138,5 +156,31 @@ class AppChapterContentLive extends Model
         $this->live_status = self::LIVE_STATUS_ENDED;
         $this->live_end_time = now();
         return $this->save();
+    }
+
+    /**
+     * 是否真实直播
+     */
+    public function isRealLive(): bool
+    {
+        return $this->live_type === self::LIVE_TYPE_REAL;
+    }
+
+    /**
+     * 是否伪直播
+     */
+    public function isPseudoLive(): bool
+    {
+        return $this->live_type === self::LIVE_TYPE_PSEUDO;
+    }
+
+    public function setLiveStartTimeAttribute($value)
+    {
+        $this->attributes['live_start_time'] = Carbon::make($value)->startOfMinute()->toDateTimeString();
+    }
+
+    public function setLiveEndTimeAttribute($value)
+    {
+        $this->attributes['live_end_time'] = Carbon::make($value)->startOfMinute()->toDateTimeString();
     }
 }

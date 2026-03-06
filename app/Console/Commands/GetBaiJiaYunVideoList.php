@@ -15,7 +15,7 @@ class GetBaiJiaYunVideoList extends Command
      *
      * @var string
      */
-    protected $signature = 'a:a';
+    protected $signature = 'baijiayun:sync-video-list';
 
     /**
      * The console command description.
@@ -35,9 +35,7 @@ class GetBaiJiaYunVideoList extends Command
     }
 
     /**
-     * Execute the console command.
-     *
-     * @return int
+     * 执行命令：先全量拉取百家云视频，再做本地幂等同步。
      */
     public function handle()
     {
@@ -73,8 +71,14 @@ class GetBaiJiaYunVideoList extends Command
         return 0;
     }
 
+    /**
+     * 分页拉取百家云点播视频列表（全量）。
+     *
+     * @return array<int, array<string, mixed>>
+     */
     public function getData(): array
     {
+        // 单页拉取条数，按接口分页连续拉取直到命中终止条件。
         $pageSize = 10;
         $page = 1;
         $total = 0;
@@ -97,6 +101,7 @@ class GetBaiJiaYunVideoList extends Command
             $list = $result['data']['list'] ?? [];
             $total = (int)($result['data']['total'] ?? $total);
 
+            // 返回空页时提前结束，防止无效轮询。
             if (empty($list)) {
                 $this->warn("第 {$page} 页返回空数据，提前结束");
                 break;
@@ -116,6 +121,17 @@ class GetBaiJiaYunVideoList extends Command
         return $allVideos;
     }
 
+    /**
+     * 将百家云返回的视频列表同步到 app_video_baijiayun。
+     *
+     * 同步策略：
+     * 1. video_id 不存在：新增
+     * 2. video_id 已存在：按最新字段更新
+     * 3. 仅存在软删记录：先恢复再更新
+     *
+     * @param array<int, array<string, mixed>> $videoList
+     * @return array<string, mixed>
+     */
     protected function syncToDatabase(array $videoList): array
     {
         $result = [
@@ -129,6 +145,7 @@ class GetBaiJiaYunVideoList extends Command
 
         foreach ($videoList as $video) {
             $videoId = (int) ($video['video_id'] ?? 0);
+            // video_id 是幂等键，缺失或非法时直接跳过。
             if ($videoId <= 0) {
                 $result['skipped']++;
                 $result['errors'][] = '跳过无效 video_id 数据';
@@ -143,6 +160,7 @@ class GetBaiJiaYunVideoList extends Command
                     ->orderByDesc('id')
                     ->first();
 
+                // 仅在未删除记录不存在时，才回退查软删记录，避免误恢复历史脏数据。
                 if (!$record) {
                     $record = AppVideoBaijiayun::withTrashed()
                         ->where('video_id', $videoId)
@@ -152,6 +170,7 @@ class GetBaiJiaYunVideoList extends Command
 
                 if ($record) {
                     $isRestored = false;
+                    // 如果命中软删记录，先恢复后再更新字段。
                     if ($record->trashed()) {
                         $record->restore();
                         $result['restored']++;
@@ -159,6 +178,7 @@ class GetBaiJiaYunVideoList extends Command
                     }
 
                     $record->fill($payload);
+                    // 仅字段有变化时写库，减少不必要 update。
                     if ($record->isDirty()) {
                         $record->save();
                         $result['updated']++;
@@ -171,6 +191,7 @@ class GetBaiJiaYunVideoList extends Command
 
                 $createPayload = array_merge(['video_id' => $videoId], $payload);
                 $createdAt = $this->parseCreateTime($video);
+                // 新增时尽量保留百家云原始创建时间，便于后续按来源时间排查。
                 if ($createdAt !== null) {
                     $createPayload['created_at'] = $createdAt;
                     $createPayload['updated_at'] = $createdAt;
@@ -191,6 +212,12 @@ class GetBaiJiaYunVideoList extends Command
         return $result;
     }
 
+    /**
+     * 将百家云接口字段映射为本地表字段。
+     *
+     * @param array<string, mixed> $video
+     * @return array<string, mixed>
+     */
     protected function buildVideoPayload(array $video): array
     {
         return [
@@ -212,6 +239,12 @@ class GetBaiJiaYunVideoList extends Command
         ];
     }
 
+    /**
+     * 解析百家云 create_time 到数据库 datetime 字符串。
+     *
+     * @param array<string, mixed> $video
+     * @return string|null
+     */
     protected function parseCreateTime(array $video): ?string
     {
         $createTime = $video['create_time'] ?? null;
@@ -222,6 +255,7 @@ class GetBaiJiaYunVideoList extends Command
         try {
             return Carbon::parse($createTime)->toDateTimeString();
         } catch (Throwable $e) {
+            // 时间格式异常时不阻断主流程，回退为数据库默认时间。
             return null;
         }
     }

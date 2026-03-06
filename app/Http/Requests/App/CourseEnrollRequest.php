@@ -19,7 +19,7 @@ class CourseEnrollRequest extends FormRequest
         return [
             'courseId' => 'required|integer|min:1',
             'phone' => 'required|string|regex:/^1[3-9]\d{9}$/',
-            'ageRange' => 'required|string|in:26-30岁,31-40岁,41-45岁,46-50岁,51-60岁,60岁+',
+            'age' => 'required|string|in:26-30,31-40,41-45,46-50,51-60,60+'
         ];
     }
 
@@ -30,8 +30,8 @@ class CourseEnrollRequest extends FormRequest
             'courseId.integer' => '课程ID格式错误',
             'phone.required' => '请输入手机号',
             'phone.regex' => '手机号格式不正确',
-            'ageRange.required' => '请选择年龄段',
-            'ageRange.in' => '年龄段选择无效',
+            'age.required' => '请选择年龄段',
+            'age.in' => '年龄段选择无效',
         ];
     }
 }

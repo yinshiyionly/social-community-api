@@ -195,7 +195,7 @@ class CourseController extends Controller
         $memberId = (int)$request->attributes->get('member_id');
         $courseId = (int) $request->input('courseId');
         $phone = $request->input('phone');
-        $ageRange = $request->input('ageRange');
+        $ageRange = $request->input('age');
 
         try {
             $paymentInfo = $this->courseOrderService->createWechatAppOrder(

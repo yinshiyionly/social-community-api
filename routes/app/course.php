@@ -43,7 +43,8 @@ Route::prefix('v1/course')->group(function () {
         Route::post('/claim', [CourseController::class, 'claim']);
 
         // 购买课程（创建/复用订单并返回微信支付参数）
-        Route::post('/purchase', [CourseController::class, 'purchase']);
+        // Route::post('/purchase', [CourseController::class, 'purchase']);
+        Route::post('/enrollment/pay', [CourseController::class, 'purchase']);
 
         // 订单状态查询
         Route::get('/order/status', [CourseController::class, 'orderStatus']);

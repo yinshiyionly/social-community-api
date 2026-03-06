@@ -58,32 +58,32 @@ class LiveChapterService
     {
         return DB::transaction(function () use ($courseId, $data) {
             // 计算章节序号
-            $maxNo = AppCourseChapter::byCourse($courseId)->max('chapter_no');
+            // $maxNo = AppCourseChapter::byCourse($courseId)->max('chapter_no');
 
             // 创建章节
             $chapter = AppCourseChapter::create([
                 'course_id' => $courseId,
-                'chapter_no' => ($maxNo ?? 0) + 1,
-                'chapter_title' => $data['chapter_title'],
-                'is_free' => $data['is_free'],
-                'chapter_start_time' => $data['live_start_time'],
-                'chapter_end_time' => $data['live_end_time'],
-                'sort_order' => ($maxNo ?? 0) + 1,
+                // 'chapter_no' => ($maxNo ?? 0) + 1,
+                'chapter_title' => $data['chapterTitle'],
+                'is_free' => $data['isFree'],
+                'chapter_start_time' => $data['liveStartTime'],
+                'chapter_end_time' => $data['liveEndTime'],
+                'sort_order' => 0,
                 'status' => AppCourseChapter::STATUS_DRAFT,
             ]);
 
             // 创建直播内容记录
             AppChapterContentLive::create([
                 'chapter_id' => $chapter->chapter_id,
-                'live_room_id' => $data['room_id'],
-                'live_start_time' => $data['live_start_time'],
-                'live_end_time' => $data['live_end_time'],
+                'live_room_id' => $data['roomId'],
+                'live_start_time' => $data['liveStartTime'],
+                'live_end_time' => $data['liveEndTime'],
             ]);
 
             Log::info('直播课章节创建成功', [
                 'course_id' => $courseId,
                 'chapter_id' => $chapter->chapter_id,
-                'room_id' => $data['room_id'],
+                'room_id' => $data['roomId'],
             ]);
 
             return $chapter;
@@ -104,25 +104,25 @@ class LiveChapterService
 
             // 更新章节
             $chapter->update([
-                'chapter_title' => $data['chapter_title'],
-                'is_free' => $data['is_free'],
-                'chapter_start_time' => $data['live_start_time'],
-                'chapter_end_time' => $data['live_end_time'],
+                'chapter_title' => $data['chapterTitle'],
+                'is_free' => $data['isFree'],
+                'chapter_start_time' => $data['liveStartTime'],
+                'chapter_end_time' => $data['liveEndTime'],
             ]);
 
             // 更新或创建直播内容记录
             AppChapterContentLive::updateOrCreate(
                 ['chapter_id' => $chapterId],
                 [
-                    'live_room_id' => $data['room_id'],
-                    'live_start_time' => $data['live_start_time'],
-                    'live_end_time' => $data['live_end_time'],
+                    'live_room_id' => $data['roomId'],
+                    'live_start_time' => $data['liveStartTime'],
+                    'live_end_time' => $data['liveEndTime'],
                 ]
             );
 
             Log::info('直播课章节更新成功', [
                 'chapter_id' => $chapterId,
-                'room_id' => $data['room_id'],
+                'room_id' => $data['roomId'],
             ]);
 
             return $chapter->fresh(['liveContent']);

@@ -8,6 +8,14 @@ use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Throwable;
 
+/**
+ * 同步百家云点播视频到本地表 app_video_baijiayun。
+ *
+ * 设计目标：
+ * 1. 幂等：重复执行不会产生重复业务数据（按 video_id 合并）。
+ * 2. 可恢复：如果本地是软删记录，自动恢复并更新。
+ * 3. 可观测：输出拉取与入库统计，便于巡检任务执行结果。
+ */
 class GetBaiJiaYunVideoList extends Command
 {
     /**
@@ -35,17 +43,28 @@ class GetBaiJiaYunVideoList extends Command
     }
 
     /**
-     * 执行命令：先全量拉取百家云视频，再做本地幂等同步。
+     * 执行命令入口。
+     *
+     * 步骤：
+     * 1. 调用百家云接口全量分页拉取；
+     * 2. 将拉取结果按 video_id 同步到本地；
+     * 3. 输出同步统计（新增/更新/恢复/跳过/失败）。
+     *
+     * 约定：
+     * - 业务异常不抛出中断命令，统一累计到失败统计；
+     * - 退出码固定返回 0，依赖日志和统计判断执行质量。
      */
     public function handle()
     {
         $videoList = $this->getData();
         $this->info('拉取完成，共获取视频 ' . count($videoList) . ' 条');
 
+        // 拉取为空通常表示接口无数据或拉取过程中提前结束，直接返回。
         if (empty($videoList)) {
             return 0;
         }
 
+        // 入库结果是聚合统计，后续可用于告警阈值判断。
         $result = $this->syncToDatabase($videoList);
 
         $this->info(sprintf(
@@ -57,6 +76,7 @@ class GetBaiJiaYunVideoList extends Command
             $result['failed']
         ));
 
+        // 为避免控制台刷屏，仅展示前 5 条错误明细。
         if (!empty($result['errors'])) {
             $maxErrorCount = 5;
             foreach (array_slice($result['errors'], 0, $maxErrorCount) as $errorMessage) {
@@ -74,6 +94,25 @@ class GetBaiJiaYunVideoList extends Command
     /**
      * 分页拉取百家云点播视频列表（全量）。
      *
+     * 返回结构示例（单条）：
+     * [
+     *   'video_id' => 312435382,
+     *   'status' => 100,
+     *   'total_size' => 194914036,
+     *   'length' => 890,
+     *   'publish_status' => 1,
+     *   'name' => 'xxx',
+     *   'create_time' => '2026-01-23 18:40:57',
+     *   'preface_url' => 'http://...',
+     *   'play_url' => 'https://...',
+     * ]
+     *
+     * 终止条件（任一命中即结束）：
+     * 1. 接口返回失败；
+     * 2. 当前页为空；
+     * 3. 已拉取数量达到 total；
+     * 4. 当前页条数不足 pageSize（视为最后一页）。
+     *
      * @return array<int, array<string, mixed>>
      */
     public function getData(): array
@@ -87,6 +126,7 @@ class GetBaiJiaYunVideoList extends Command
         $service = new BaijiayunLiveService();
 
         while (true) {
+            // 约定服务层已把 HTTP 失败和业务失败收敛为 success=false。
             $result = $service->videoGetVideoList($page, $pageSize);
             if (!($result['success'] ?? false)) {
                 $this->error(sprintf(
@@ -99,6 +139,7 @@ class GetBaiJiaYunVideoList extends Command
             }
 
             $list = $result['data']['list'] ?? [];
+            // total 用于“已拉取/总量”展示与终止判断，接口缺失时沿用上次值。
             $total = (int)($result['data']['total'] ?? $total);
 
             // 返回空页时提前结束，防止无效轮询。
@@ -129,8 +170,23 @@ class GetBaiJiaYunVideoList extends Command
      * 2. video_id 已存在：按最新字段更新
      * 3. 仅存在软删记录：先恢复再更新
      *
+     * 结果结构说明：
+     * - created：新增记录数
+     * - updated：已有记录字段变更后更新的数量
+     * - restored：软删恢复数量
+     * - skipped：被跳过数量（无效 video_id 或无变化记录）
+     * - failed：处理失败数量
+     * - errors：失败/跳过明细消息
+     *
      * @param array<int, array<string, mixed>> $videoList
-     * @return array<string, mixed>
+     * @return array{
+     *   created:int,
+     *   updated:int,
+     *   restored:int,
+     *   skipped:int,
+     *   failed:int,
+     *   errors:array<int, string>
+     * }
      */
     protected function syncToDatabase(array $videoList): array
     {
@@ -155,6 +211,7 @@ class GetBaiJiaYunVideoList extends Command
             try {
                 $payload = $this->buildVideoPayload($video);
 
+                // 优先查未删除记录：正常场景应只有这一条。
                 $record = AppVideoBaijiayun::query()
                     ->where('video_id', $videoId)
                     ->orderByDesc('id')
@@ -200,6 +257,7 @@ class GetBaiJiaYunVideoList extends Command
                 AppVideoBaijiayun::query()->create($createPayload);
                 $result['created']++;
             } catch (Throwable $e) {
+                // 单条失败不影响后续记录处理，保证任务尽量完成更多数据同步。
                 $result['failed']++;
                 $result['errors'][] = sprintf(
                     'video_id=%s 入库失败：%s',
@@ -214,6 +272,20 @@ class GetBaiJiaYunVideoList extends Command
 
     /**
      * 将百家云接口字段映射为本地表字段。
+     *
+     * 字段映射关系：
+     * - video.name            -> app_video_baijiayun.name
+     * - video.status          -> app_video_baijiayun.status
+     * - video.total_size      -> app_video_baijiayun.total_size（库里是字符串）
+     * - video.preface_url     -> app_video_baijiayun.preface_url
+     * - video.play_url        -> app_video_baijiayun.play_url
+     * - video.length          -> app_video_baijiayun.length
+     * - video.width           -> app_video_baijiayun.width
+     * - video.height          -> app_video_baijiayun.height
+     * - video.publish_status  -> app_video_baijiayun.publish_status
+     *
+     * 兜底策略：
+     * - 缺失字段按表默认语义给默认值，避免入库时触发 NOT NULL/类型问题。
      *
      * @param array<string, mixed> $video
      * @return array<string, mixed>
@@ -241,6 +313,9 @@ class GetBaiJiaYunVideoList extends Command
 
     /**
      * 解析百家云 create_time 到数据库 datetime 字符串。
+     *
+     * 输入通常是 "Y-m-d H:i:s"，例如 "2026-01-23 18:40:57"。
+     * 若为空或解析失败，返回 null，让 Eloquent 使用数据库当前时间。
      *
      * @param array<string, mixed> $video
      * @return string|null

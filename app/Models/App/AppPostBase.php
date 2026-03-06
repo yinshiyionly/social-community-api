@@ -82,7 +82,7 @@ class AppPostBase extends Model
     const VISIBLE_PRIVATE = 0;      // 私密
 
     // 状态
-    const STATUS_PENDING = 0;       // 待审核
+    const STATUS_PENDING = 1;       // 待审核
     const STATUS_APPROVED = 1;      // 已通过
     const STATUS_REJECTED = 2;      // 已拒绝
 

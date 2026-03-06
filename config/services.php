@@ -62,6 +62,14 @@ return [
         // APP 支付使用的 appid，默认复用微信登录 appid
         'app_id' => env('WECHAT_PAY_APP_ID', env('WECHAT_APP_APPID')),
         'mch_id' => env('WECHAT_PAY_MCH_ID'),
+        // 微信支付 v2 API Key（当前支付主链路使用）
+        'mch_secret_key_v2' => env('WECHAT_PAY_MCH_SECRET_KEY_V2'),
+        // 微信支付 v2 签名类型：MD5 / HMAC-SHA256
+        'sign_type' => env('WECHAT_PAY_SIGN_TYPE', 'MD5'),
+        // 微信支付 v2 API 地址
+        'api_base_v2' => env('WECHAT_PAY_API_BASE_V2', 'https://api.mch.weixin.qq.com'),
+
+        // 以下为历史 v3 配置，当前支付主链路不依赖
         'mch_secret_key' => env('WECHAT_PAY_MCH_SECRET_KEY'),
         'mch_secret_cert' => env('WECHAT_PAY_MCH_SECRET_CERT'),
         'mch_public_cert_path' => env('WECHAT_PAY_MCH_PUBLIC_CERT_PATH'),

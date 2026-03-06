@@ -247,22 +247,26 @@ class CourseController extends Controller
      */
     public function wechatPayNotify(Request $request)
     {
-        try {
-            $this->courseOrderService->handleWechatNotify($request->ip());
+        $rawXml = (string)$request->getContent();
 
-            return response()->json([
-                'code' => 'SUCCESS',
-                'message' => '成功',
+        try {
+            $this->courseOrderService->handleWechatNotify($rawXml, $request->ip());
+
+            $xml = $this->courseOrderService->getWechatNotifySuccessXml();
+
+            return response($xml, 200, [
+                'Content-Type' => 'application/xml; charset=utf-8',
             ]);
         } catch (\Exception $e) {
             Log::error('微信支付回调处理失败', [
                 'error' => $e->getMessage(),
             ]);
 
-            return response()->json([
-                'code' => 'FAIL',
-                'message' => '失败',
-            ], 500);
+            $xml = $this->courseOrderService->getWechatNotifyFailXml($e->getMessage());
+
+            return response($xml, 200, [
+                'Content-Type' => 'application/xml; charset=utf-8',
+            ]);
         }
     }
 

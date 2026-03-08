@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\App\LiveController;
+use App\Http\Controllers\App\LiveCallbackController;
 use App\Http\Controllers\App\LiveCourseController;
 use Illuminate\Support\Facades\Route;
 
@@ -11,6 +12,9 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('v1/live')->group(function () {
+    // 百家云直播回调（无需登录）
+    Route::post('callback/baijiayun', [LiveCallbackController::class, 'baijiayun']);
+
     // 需要登录的接口
     Route::middleware('app.auth')->group(function () {
         // 获取直播间信息

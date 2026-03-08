@@ -42,12 +42,16 @@ class BaijiayunLiveService
     }
 
     /**
+     * 直播相关
+     */
+
+    /**
      * 查询直播上下课回调地址
      * @see https://dev.baijiayun.com/wiki/detail/79#-h162-164
      *
      * @return array
      */
-    public function getClassCallbackUrl()
+    public function liveAccountGetClassCallbackUrl()
     {
         // 这是旧的-阿里云-触极科技主体的回调地址
         // https://api.tcscrm.hnchuji.cn/api/live/handle-class-event-callback
@@ -62,7 +66,7 @@ class BaijiayunLiveService
      * @see https://dev.baijiayun.com/wiki/detail/79#-h162-163
      * @return array
      */
-    public function setClassCallbackUrl()
+    public function liveAccountSetClassCallbackUrl()
     {
         $params = [
             'url' => '',
@@ -237,6 +241,71 @@ class BaijiayunLiveService
     }
 
     /**
+     * 点播-视频库相关
+     */
+
+    /**
+     * 获取点播视频列表
+     * @see https://dev.baijiayun.com/wiki/detail/4#-h5-35
+     *
+     * @param int $page
+     * @param int $pageSize
+     * @return array
+     */
+    public function videoGetVideoList(int $page, int $pageSize): array
+    {
+        $params = [
+            'page' => $page,
+            'page_size' => $pageSize
+        ];
+        return $this->sendRequest('/openapi/video/getVideoList', $params);
+    }
+
+    /**
+     * 获取视频/音频上传地址
+     * @see https://dev.baijiayun.com/wiki/detail/4#-h5-7
+     *
+     * @param array $data
+     * @return array
+     */
+    public function videoGetUploadUrl(array $data): array
+    {
+        $params = [
+            'file_name' => $data['fileName'] ?? '', // 文件名
+            'definition' => $data['definition'] ?? 8, // 目标清晰度(16:标清 1:高清 2:超清 4:720p 8:1080p 多种清晰度用英文逗号分隔)
+            'audio_with_view' => $data['audioWithView'] ?? 0, // 是否作为音频处理 0：否 1：是
+            'format' => $data['format'] ?? 'mp4', // 转码格式（1:mp4 2:flv 4:m3u8 多种格式用英文逗号分隔）默认是3种格式都转
+        ];
+        return $this->sendRequest('/openapi/video/getUploadUrl', $params);
+    }
+
+    /**
+     * 设置转码回调地址（点播和回放）
+     * @see https://dev.baijiayun.com/wiki/detail/4#-h62-63
+     *
+     * @return array
+     */
+    public function videoAccountSetTranscodeCallbackUrl(): array
+    {
+        $params = [
+            'url' => env('APP_URL') . '/api/admin/video/callback'
+        ];
+        return $this->sendRequest('/openapi/video_account/getTranscodeCallbackUrl', $params);
+    }
+
+    /**
+     * 查询转码回调地址（点播和回放）
+     * @see https://dev.baijiayun.com/wiki/detail/4#-h62-64
+     *
+     * @return array
+     */
+    public function videoAccountGetTranscodeCallbackUrl()
+    {
+        return $this->sendRequest('/openapi/video_account/getTranscodeCallbackUrl');
+    }
+
+
+    /**
      * 生成用户令牌
      *
      * 根据角色类型为用户生成加入直播间的令牌，令牌中包含用户标识、角色和昵称信息。
@@ -349,7 +418,6 @@ class BaijiayunLiveService
 
         return $this->buildResult(true, $data);
     }
-
 
     /**
      * 计算 API 签名

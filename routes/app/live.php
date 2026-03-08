@@ -21,6 +21,10 @@ Route::prefix('v1/live')->group(function () {
         Route::get('roomInfo', [LiveController::class, 'roomInfo']);
         // 进入直播间
         Route::get('enter', [LiveController::class, 'enter']);
+        // 预约直播
+        Route::post('reserve', [LiveCourseController::class, 'reserve']);
+        // 取消预约直播
+        Route::post('unreserve', [LiveCourseController::class, 'unreserve']);
     });
     // 获取直播首页数据
     Route::get('home', [LiveCourseController::class, 'home'])->middleware('app.auth.optional');

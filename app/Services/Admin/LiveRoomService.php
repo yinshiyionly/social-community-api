@@ -2,9 +2,12 @@
 
 namespace App\Services\Admin;
 
+use App\Events\LiveRedPacketSent;
 use App\Models\App\AppCourseBase;
+use App\Models\App\AppLiveChatMessage;
 use App\Models\App\AppLiveRoom;
 use App\Models\App\AppLiveRoomStat;
+use App\Models\System\SystemUser;
 use App\Services\BaijiayunLiveService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -276,5 +279,117 @@ class LiveRoomService
         return AppLiveRoom::query()
                 ->where('room_id', $roomId)
                 ->update(['status' => $status]) > 0;
+    }
+
+    /**
+     * 发送直播红包
+     *
+     * @param array $data
+     * @param SystemUser|null $operator
+     * @return array ['success' => bool, 'error' => ?string, 'data' => array]
+     */
+    public function sendRedPacket(array $data, ?SystemUser $operator = null): array
+    {
+        $roomId = (int)$data['roomId'];
+        $room = AppLiveRoom::query()->where('room_id', $roomId)->first();
+        if (!$room) {
+            return ['success' => false, 'error' => '直播间不存在', 'data' => []];
+        }
+
+        if ((int)$room->status !== AppLiveRoom::STATUS_ENABLED) {
+            return ['success' => false, 'error' => '直播间已禁用', 'data' => []];
+        }
+
+        if ((int)$room->live_status !== AppLiveRoom::LIVE_STATUS_LIVING) {
+            return ['success' => false, 'error' => '直播未开始，无法发送红包', 'data' => []];
+        }
+
+        if ((int)$room->allow_gift !== 1) {
+            return ['success' => false, 'error' => '该直播间未开启送礼功能', 'data' => []];
+        }
+
+        $senderId = $operator ? (int)$operator->user_id : 0;
+        $senderName = $operator
+            ? (string)($operator->nick_name ?: $operator->user_name)
+            : '系统';
+
+        $totalAmount = number_format((float)$data['totalAmount'], 2, '.', '');
+        $packetCount = (int)$data['packetCount'];
+        $expireSeconds = (int)$data['expireSeconds'];
+        $title = (string)$data['title'];
+        $content = (string)$data['content'];
+
+        $extData = [
+            'title' => $title,
+            'totalAmount' => $totalAmount,
+            'packetCount' => $packetCount,
+            'expireSeconds' => $expireSeconds,
+        ];
+        if (!empty($data['extra']) && is_array($data['extra'])) {
+            $extData['extra'] = $data['extra'];
+        }
+
+        $message = null;
+        DB::transaction(function () use ($roomId, $senderName, $content, $extData, $packetCount, $totalAmount, &$message) {
+            $message = AppLiveChatMessage::query()->create([
+                'room_id' => $roomId,
+                'member_id' => 0,
+                'member_name' => $senderName,
+                'member_avatar' => null,
+                'message_type' => AppLiveChatMessage::TYPE_RED_PACKET,
+                'content' => $content,
+                'ext_data' => $extData,
+                'is_top' => 0,
+                'is_blocked' => 0,
+            ]);
+
+            AppLiveRoomStat::query()->firstOrCreate(
+                ['room_id' => $roomId],
+                [
+                    'total_viewer_count' => 0,
+                    'max_online_count' => 0,
+                    'current_online_count' => 0,
+                    'like_count' => 0,
+                    'message_count' => 0,
+                    'gift_count' => 0,
+                    'gift_amount' => 0,
+                    'share_count' => 0,
+                    'avg_watch_duration' => 0,
+                ]
+            );
+
+            AppLiveRoomStat::query()
+                ->where('room_id', $roomId)
+                ->update([
+                    'message_count' => DB::raw('message_count + 1'),
+                    'gift_count' => DB::raw('gift_count + ' . $packetCount),
+                    'gift_amount' => DB::raw('gift_amount + ' . $totalAmount),
+                    'updated_at' => now(),
+                ]);
+        });
+
+        event(new LiveRedPacketSent(
+            $roomId,
+            (int)$message->message_id,
+            $content,
+            $extData,
+            [
+                'type' => 'admin',
+                'id' => $senderId,
+                'name' => $senderName,
+            ],
+            $message->created_at ? $message->created_at->format('Y-m-d H:i:s') : now()->format('Y-m-d H:i:s')
+        ));
+
+        return [
+            'success' => true,
+            'error' => null,
+            'data' => [
+                'messageId' => (int)$message->message_id,
+                'roomId' => $roomId,
+                'event' => 'live.red_packet.sent',
+                'createdAt' => $message->created_at ? $message->created_at->format('Y-m-d H:i:s') : null,
+            ],
+        ];
     }
 }

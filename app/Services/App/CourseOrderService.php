@@ -7,6 +7,7 @@ use App\Models\App\AppCourseOrder;
 use App\Models\App\AppCourseOrderPayLog;
 use App\Models\App\AppMemberBase;
 use App\Models\App\AppMemberCourse;
+use App\Models\App\AppMemberSchedule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -176,6 +177,110 @@ class CourseOrderService
             'paidAmount' => number_format((float)$order->paid_amount, 2, '.', ''),
             'expireTime' => optional($order->expire_time)->format('Y-m-d H:i:s'),
             'payTime' => optional($order->pay_time)->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    /**
+     * 课程订单退款（微信 v2）
+     *
+     * @throws \Exception
+     */
+    public function refundWechatOrder(int $memberId, string $orderNo, string $reason = '', ?string $clientIp = null): array
+    {
+        try {
+            return DB::transaction(function () use ($memberId, $orderNo, $reason, $clientIp) {
+                $order = AppCourseOrder::query()
+                    ->where('member_id', $memberId)
+                    ->where('order_no', $orderNo)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$order) {
+                    throw new \Exception('订单不存在');
+                }
+
+                if ((int)$order->pay_status === AppCourseOrder::PAY_STATUS_REFUNDED) {
+                    return $this->buildRefundResult($order);
+                }
+
+                if ((int)$order->pay_status !== AppCourseOrder::PAY_STATUS_PAID) {
+                    throw new \Exception('当前订单状态不支持退款');
+                }
+
+                if ((int)$order->pay_type !== AppCourseOrder::PAY_TYPE_WECHAT) {
+                    throw new \Exception('仅支持微信支付订单退款');
+                }
+
+                if ((int)$order->refund_status === AppCourseOrder::REFUND_STATUS_REFUNDED) {
+                    return $this->buildRefundResult($order);
+                }
+
+                $refundResult = $this->createWechatRefund($order, $reason);
+                $refundAmountFen = (int)($refundResult['refund_fee'] ?? 0);
+                $orderAmountFen = $this->toFen($order->paid_amount);
+
+                if ($refundAmountFen > 0 && $refundAmountFen !== $orderAmountFen) {
+                    throw new \Exception('微信退款金额与订单金额不一致');
+                }
+
+                $order->pay_status = AppCourseOrder::PAY_STATUS_REFUNDED;
+                $order->refund_status = AppCourseOrder::REFUND_STATUS_REFUNDED;
+                $order->refund_amount = $order->paid_amount;
+                $order->refund_reason = $reason !== '' ? $reason : (string)($order->refund_reason ?? '');
+                $order->refund_time = now();
+                $order->save();
+
+                $this->createPayLog(
+                    $order,
+                    AppCourseOrderPayLog::PAY_RESULT_SUCCESS,
+                    (string)($refundResult['refund_id'] ?? $refundResult['out_refund_no'] ?? ''),
+                    [
+                        'refund' => $refundResult,
+                    ],
+                    $clientIp,
+                    '微信退款成功'
+                );
+
+                $this->revokeCourseForRefund($order);
+
+                return $this->buildRefundResult($order);
+            });
+        } catch (\Exception $e) {
+            $order = AppCourseOrder::query()
+                ->where('member_id', $memberId)
+                ->where('order_no', $orderNo)
+                ->first();
+
+            if ($order && (int)$order->pay_status === AppCourseOrder::PAY_STATUS_PAID) {
+                $this->createPayLog(
+                    $order,
+                    AppCourseOrderPayLog::PAY_RESULT_FAIL,
+                    null,
+                    [
+                        'refund_error' => $e->getMessage(),
+                        'order_no' => $orderNo,
+                    ],
+                    $clientIp,
+                    '微信退款失败'
+                );
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * 构建退款响应
+     */
+    protected function buildRefundResult(AppCourseOrder $order): array
+    {
+        return [
+            'orderNo' => $order->order_no,
+            'payStatus' => $this->formatPayStatus((int)$order->pay_status),
+            'payStatusCode' => (int)$order->pay_status,
+            'refundStatus' => (int)$order->refund_status,
+            'refundAmount' => number_format((float)$order->refund_amount, 2, '.', ''),
+            'refundTime' => optional($order->refund_time)->format('Y-m-d H:i:s'),
         ];
     }
 
@@ -462,6 +567,153 @@ class CourseOrderService
     }
 
     /**
+     * 调用微信 v2 退款接口
+     *
+     * @throws \Exception
+     */
+    protected function createWechatRefund(AppCourseOrder $order, string $reason = ''): array
+    {
+        $config = $this->buildWechatPayConfig();
+
+        $refundDesc = $reason !== '' ? $reason : '课程订单退款';
+        if (function_exists('mb_strimwidth')) {
+            $refundDesc = mb_strimwidth($refundDesc, 0, 80, '', 'UTF-8');
+        } elseif (strlen($refundDesc) > 80) {
+            $refundDesc = substr($refundDesc, 0, 80);
+        }
+
+        $payload = [
+            'appid' => $config['app_id'],
+            'mch_id' => $config['mch_id'],
+            'nonce_str' => $this->generateNonceStr(),
+            'out_trade_no' => $order->order_no,
+            'out_refund_no' => $this->buildWechatRefundNo($order->order_no),
+            'total_fee' => $this->toFen($order->paid_amount),
+            'refund_fee' => $this->toFen($order->paid_amount),
+            'refund_desc' => $refundDesc,
+            'sign_type' => $config['sign_type'],
+        ];
+        $payload['sign'] = $this->buildWechatV2Sign($payload);
+
+        $requestXml = $this->arrayToXml($payload);
+        $url = $config['api_base_v2'] . '/secapi/pay/refund';
+
+        $certPath = $this->resolveWechatPemPath((string)$config['mch_public_cert_path_v2'], 'wechat_pay_cert');
+        $keyPath = $this->resolveWechatPemPath((string)$config['mch_secret_cert_v2'], 'wechat_pay_key');
+
+        try {
+            $response = Http::timeout(15)
+                ->withOptions([
+                    'cert' => $certPath,
+                    'ssl_key' => $keyPath,
+                ])
+                ->withHeaders([
+                    'Content-Type' => 'application/xml',
+                    'Accept' => 'application/xml',
+                ])
+                ->send('POST', $url, ['body' => $requestXml]);
+        } catch (\Throwable $e) {
+            Log::error('微信v2退款请求异常', [
+                'order_no' => $order->order_no,
+                'error' => $e->getMessage(),
+            ]);
+            throw new \Exception('微信退款请求失败，请稍后重试');
+        }
+
+        $responseXml = (string)$response->body();
+        if (trim($responseXml) === '') {
+            Log::warning('微信v2退款响应为空', [
+                'order_no' => $order->order_no,
+            ]);
+            throw new \Exception('微信退款响应为空');
+        }
+
+        try {
+            $result = $this->xmlToArray($responseXml);
+        } catch (\Exception $e) {
+            Log::warning('微信v2退款响应XML解析失败', [
+                'order_no' => $order->order_no,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+
+        $returnCode = strtoupper((string)($result['return_code'] ?? ''));
+        if ($returnCode !== 'SUCCESS') {
+            $returnMsg = (string)($result['return_msg'] ?? '微信退款失败');
+            Log::warning('微信v2退款通信失败', [
+                'order_no' => $order->order_no,
+                'return_code' => $returnCode,
+                'return_msg' => $returnMsg,
+            ]);
+            throw new \Exception($returnMsg === '' ? '微信退款失败' : $returnMsg);
+        }
+
+        if (!$this->verifyWechatV2Sign($result)) {
+            Log::warning('微信v2退款响应验签失败', [
+                'order_no' => $order->order_no,
+                'response' => $this->maskSensitiveWechatPayload($result),
+            ]);
+            throw new \Exception('微信退款响应验签失败');
+        }
+
+        $resultCode = strtoupper((string)($result['result_code'] ?? ''));
+        if ($resultCode !== 'SUCCESS') {
+            $errorMsg = (string)($result['err_code_des'] ?? $result['return_msg'] ?? '微信退款失败');
+            Log::warning('微信v2退款业务失败', [
+                'order_no' => $order->order_no,
+                'result_code' => $resultCode,
+                'err_code' => (string)($result['err_code'] ?? ''),
+                'err_code_des' => $errorMsg,
+            ]);
+            throw new \Exception($errorMsg === '' ? '微信退款失败' : $errorMsg);
+        }
+
+        return $result;
+    }
+
+    /**
+     * 退款后回收课程权益
+     */
+    protected function revokeCourseForRefund(AppCourseOrder $order): void
+    {
+        try {
+            $memberCourse = AppMemberCourse::withTrashed()
+                ->where('member_id', $order->member_id)
+                ->where('course_id', $order->course_id)
+                ->where('order_no', $order->order_no)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$memberCourse || $memberCourse->trashed()) {
+                return;
+            }
+
+            $memberCourseId = (int)$memberCourse->id;
+            $memberCourse->is_expired = 1;
+            $memberCourse->expire_time = now();
+            $memberCourse->save();
+            $memberCourse->delete();
+
+            AppMemberSchedule::query()
+                ->where('member_course_id', $memberCourseId)
+                ->delete();
+
+            AppCourseBase::query()
+                ->where('course_id', $order->course_id)
+                ->where('enroll_count', '>', 0)
+                ->decrement('enroll_count');
+        } catch (\Throwable $e) {
+            Log::error('退款后回收课程权益失败', [
+                'order_no' => $order->order_no,
+                'member_id' => $order->member_id,
+                'course_id' => $order->course_id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * 发放课程（首次创建时生成课表并累加报名数）
      *
      * @param AppCourseOrder $order
@@ -649,6 +901,8 @@ class CourseOrderService
         $appId = (string)($wechatPayConfig['app_id'] ?? '');
         $mchId = (string)($wechatPayConfig['mch_id'] ?? '');
         $mchSecretKeyV2 = (string)($wechatPayConfig['mch_secret_key_v2'] ?? '');
+        $mchSecretCertV2 = (string)($wechatPayConfig['mch_secret_cert_v2'] ?? $wechatPayConfig['mch_secret_cert'] ?? '');
+        $mchPublicCertPathV2 = (string)($wechatPayConfig['mch_public_cert_path_v2'] ?? $wechatPayConfig['mch_public_cert_path'] ?? '');
         $signType = strtoupper((string)($wechatPayConfig['sign_type'] ?? 'MD5'));
         $apiBaseV2 = rtrim((string)($wechatPayConfig['api_base_v2'] ?? 'https://api.mch.weixin.qq.com'), '/');
 
@@ -664,6 +918,8 @@ class CourseOrderService
             'app_id' => $appId,
             'mch_id' => $mchId,
             'mch_secret_key_v2' => $mchSecretKeyV2,
+            'mch_secret_cert_v2' => $mchSecretCertV2,
+            'mch_public_cert_path_v2' => $mchPublicCertPathV2,
             'notify_url' => $notifyUrl,
             'sign_type' => $signType,
             'api_base_v2' => $apiBaseV2,
@@ -804,6 +1060,52 @@ class CourseOrderService
         } catch (\Throwable $e) {
             return substr(md5(uniqid((string)mt_rand(), true)), 0, $length);
         }
+    }
+
+    /**
+     * 生成微信退款单号（同订单幂等）
+     */
+    protected function buildWechatRefundNo(string $orderNo): string
+    {
+        $refundNo = 'RF' . trim($orderNo);
+
+        return strlen($refundNo) > 64 ? substr($refundNo, 0, 64) : $refundNo;
+    }
+
+    /**
+     * 解析证书路径：支持直接传文件路径或 PEM 文本内容
+     *
+     * @throws \Exception
+     */
+    protected function resolveWechatPemPath(string $value, string $prefix): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            throw new \Exception('微信退款证书配置不完整');
+        }
+
+        if (is_file($value)) {
+            return $value;
+        }
+
+        if (strpos($value, '-----BEGIN') === false) {
+            throw new \Exception('微信退款证书格式无效，请检查配置');
+        }
+
+        $dir = storage_path('app/wechat-pay-cert');
+        if (!is_dir($dir) && !@mkdir($dir, 0700, true) && !is_dir($dir)) {
+            throw new \Exception('微信退款证书目录创建失败');
+        }
+
+        $path = $dir . DIRECTORY_SEPARATOR . $prefix . '_' . md5($value) . '.pem';
+        if (!is_file($path)) {
+            if (@file_put_contents($path, $value) === false) {
+                throw new \Exception('微信退款证书写入失败');
+            }
+            @chmod($path, 0600);
+        }
+
+        return $path;
     }
 
     /**

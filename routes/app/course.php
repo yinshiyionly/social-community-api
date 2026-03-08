@@ -48,6 +48,9 @@ Route::prefix('v1/course')->group(function () {
 
         // 订单状态查询
         Route::get('/order/status', [CourseController::class, 'orderStatus']);
+
+        // 订单退款
+        Route::post('/order/refund', [CourseController::class, 'refund']);
     });
 });
 

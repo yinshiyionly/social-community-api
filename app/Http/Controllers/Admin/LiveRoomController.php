@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\LiveRoomRedPacketSendRequest;
 use App\Http\Requests\Admin\LiveRoomStoreRequest;
-use App\Http\Requests\Admin\LiveRoomUpdateRequest;
 use App\Http\Requests\Admin\LiveRoomStatusRequest;
+use App\Http\Requests\Admin\LiveRoomUpdateRequest;
 use App\Http\Resources\ApiResponse;
 use App\Http\Resources\Admin\LiveRoomResource;
 use App\Http\Resources\Admin\LiveRoomListResource;
@@ -210,6 +211,37 @@ class LiveRoomController extends Controller
         } catch (\Exception $e) {
             Log::error('直播间操作失败', [
                 'action' => 'changeStatus',
+                'room_id' => $request->input('roomId'),
+                'error' => $e->getMessage(),
+            ]);
+            return ApiResponse::error('操作失败，请稍后重试');
+        }
+    }
+
+    /**
+     * 发送直播红包
+     *
+     * @param LiveRoomRedPacketSendRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function sendRedPacket(LiveRoomRedPacketSendRequest $request)
+    {
+        try {
+            $result = $this->liveRoomService->sendRedPacket(
+                $request->validated(),
+                $request->user()
+            );
+
+            if (!$result['success']) {
+                return ApiResponse::error($result['error']);
+            }
+
+            return ApiResponse::success([
+                'data' => $result['data'],
+            ], '发送成功');
+        } catch (\Exception $e) {
+            Log::error('直播间操作失败', [
+                'action' => 'sendRedPacket',
                 'room_id' => $request->input('roomId'),
                 'error' => $e->getMessage(),
             ]);

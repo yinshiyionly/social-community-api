@@ -66,7 +66,8 @@ class LiveController extends Controller
                 'number' => $memberInfo['member_id'],
                 'avatar' => $memberInfo['avatar'],
                 'type' => 0, // 0=学生 1-老师 2-助教
-                'groupId' => 0 // 分组号，默认0不分组，只有分组直播才用到，不分组则不需要传此参数
+                'groupId' => 0, // 分组号，默认0不分组，只有分组直播才用到，不分组则不需要传此参数
+                'ws' => $this->buildWsConfig((int)$roomInfo['room_id']),
             ]
         ]);
     }
@@ -101,5 +102,34 @@ class LiveController extends Controller
                 'groupId' => 0 // 分组号，默认0不分组，只有分组直播才用到，不分组则不需要传此参数
             ]
         ]);
+    }
+
+    /**
+     * 直播 WS 配置
+     *
+     * @param int $roomId
+     * @return array
+     */
+    protected function buildWsConfig(int $roomId): array
+    {
+        $connection = (array)config('broadcasting.connections.pusher', []);
+        $options = (array)($connection['options'] ?? []);
+        $scheme = (string)($options['scheme'] ?? 'http');
+        $host = (string)($options['host'] ?? '127.0.0.1');
+        $port = (int)($options['port'] ?? 6001);
+
+        return [
+            'enabled' => (string)($connection['key'] ?? '') !== '',
+            'broadcaster' => 'pusher',
+            'host' => $host,
+            'port' => $port,
+            'scheme' => $scheme,
+            'key' => (string)($connection['key'] ?? ''),
+            'channel' => 'live.room.' . $roomId,
+            'events' => [
+                'statusChanged' => 'live.status.changed',
+                'redPacketSent' => 'live.red_packet.sent',
+            ],
+        ];
     }
 }

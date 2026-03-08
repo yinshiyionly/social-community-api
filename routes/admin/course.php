@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\CourseCategoryController;
 use App\Http\Controllers\Admin\CourseController;
+use App\Http\Controllers\Admin\CourseOrderController;
 use App\Http\Controllers\Admin\VideoChapterController;
 use App\Http\Controllers\Admin\LiveChapterController;
 
@@ -48,6 +49,10 @@ Route::middleware('system.auth')->group(function () {
         Route::get('/constants', [CourseController::class, 'constants']);
         // 列表
         Route::get('/list', [CourseController::class, 'list']);
+        // 订单列表
+        Route::get('/order/list', [CourseOrderController::class, 'orderList']);
+        // 退款列表
+        Route::get('/refund/list', [CourseOrderController::class, 'refundList']);
 
         // 下拉框列表
         Route::get('/optionselect', [CourseController::class, 'optionselect']);

@@ -5,6 +5,8 @@
 | --- | --- | --- |
 | 课程常量选项 | GET | `/api/admin/course/constants` |
 | 课程分页列表 | GET | `/api/admin/course/list` |
+| 课程订单分页列表 | GET | `/api/admin/course/order/list` |
+| 课程退款分页列表 | GET | `/api/admin/course/refund/list` |
 | 课程下拉选项 | GET | `/api/admin/course/optionselect` |
 | 课程详情 | GET | `/api/admin/course/{courseId}` |
 | 新增课程 | POST | `/api/admin/course` |
@@ -551,5 +553,124 @@ Authorization: Bearer {token}
   "code": 6000,
   "msg": "课程下存在章节，无法删除",
   "data": []
+}
+```
+
+---
+
+### 3.10 课程订单分页列表
+- 方法：`GET`
+- 路径：`/api/admin/course/order/list`
+
+#### Query 参数
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| pageNum | number | 否 | 页码，默认 `1` |
+| pageSize | number | 否 | 每页条数，默认 `10`，最大 `100` |
+| orderNo | string | 否 | 订单号（精确） |
+| memberId | number | 否 | 用户 ID（精确） |
+| memberPhone | string | 否 | 用户手机号（精确） |
+| memberNickname | string | 否 | 用户昵称（模糊） |
+| courseId | number | 否 | 课程 ID（精确） |
+| courseTitle | string | 否 | 课程标题（模糊） |
+| payType | number | 否 | 支付方式：`1` 微信，`2` 支付宝，`3` 余额，`4` 免费 |
+| payStatus | number | 否 | 支付状态：`0` 待支付，`1` 已支付，`2` 已退款，`3` 已关闭 |
+| beginTime | string | 否 | 创建时间起始 |
+| endTime | string | 否 | 创建时间结束 |
+
+#### 响应示例 JSON
+```json
+{
+  "code": 200,
+  "msg": "查询成功",
+  "total": 1,
+  "rows": [
+    {
+      "orderId": 100000000001,
+      "orderNo": "CO20260308123456123456",
+      "memberId": 10001,
+      "memberPhone": "13800000000",
+      "memberNickname": "张三",
+      "courseId": 20001,
+      "courseTitle": "中医基础入门",
+      "courseCover": "https://cdn.example.com/course-cover.png",
+      "enrollPhone": "13800000000",
+      "enrollAgeRange": "31-40",
+      "paidAmount": "99.00",
+      "payType": 1,
+      "payTypeText": "微信",
+      "payStatus": 1,
+      "payStatusText": "已支付",
+      "payTradeNo": "420000******",
+      "payTime": "2026-03-08 12:30:00",
+      "expireTime": "2026-03-08 12:20:00",
+      "refundStatus": 0,
+      "refundStatusText": "无",
+      "refundAmount": "0.00",
+      "refundReason": null,
+      "refundTime": null,
+      "createdAt": "2026-03-08 11:50:00"
+    }
+  ]
+}
+```
+
+---
+
+### 3.11 课程退款分页列表
+- 方法：`GET`
+- 路径：`/api/admin/course/refund/list`
+- 说明：默认查询 `refund_status != 0` 的退款相关订单。
+
+#### Query 参数
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| pageNum | number | 否 | 页码，默认 `1` |
+| pageSize | number | 否 | 每页条数，默认 `10`，最大 `100` |
+| orderNo | string | 否 | 订单号（精确） |
+| memberId | number | 否 | 用户 ID（精确） |
+| memberPhone | string | 否 | 用户手机号（精确） |
+| memberNickname | string | 否 | 用户昵称（模糊） |
+| courseId | number | 否 | 课程 ID（精确） |
+| courseTitle | string | 否 | 课程标题（模糊） |
+| payType | number | 否 | 支付方式：`1` 微信，`2` 支付宝，`3` 余额，`4` 免费 |
+| refundStatus | number | 否 | 退款状态：`1` 申请中，`2` 已退款，`3` 已拒绝 |
+| beginTime | string | 否 | 退款时间起始 |
+| endTime | string | 否 | 退款时间结束 |
+
+#### 响应示例 JSON
+```json
+{
+  "code": 200,
+  "msg": "查询成功",
+  "total": 1,
+  "rows": [
+    {
+      "orderId": 100000000001,
+      "orderNo": "CO20260308123456123456",
+      "memberId": 10001,
+      "memberPhone": "13800000000",
+      "memberNickname": "张三",
+      "courseId": 20001,
+      "courseTitle": "中医基础入门",
+      "courseCover": "https://cdn.example.com/course-cover.png",
+      "enrollPhone": "13800000000",
+      "enrollAgeRange": "31-40",
+      "paidAmount": "99.00",
+      "payType": 1,
+      "payTypeText": "微信",
+      "payStatus": 2,
+      "payStatusText": "已退款",
+      "payTradeNo": "420000******",
+      "payTime": "2026-03-08 12:30:00",
+      "expireTime": "2026-03-08 12:20:00",
+      "refundStatus": 2,
+      "refundStatusText": "已退款",
+      "refundAmount": "99.00",
+      "refundReason": "用户申请退款",
+      "refundTime": "2026-03-08 13:00:00",
+      "createdAt": "2026-03-08 11:50:00"
+    }
+  ]
 }
 ```

@@ -68,6 +68,9 @@ return [
         'sign_type' => env('WECHAT_PAY_SIGN_TYPE', 'MD5'),
         // 微信支付 v2 API 地址
         'api_base_v2' => env('WECHAT_PAY_API_BASE_V2', 'https://api.mch.weixin.qq.com'),
+        // 微信支付 v2 退款证书（优先读 v2 变量，未配置时回退旧变量）
+        'mch_secret_cert_v2' => env('WECHAT_PAY_MCH_SECRET_CERT_V2', env('WECHAT_PAY_MCH_SECRET_CERT')),
+        'mch_public_cert_path_v2' => env('WECHAT_PAY_MCH_PUBLIC_CERT_PATH_V2', env('WECHAT_PAY_MCH_PUBLIC_CERT_PATH')),
 
         // 以下为历史 v3 配置，当前支付主链路不依赖
         'mch_secret_key' => env('WECHAT_PAY_MCH_SECRET_KEY'),

@@ -26,6 +26,8 @@ Route::middleware('system.auth')->group(function () {
         Route::put('/', [LiveRoomController::class, 'update']);
         // 更改状态
         Route::put('/changeStatus', [LiveRoomController::class, 'changeStatus']);
+        // 发送红包
+        Route::post('/redPacket/send', [LiveRoomController::class, 'sendRedPacket']);
         // 删除-不支持批量删除
         Route::delete('/{roomId}', [LiveRoomController::class, 'destroy'])
             ->where('roomId', '[0-9]+');

@@ -7,6 +7,7 @@
     "require": {
         "php": "^7.3",
         "ext-json": "*",
+        "beyondcode/laravel-websockets": "^1.14",
         "fruitcake/laravel-cors": "^2.0",
         "guzzlehttp/guzzle": "^7.0.1",
         "laravel/framework": "^8.75",
@@ -14,6 +15,7 @@
         "laravel/sanctum": "^2.11",
         "laravel/tinker": "^2.5",
         "mews/captcha": "^3.3",
+        "pusher/pusher-php-server": "^7.2",
         "volcengine/ve-tos-php-sdk": "^2.1",
         "volcengine/volc-sdk-php": "^1.0"
     },

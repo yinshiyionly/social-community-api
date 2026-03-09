@@ -13,6 +13,14 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * 直播间管理服务。
+ *
+ * 核心职责：
+ * 1. 维护直播间基础数据的查询与写入；
+ * 2. 协调第三方直播平台创建房间并回填关键标识；
+ * 3. 处理直播间状态变更、副作用日志和红包消息写入。
+ */
 class LiveRoomService
 {
     /**
@@ -93,6 +101,10 @@ class LiveRoomService
     /**
      * 创建直播间
      *
+     * 关键规则：
+     * 1. 创建前先调用第三方平台生成直播房间；
+     * 2. 创建成功后将 room_cover 等展示字段落库，供 App 列表封面兜底。
+     *
      * @param array $data
      * @return AppLiveRoom
      */
@@ -102,6 +114,7 @@ class LiveRoomService
 
         $roomData = [
             'room_title' => $data['roomTitle'],
+            'room_cover' => $data['roomCover'],
             'live_type' => $liveType,
             'scheduled_start_time' => $data['scheduledStartTime'] ?? null,
             'scheduled_end_time' => $data['scheduledEndTime'] ?? null,

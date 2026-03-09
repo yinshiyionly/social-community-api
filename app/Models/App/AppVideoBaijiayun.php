@@ -38,6 +38,7 @@ class AppVideoBaijiayun extends Model
         'length',
         'width',
         'height',
+        'file_md5',
         'publish_status',
     ];
 

@@ -24,6 +24,7 @@ class CreateAppVideoBaijiayunTable extends Migration
                 length int4 NOT NULL DEFAULT 0,
                 width int4 NOT NULL DEFAULT 0,
                 height int4 NOT NULL DEFAULT 0,
+                file_md5 text NULL,
                 publish_status int2 NOT NULL DEFAULT 0,
                 created_at timestamp(0) NULL,
                 updated_at timestamp(0) NULL,
@@ -42,12 +43,13 @@ class CreateAppVideoBaijiayunTable extends Migration
         DB::statement("COMMENT ON COLUMN app_video_baijiayun.length IS '视频时长（秒）'");
         DB::statement("COMMENT ON COLUMN app_video_baijiayun.width IS '视频宽度'");
         DB::statement("COMMENT ON COLUMN app_video_baijiayun.height IS '视频高度'");
+        DB::statement("COMMENT ON COLUMN app_video_baijiayun.file_md5 IS '视频文件md5值'");
         DB::statement("COMMENT ON COLUMN app_video_baijiayun.publish_status IS '发布状态：0=未发布 1=已发布'");
 
         // 索引
         DB::statement('CREATE INDEX idx_app_video_baijiayun_video_id ON app_video_baijiayun (video_id)');
         DB::statement('CREATE INDEX idx_app_video_baijiayun_status ON app_video_baijiayun (status)');
-        DB::statement('CREATE INDEX idx_app_video_baijiayun_publish_status ON app_video_baijiayun (publish_status)');
+        DB::statement('CREATE INDEX idx_app_video_baijiayun_file_md5 ON app_video_baijiayun (file_md5)');
 
         DB::statement("COMMENT ON TABLE app_video_baijiayun IS '百家云视频表'");
     }

@@ -121,15 +121,16 @@ class LiveRoomController extends Controller
                 'scheduledEndTime' => $request->input('scheduledEndTime'),
             ];
 
-            $this->liveRoomService->create($data);
+            // $this->liveRoomService->create($data);
+            $result = $this->liveRoomService->createMockRoom($request->all());
 
-            return ApiResponse::success([], '新增成功');
+            return ApiResponse::success(['data' => $result['data']], '新增成功');
         } catch (\Exception $e) {
             Log::error('直播间操作失败', [
                 'action' => 'store',
                 'error' => $e->getMessage(),
             ]);
-            return ApiResponse::error('操作失败，请稍后重试');
+            return ApiResponse::error('操作失败，请稍后重试' . $e->getMessage() . $e->getFile() . $e->getLine());
         }
     }
 
@@ -184,7 +185,7 @@ class LiveRoomController extends Controller
     public function destroy($roomId)
     {
         try {
-            $roomId = (int) $roomId;
+            $roomId = (int)$roomId;
 
             // 直播间是否被直播课程章节关联使用
             if ($this->liveRoomService->isUsedByLiveCourseChapter($roomId)) {
@@ -267,5 +268,10 @@ class LiveRoomController extends Controller
             ]);
             return ApiResponse::error('操作失败，请稍后重试');
         }
+    }
+
+    public function classCallback(Request $request)
+    {
+        Log::info('直播间上下课回调', ['params' => $request->all()]);
     }
 }

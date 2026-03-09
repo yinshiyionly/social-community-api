@@ -12,6 +12,15 @@ use App\Http\Controllers\Admin\LiveRoomController;
 |
 */
 
+/**
+ * 不需要鉴权的接口
+ */
+// 处理直播上下课回调
+Route::post('live/classCallback', [LiveRoomController::class, 'classCallback']);
+
+/**
+ * 需要鉴权的接口
+ */
 Route::middleware('system.auth')->group(function () {
 
     // 直播间管理

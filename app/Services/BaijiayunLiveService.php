@@ -332,6 +332,27 @@ class BaijiayunLiveService
         return $this->sendRequest('/openapi/video_account/getTranscodeCallbackUrl');
     }
 
+    /**
+     * 回放相关
+     */
+
+    /**
+     * 获取回放列表
+     * @see https://dev.baijiayun.com/wiki/detail/6#-h2-4
+     *
+     * @param int $page
+     * @param int $pageSize
+     * @return array
+     */
+    public function playbackGetList(int $page, int $pageSize): array
+    {
+        $params = [
+            'product_type' => 1, // 教育直播
+            'page' => $page,
+            'page_size' => $pageSize
+        ];
+        return $this->sendRequest('openapi/playback/getList', $params);
+    }
 
     /**
      * 生成用户令牌

@@ -18,7 +18,7 @@ class LiveRoomStoreRequest extends FormRequest
         $rules = [
             'roomTitle'          => 'required|string|max:200',
             'liveType'           => 'required|integer|in:1,2',
-            'roomCover'          => 'nullable|string|max:500',
+            'roomCover'          => 'required|string|max:500',
             'roomIntro'          => 'nullable|string|max:5000',
             'anchorName'         => 'nullable|string|max:100',
             'anchorAvatar'       => 'nullable|string|max:500',
@@ -43,6 +43,7 @@ class LiveRoomStoreRequest extends FormRequest
             'roomTitle.max'                => '直播间标题不能超过200个字符',
             'liveType.required'            => '直播类型不能为空',
             'liveType.in'                  => '直播类型值无效',
+            'roomCover.required'           => '直播封面不能为空',
             'roomCover.max'                => '封面地址不能超过500个字符',
             'roomIntro.max'                => '简介不能超过5000个字符',
             'anchorName.max'               => '主播名称不能超过100个字符',

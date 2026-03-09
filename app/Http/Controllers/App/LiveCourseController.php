@@ -5,9 +5,9 @@ namespace App\Http\Controllers\App;
 use App\Constant\AppResponseCode;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\App\AppApiResponse;
-use App\Models\App\AppChapterContentLive;
 use App\Models\App\AppCourseBase;
 use App\Models\App\AppCourseChapter;
+use App\Models\App\AppLiveRoom;
 use App\Models\App\AppMemberCourse;
 use App\Models\App\AppMemberSchedule;
 use App\Services\App\LearningCenterService;
@@ -58,7 +58,23 @@ class LiveCourseController extends Controller
     }
 
     /**
-     * 获取直播首页数据
+     * 获取直播首页数据。
+     *
+     * 接口用途：
+     * - App 直播页按 tab 返回预告/回放列表，并返回顶部 latest 卡片。
+     *
+     * 关键输入：
+     * - tab：`upcoming`（预告）或 `replay`（回放）；
+     * - page/pageSize：分页参数，pageSize 使用固定上限保护。
+     *
+     * 关键输出：
+     * - id 使用直播间 `room_id`；
+     * - 预告场景 `reserveCount/isReserved` 为占位值 `0/false`；
+     * - 回放场景 `replayUrl` 当前固定返回空串。
+     *
+     * 失败策略：
+     * - 参数非法返回业务错误；
+     * - 运行异常仅记录日志并返回通用服务错误，避免暴露内部细节。
      */
     public function home(Request $request)
     {
@@ -83,21 +99,13 @@ class LiveCourseController extends Controller
 
             $latestRow = $this->getLatestLiveRow();
             $rows = collect($paginator->items());
-
-            $courseIds = $rows->pluck('course_id');
-            if ($latestRow && isset($latestRow->course_id)) {
-                $courseIds->push((int)$latestRow->course_id);
-            }
-            $reservedCourseIds = $this->getReservedCourseIds($memberId, $courseIds->unique()->values()->all());
-
-            $list = [];
-            foreach ($rows as $row) {
-                $list[] = $this->formatLiveItem($row, $reservedCourseIds);
-            }
+            $list = $rows->map(function ($row) {
+                return $this->formatLiveItem($row);
+            })->values()->all();
 
             return AppApiResponse::success([
                 'data' => [
-                    'latest' => $latestRow ? $this->formatLiveItem($latestRow, $reservedCourseIds) : null,
+                    'latest' => $latestRow ? $this->formatLiveItem($latestRow) : null,
                     'tab' => $tab,
                     'list' => $list,
                     'total' => $paginator->total(),
@@ -123,7 +131,7 @@ class LiveCourseController extends Controller
      * 预约直播。
      *
      * 关键规则：
-     * 1. liveId 使用直播首页返回的章节ID（chapter_id）；
+     * 1. 当前仍使用课程章节维度预约，liveId 传章节ID（chapter_id）；
      * 2. 幂等键为 member_id + course_id，同一用户重复调用不重复累加预约数；
      * 3. 仅在首次预约或从取消态恢复时增加 reserveCount。
      *
@@ -177,7 +185,7 @@ class LiveCourseController extends Controller
      * 取消预约直播。
      *
      * 关键规则：
-     * 1. liveId 使用直播首页返回的章节ID（chapter_id）；
+     * 1. 当前仍使用课程章节维度预约，liveId 传章节ID（chapter_id）；
      * 2. 幂等键为 member_id + course_id，重复取消不会重复扣减 reserveCount；
      * 3. 仅允许取消“预约产生”的记录，不影响购买/领取课程。
      *
@@ -230,45 +238,33 @@ class LiveCourseController extends Controller
     }
 
     /**
-     * 构建直播首页基础查询
+     * 构建直播首页基础查询（直播表直查）。
+     *
+     * 设计约束：
+     * - 仅依赖直播域数据表 `app_live_room/app_live_room_stat`；
+     * - 仅返回启用且未删除的直播间；
+     * - 统一生成 start_time 与 replay_sort_time，避免各分支重复拼装排序字段。
      */
     protected function buildHomeBaseQuery()
     {
-        return DB::table('app_course_chapter as ch')
-            ->join('app_course_base as c', function ($join) {
-                $join->on('c.course_id', '=', 'ch.course_id')
-                    ->whereNull('c.deleted_at');
-            })
-            ->join('app_chapter_content_live as l', function ($join) {
-                $join->on('l.chapter_id', '=', 'ch.chapter_id')
-                    ->whereNull('l.deleted_at');
-            })
-            ->leftJoin('app_live_room_stat as rs', 'rs.room_id', '=', 'l.live_room_id')
-            ->whereNull('ch.deleted_at')
-            ->where('ch.status', AppCourseChapter::STATUS_ONLINE)
-            ->where('c.play_type', AppCourseBase::PLAY_TYPE_LIVE)
-            ->where('c.status', AppCourseBase::STATUS_ONLINE)
+        return DB::table('app_live_room as r')
+            ->leftJoin('app_live_room_stat as rs', 'rs.room_id', '=', 'r.room_id')
+            ->whereNull('r.deleted_at')
+            ->where('r.status', AppLiveRoom::STATUS_ENABLED)
             ->select([
-                'ch.chapter_id as id',
-                'ch.course_id as course_id',
-                'ch.chapter_title as title',
-                'ch.cover_image as chapter_cover',
-                'ch.chapter_start_time',
-                'ch.chapter_end_time',
-                'ch.view_count as chapter_view_count',
-                'c.cover_image as course_cover',
-                'c.enroll_count as course_enroll_count',
-                'c.view_count as course_view_count',
-                'l.live_cover',
-                'l.live_start_time',
-                'l.live_end_time',
-                'l.live_status',
-                'l.has_playback',
-                'l.playback_url',
-                'l.playback_duration',
-                'l.live_room_id',
+                'r.room_id as id',
+                'r.room_title as title',
+                'r.room_cover',
+                'r.live_status',
+                'r.live_duration',
+                'r.scheduled_start_time',
+                'r.scheduled_end_time',
+                'r.actual_start_time',
+                'r.actual_end_time',
+                'r.created_at',
                 'rs.total_viewer_count',
-                DB::raw('COALESCE(l.live_start_time, ch.chapter_start_time) as start_time'),
+                DB::raw('COALESCE(r.actual_start_time, r.scheduled_start_time) as start_time'),
+                DB::raw('COALESCE(r.actual_end_time, r.scheduled_end_time, r.actual_start_time, r.scheduled_start_time, r.created_at) as replay_sort_time'),
             ]);
     }
 
@@ -281,49 +277,46 @@ class LiveCourseController extends Controller
     protected function applyTabFilter($query, string $tab): void
     {
         if ($tab === self::TAB_UPCOMING) {
-            $query->whereIn('l.live_status', [
-                AppChapterContentLive::LIVE_STATUS_LIVING,
-                AppChapterContentLive::LIVE_STATUS_NOT_STARTED,
+            $query->whereIn('r.live_status', [
+                AppLiveRoom::LIVE_STATUS_LIVING,
+                AppLiveRoom::LIVE_STATUS_NOT_STARTED,
             ])->orderByRaw(
-                'CASE WHEN l.live_status = ? THEN 0 ELSE 1 END',
-                [AppChapterContentLive::LIVE_STATUS_LIVING]
+                'CASE WHEN r.live_status = ? THEN 0 ELSE 1 END',
+                [AppLiveRoom::LIVE_STATUS_LIVING]
             )->orderBy('start_time', 'asc')
-                ->orderBy('ch.chapter_id', 'desc');
+                ->orderByDesc('r.room_id');
 
             return;
         }
 
-        $query->whereNotIn('l.live_status', [
-            AppChapterContentLive::LIVE_STATUS_NOT_STARTED,
-            AppChapterContentLive::LIVE_STATUS_LIVING,
-        ])->where(function ($q) {
-            $q->where('l.has_playback', 1)
-                ->orWhere(function ($sub) {
-                    $sub->whereNotNull('l.playback_url')
-                        ->where('l.playback_url', '<>', '');
-                });
-        })->orderBy('start_time', 'desc')
-            ->orderBy('ch.chapter_id', 'desc');
+        $query->whereIn('r.live_status', [
+            AppLiveRoom::LIVE_STATUS_ENDED,
+            AppLiveRoom::LIVE_STATUS_CANCELLED,
+        ])->orderBy('replay_sort_time', 'desc')
+            ->orderByDesc('r.room_id');
     }
 
     /**
      * 获取顶部 latest 卡片
      *
-     * 优先：直播中/未开始；其次：有回放；最后：任意最近一条。
+     * 优先级：
+     * 1. 直播中/未开始；
+     * 2. 已结束/已取消；
+     * 3. 任意最近一条。
      */
     protected function getLatestLiveRow()
     {
         $activeRow = $this->buildHomeBaseQuery()
-            ->whereIn('l.live_status', [
-                AppChapterContentLive::LIVE_STATUS_LIVING,
-                AppChapterContentLive::LIVE_STATUS_NOT_STARTED,
+            ->whereIn('r.live_status', [
+                AppLiveRoom::LIVE_STATUS_LIVING,
+                AppLiveRoom::LIVE_STATUS_NOT_STARTED,
             ])
             ->orderByRaw(
-                'CASE WHEN l.live_status = ? THEN 0 ELSE 1 END',
-                [AppChapterContentLive::LIVE_STATUS_LIVING]
+                'CASE WHEN r.live_status = ? THEN 0 ELSE 1 END',
+                [AppLiveRoom::LIVE_STATUS_LIVING]
             )
             ->orderBy('start_time', 'asc')
-            ->orderBy('ch.chapter_id', 'desc')
+            ->orderByDesc('r.room_id')
             ->first();
 
         if ($activeRow) {
@@ -331,18 +324,12 @@ class LiveCourseController extends Controller
         }
 
         $replayRow = $this->buildHomeBaseQuery()
-            ->whereNotIn('l.live_status', [
-                AppChapterContentLive::LIVE_STATUS_NOT_STARTED,
-                AppChapterContentLive::LIVE_STATUS_LIVING,
-            ])->where(function ($q) {
-                $q->where('l.has_playback', 1)
-                    ->orWhere(function ($sub) {
-                        $sub->whereNotNull('l.playback_url')
-                            ->where('l.playback_url', '<>', '');
-                    });
-            })
-            ->orderBy('start_time', 'desc')
-            ->orderBy('ch.chapter_id', 'desc')
+            ->whereIn('r.live_status', [
+                AppLiveRoom::LIVE_STATUS_ENDED,
+                AppLiveRoom::LIVE_STATUS_CANCELLED,
+            ])
+            ->orderBy('replay_sort_time', 'desc')
+            ->orderByDesc('r.room_id')
             ->first();
 
         if ($replayRow) {
@@ -350,8 +337,8 @@ class LiveCourseController extends Controller
         }
 
         return $this->buildHomeBaseQuery()
-            ->orderBy('start_time', 'desc')
-            ->orderBy('ch.chapter_id', 'desc')
+            ->orderBy('replay_sort_time', 'desc')
+            ->orderByDesc('r.room_id')
             ->first();
     }
 
@@ -541,42 +528,14 @@ class LiveCourseController extends Controller
     }
 
     /**
-     * 获取当前用户已预约（已拥有课程）列表
-     *
-     * @param int $memberId
-     * @param array $courseIds
-     * @return array
-     */
-    protected function getReservedCourseIds(int $memberId, array $courseIds): array
-    {
-        if ($memberId <= 0 || empty($courseIds)) {
-            return [];
-        }
-
-        return DB::table('app_member_course')
-            ->where('member_id', $memberId)
-            ->where('is_expired', 0)
-            ->whereNull('deleted_at')
-            ->whereIn('course_id', $courseIds)
-            ->pluck('course_id')
-            ->map(function ($id) {
-                return (int)$id;
-            })
-            ->all();
-    }
-
-    /**
      * 格式化单条直播数据
      *
      * @param object $row
-     * @param array $reservedCourseIds
      * @return array
      */
-    protected function formatLiveItem($row, array $reservedCourseIds): array
+    protected function formatLiveItem($row): array
     {
         $status = $this->mapLiveStatus($row);
-        $courseId = (int)($row->course_id ?? 0);
-        $isReserved = in_array($courseId, $reservedCourseIds, true);
 
         $item = [
             'id' => (int)($row->id ?? 0),
@@ -584,29 +543,35 @@ class LiveCourseController extends Controller
             'cover' => $this->buildCoverUrl($row),
             'startTime' => $this->formatDateTime($row->start_time ?? null),
             'status' => $status,
-            'actionText' => $this->buildActionText($status, $isReserved),
+            'actionText' => $this->buildActionText($status, false),
         ];
 
         if ($status === 'replay') {
             $item['watchCount'] = $this->buildWatchCount($row);
             $item['durationSec'] = $this->buildDurationSec($row);
-            $item['replayUrl'] = (string)($row->playback_url ?? '');
+            // 直播表直查阶段先返回空串，后续接回放聚合链路再补齐地址。
+            $item['replayUrl'] = '';
 
             return $item;
         }
 
-        $item['reserveCount'] = (int)($row->course_enroll_count ?? 0);
-        $item['isReserved'] = $isReserved;
+        // 当前首页不再关联课程预约关系，预约字段先使用占位值。
+        $item['reserveCount'] = 0;
+        $item['isReserved'] = false;
 
         return $item;
     }
 
     /**
      * 构建封面 URL
+     *
+     * 优先级：
+     * 1. 直播间封面 room_cover；
+     * 2. 历史兼容字段 live_cover/chapter_cover/course_cover（仅兜底）。
      */
     protected function buildCoverUrl($row): string
     {
-        $cover = (string)(($row->live_cover ?? '') ?: (($row->chapter_cover ?? '') ?: (($row->course_cover ?? '') ?: '')));
+        $cover = (string)(($row->room_cover ?? '') ?: (($row->live_cover ?? '') ?: (($row->chapter_cover ?? '') ?: (($row->course_cover ?? '') ?: ''))));
         if ($cover === '') {
             return '';
         }
@@ -623,18 +588,20 @@ class LiveCourseController extends Controller
      */
     protected function mapLiveStatus($row): string
     {
-        $liveStatus = (int)($row->live_status ?? AppChapterContentLive::LIVE_STATUS_NOT_STARTED);
-        $hasReplay = (int)($row->has_playback ?? 0) === 1 || !empty($row->playback_url);
+        $liveStatus = (int)($row->live_status ?? AppLiveRoom::LIVE_STATUS_NOT_STARTED);
 
-        if ($liveStatus === AppChapterContentLive::LIVE_STATUS_LIVING) {
+        if ($liveStatus === AppLiveRoom::LIVE_STATUS_LIVING) {
             return 'live';
         }
 
-        if ($liveStatus === AppChapterContentLive::LIVE_STATUS_NOT_STARTED) {
+        if ($liveStatus === AppLiveRoom::LIVE_STATUS_NOT_STARTED) {
             return 'upcoming';
         }
 
-        if ($hasReplay) {
+        if (in_array($liveStatus, [
+            AppLiveRoom::LIVE_STATUS_ENDED,
+            AppLiveRoom::LIVE_STATUS_CANCELLED,
+        ], true)) {
             return 'replay';
         }
 
@@ -666,16 +633,7 @@ class LiveCourseController extends Controller
      */
     protected function buildWatchCount($row): int
     {
-        $watchCount = $row->total_viewer_count ?? null;
-        if ($watchCount !== null) {
-            return (int)$watchCount;
-        }
-
-        if ($row->chapter_view_count !== null) {
-            return (int)$row->chapter_view_count;
-        }
-
-        return (int)($row->course_view_count ?? 0);
+        return (int)($row->total_viewer_count ?? 0);
     }
 
     /**
@@ -683,18 +641,19 @@ class LiveCourseController extends Controller
      */
     protected function buildDurationSec($row): int
     {
-        $duration = (int)($row->playback_duration ?? 0);
+        $duration = (int)($row->live_duration ?? 0);
         if ($duration > 0) {
-            return $duration;
+            // live_duration 单位为分钟，接口返回秒。
+            return $duration * 60;
         }
 
         try {
-            if (!empty($row->live_start_time) && !empty($row->live_end_time)) {
-                return Carbon::parse($row->live_end_time)->diffInSeconds(Carbon::parse($row->live_start_time));
+            if (!empty($row->actual_start_time) && !empty($row->actual_end_time)) {
+                return Carbon::parse($row->actual_end_time)->diffInSeconds(Carbon::parse($row->actual_start_time));
             }
 
-            if (!empty($row->chapter_start_time) && !empty($row->chapter_end_time)) {
-                return Carbon::parse($row->chapter_end_time)->diffInSeconds(Carbon::parse($row->chapter_start_time));
+            if (!empty($row->scheduled_start_time) && !empty($row->scheduled_end_time)) {
+                return Carbon::parse($row->scheduled_end_time)->diffInSeconds(Carbon::parse($row->scheduled_start_time));
             }
         } catch (\Exception $e) {
             // 数据异常时返回 0

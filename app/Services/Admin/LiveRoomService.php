@@ -165,6 +165,73 @@ class LiveRoomService
     }
 
     /**
+     * 创建伪直播房间-选择点播
+     *
+     * @param array $data
+     * @return array
+     */
+    public function createMockRoom(array $data): array
+    {
+        // 1. 实例化百家云服务
+        $service = new BaijiayunLiveService();
+        // 2. 调用创建房间服务
+        $createRoomResult = $service->createRoom(
+            $data['roomTitle'],
+            $data['scheduledStartTime'],
+            $data['scheduledEndTime'],
+            [
+                'is_mock_live' => 1, // 是伪直播
+                'mock_video_id' => $data['mockVideoId']
+            ]
+        );
+        // 3. 伪直播房间创建失败
+        if (empty($createRoomResult['success']) || empty($createRoomResult['data'])) {
+            return [
+                'success' => false,
+                'error' => sprintf("直播间[%s]创建失败,错误原因: %s", $data['roomTitle'], $createRoomResult['error_message']),
+                'data' => []
+            ];
+        }
+        $roomData = [
+            // 直播间标题
+            'room_title' => $data['roomTitle'] ?? '',
+            // 直播间封面
+            'room_cover' => $data['roomCover'] ?? '',
+            // 直播类型 2=伪直播
+            'liveType' => 2,
+            // 直播开始时间
+            'scheduled_start_time' => $data['scheduledStartTime'],
+            // 直播结束时间
+            'scheduled_end_time' => $data['scheduledEndTime'],
+
+            'third_party_room_id' => $createRoomResult['data']['room_id'] ?? 0,
+            'student_code' => $createRoomResult['data']['student_code'] ?? 0,
+            'admin_code' => $createRoomResult['data']['admin_code'] ?? 0,
+            'teacher_code' => $createRoomResult['data']['teacher_code'] ?? 0,
+        ];
+
+        // 4. 创建房间成功后将有用的返回信息保存数据库
+        try {
+            $room = AppLiveRoom::query()->create($roomData);
+            // TODO 初始化统计记录
+            /*AppLiveRoomStat::query()->create([
+                'room_id' => $room->room_id,
+            ]);*/
+            return [
+                'success' => true,
+                'error' => '',
+                'data' => $createRoomResult['data']
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'error' => sprintf("直播间[%s]创建失败,错误原因: %s", $data['roomTitle'], $e->getMessage()),
+                'data' => []
+            ];
+        }
+    }
+
+    /**
      * 更新直播间
      *
      * @param int $roomId
@@ -275,7 +342,7 @@ class LiveRoomService
             ->where('c.play_type', AppCourseBase::PLAY_TYPE_LIVE)
             ->where(function ($query) use ($roomId) {
                 $query->where('l.room_id', $roomId)
-                    ->orWhere('l.live_room_id', (string) $roomId);
+                    ->orWhere('l.live_room_id', (string)$roomId);
             })
             ->exists();
     }

@@ -10,6 +10,7 @@ use App\Http\Requests\Admin\LiveRoomUpdateRequest;
 use App\Http\Resources\ApiResponse;
 use App\Http\Resources\Admin\LiveRoomResource;
 use App\Http\Resources\Admin\LiveRoomListResource;
+use App\Models\App\AppLiveRoom;
 use App\Services\Admin\LiveRoomService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -123,6 +124,10 @@ class LiveRoomController extends Controller
 
             // $this->liveRoomService->create($data);
             $result = $this->liveRoomService->createMockRoom($request->all());
+
+            if ($result['success'] === false) {
+                return ApiResponse::error($result['error']);
+            }
 
             return ApiResponse::success(['data' => $result['data']], '新增成功');
         } catch (\Exception $e) {
@@ -270,8 +275,61 @@ class LiveRoomController extends Controller
         }
     }
 
+    /**
+     * 直播教室上下课事件回调
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function classCallback(Request $request)
     {
-        Log::info('直播间上下课回调', ['params' => $request->all()]);
+        // 1. 获取参数
+        $params = $request->all();
+        // 参数中没有 room_id
+        if (!isset($params['room_id'])) {
+            return response()->json(['code' => 0]);
+        }
+        // 参数中没有携带 op
+        if (!isset($params['op'])) {
+            return response()->json(['code' => 0]);
+        }
+
+        $update = [];
+
+        // 操作类型 具体 @see https://dev.baijiayun.com/wiki/detail/79#-h162-165
+        // 上课 start
+        // 下课 end
+        // 禁用直播间 forbidden
+        // 老师进出教室 teacher_in
+        // 老师退出教室 teacher_out
+        // 上课时长更新 stat
+        switch ($params['op']) {
+            case 'start':
+                Log::info('直播教室回调-上课', ['params' => $params]);
+                // 1. TODO WebSocket 事件
+                // 2. 组建更新数据
+                $update = [
+                    'live_status' => AppLiveRoom::LIVE_STATUS_LIVING
+                ];
+                break;
+            case 'end':
+                Log::error('直播教室回调-下课', ['params' => $params]);
+                // 1. TODO WebSocket 事件
+                // 2. 组建更新数据
+                $update = [
+                    'live_status' => AppLiveRoom::LIVE_STATUS_ENDED
+                ];
+                break;
+        }
+        // 更新数据表中该直播间的状态
+        try {
+            if (!empty($update)) {
+                AppLiveRoom::query()->where(['third_party_room_id' => $params['room_id']])
+                    ->update($update);
+            }
+        } catch (\Exception $e) {
+            Log::error('直播教室回调-更新直播数据表失败: ' . $e->getMessage(), ['params' => $params, 'update' => $update]);
+        }
+        return response()->json(['code' => 0]);
     }
 }

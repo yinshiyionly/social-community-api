@@ -55,10 +55,7 @@ class BaijiayunLiveService
     {
         // 这是旧的-阿里云-触极科技主体的回调地址
         // https://api.tcscrm.hnchuji.cn/api/live/handle-class-event-callback
-        $params = [
-            'timestamp' => time()
-        ];
-        return $this->sendRequest('/openapi/live_account/getClassCallbackUrl', $params);
+        return $this->sendRequest('/openapi/live_account/getClassCallbackUrl');
     }
 
     /**
@@ -69,8 +66,7 @@ class BaijiayunLiveService
     public function liveAccountSetClassCallbackUrl()
     {
         $params = [
-            'url' => '',
-            'timestamp' => time()
+            'url' => env('APP_URL') . '/api/admin/live/classCallback'
         ];
         return $this->sendRequest('/openapi/live_account/setClassCallbackUrl', $params);
     }
@@ -94,7 +90,7 @@ class BaijiayunLiveService
             // 下课时间, unix时间戳（秒），系统做统一化处理，格式化为结束分钟
             'end_time' => Carbon::make($endTime)->endOfMinute()->timestamp,
             // 当前unix时间戳（秒）
-            'timestamp' => time(),
+            // 'timestamp' => time(),
             // 1:一对一课（老的班型，老账号支持） 2:普通大班课 3:小班课普通版（老的班型，老账号支持）
             'type' => 2,
             // 代表普通大班课最大人数, 不传或传0表示不限制。
@@ -150,7 +146,7 @@ class BaijiayunLiveService
             // 下课时间, unix时间戳（秒），系统做统一化处理，格式化为结束分钟
             'end_time' => Carbon::make($endTime)->endOfMinute()->timestamp,
             // 当前unix时间戳（秒）
-            'timestamp' => time(),
+            // 'timestamp' => time(),
             // 1:一对一课（老的班型，老账号支持） 2:普通大班课 3:小班课普通版（老的班型，老账号支持）
             'type' => 2,
             // 代表普通大班课最大人数, 不传或传0表示不限制。

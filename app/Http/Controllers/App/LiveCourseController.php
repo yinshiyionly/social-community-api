@@ -5,12 +5,9 @@ namespace App\Http\Controllers\App;
 use App\Constant\AppResponseCode;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\App\AppApiResponse;
-use App\Models\App\AppCourseBase;
-use App\Models\App\AppCourseChapter;
 use App\Models\App\AppLiveRoom;
-use App\Models\App\AppMemberCourse;
-use App\Models\App\AppMemberSchedule;
-use App\Services\App\LearningCenterService;
+use App\Models\App\AppLiveRoomReserve;
+use App\Models\App\AppLiveRoomStat;
 use App\Services\AppFileUploadService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -18,7 +15,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * 直播控制器
+ * App 端直播首页与预约控制器。
+ *
+ * 职责：
+ * 1. 输出直播首页 latest 与分 tab 列表；
+ * 2. 处理会员对直播间的预约/取消预约；
+ * 3. 统一组装直播卡片字段，保证首页与操作返回口径一致。
  */
 class LiveCourseController extends Controller
 {
@@ -32,18 +34,9 @@ class LiveCourseController extends Controller
      */
     protected $fileUploadService;
 
-    /**
-     * @var LearningCenterService
-     */
-    protected $learningCenterService;
-
-    public function __construct(
-        AppFileUploadService $fileUploadService,
-        LearningCenterService $learningCenterService
-    )
+    public function __construct(AppFileUploadService $fileUploadService)
     {
         $this->fileUploadService = $fileUploadService;
-        $this->learningCenterService = $learningCenterService;
     }
 
     /**
@@ -69,7 +62,7 @@ class LiveCourseController extends Controller
      *
      * 关键输出：
      * - id 使用直播间 `room_id`；
-     * - 预告场景 `reserveCount/isReserved` 为占位值 `0/false`；
+     * - 预告/直播中场景 `reserveCount/isReserved` 来自直播域数据表；
      * - 回放场景 `replayUrl` 当前固定返回空串。
      *
      * 失败策略：
@@ -93,11 +86,11 @@ class LiveCourseController extends Controller
         $memberId = $this->getMemberId($request);
 
         try {
-            $listQuery = $this->buildHomeBaseQuery();
+            $listQuery = $this->buildHomeBaseQuery($memberId);
             $this->applyTabFilter($listQuery, $tab);
             $paginator = $listQuery->paginate($pageSize, ['*'], 'page', $page);
 
-            $latestRow = $this->getLatestLiveRow();
+            $latestRow = $this->getLatestLiveRow($memberId);
             $rows = collect($paginator->items());
             $list = $rows->map(function ($row) {
                 return $this->formatLiveItem($row);
@@ -131,8 +124,8 @@ class LiveCourseController extends Controller
      * 预约直播。
      *
      * 关键规则：
-     * 1. 当前仍使用课程章节维度预约，liveId 传章节ID（chapter_id）；
-     * 2. 幂等键为 member_id + course_id，同一用户重复调用不重复累加预约数；
+     * 1. liveId 字段保持兼容，但语义已切换为直播间ID（room_id）；
+     * 2. 幂等键为 member_id + room_id，同一用户重复调用不重复累加预约数；
      * 3. 仅在首次预约或从取消态恢复时增加 reserveCount。
      *
      * @param Request $request
@@ -150,14 +143,9 @@ class LiveCourseController extends Controller
             return AppApiResponse::unauthorized();
         }
 
-        $liveCourse = $this->findReserveLiveCourse($liveId);
-        if (!$liveCourse) {
-            return AppApiResponse::dataNotFound('直播不存在');
-        }
-
         try {
-            $reserveCount = DB::transaction(function () use ($memberId, $liveCourse) {
-                return $this->reserveLiveCourse($memberId, (int)$liveCourse->course_id);
+            $reserveCount = DB::transaction(function () use ($memberId, $liveId) {
+                return $this->reserveLiveRoom($memberId, $liveId);
             });
 
             return AppApiResponse::success([
@@ -171,9 +159,8 @@ class LiveCourseController extends Controller
             return AppApiResponse::dataNotFound($e->getMessage());
         } catch (\Exception $e) {
             Log::error('预约直播失败', [
-                'live_id' => $liveId,
+                'room_id' => $liveId,
                 'member_id' => $memberId,
-                'course_id' => (int)$liveCourse->course_id,
                 'error' => $e->getMessage(),
             ]);
 
@@ -185,9 +172,9 @@ class LiveCourseController extends Controller
      * 取消预约直播。
      *
      * 关键规则：
-     * 1. 当前仍使用课程章节维度预约，liveId 传章节ID（chapter_id）；
-     * 2. 幂等键为 member_id + course_id，重复取消不会重复扣减 reserveCount；
-     * 3. 仅允许取消“预约产生”的记录，不影响购买/领取课程。
+     * 1. liveId 字段保持兼容，但语义已切换为直播间ID（room_id）；
+     * 2. 幂等键为 member_id + room_id，重复取消不会重复扣减 reserveCount；
+     * 3. 无预约记录或已取消记录按幂等成功处理，不抛错。
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -204,14 +191,9 @@ class LiveCourseController extends Controller
             return AppApiResponse::unauthorized();
         }
 
-        $liveCourse = $this->findReserveLiveCourse($liveId);
-        if (!$liveCourse) {
-            return AppApiResponse::dataNotFound('直播不存在');
-        }
-
         try {
-            $reserveCount = DB::transaction(function () use ($memberId, $liveCourse) {
-                return $this->unreserveLiveCourse($memberId, (int)$liveCourse->course_id);
+            $reserveCount = DB::transaction(function () use ($memberId, $liveId) {
+                return $this->unreserveLiveRoom($memberId, $liveId);
             });
 
             return AppApiResponse::success([
@@ -223,13 +205,10 @@ class LiveCourseController extends Controller
             ]);
         } catch (\DomainException $e) {
             return AppApiResponse::dataNotFound($e->getMessage());
-        } catch (\LogicException $e) {
-            return AppApiResponse::error($e->getMessage(), AppResponseCode::BUSINESS_ERROR);
         } catch (\Exception $e) {
             Log::error('取消预约直播失败', [
-                'live_id' => $liveId,
+                'room_id' => $liveId,
                 'member_id' => $memberId,
-                'course_id' => (int)$liveCourse->course_id,
                 'error' => $e->getMessage(),
             ]);
 
@@ -242,30 +221,48 @@ class LiveCourseController extends Controller
      *
      * 设计约束：
      * - 仅依赖直播域数据表 `app_live_room/app_live_room_stat`；
+     * - 登录态下追加 member_id 维度的预约态查询，未登录统一返回未预约；
      * - 仅返回启用且未删除的直播间；
      * - 统一生成 start_time 与 replay_sort_time，避免各分支重复拼装排序字段。
+     *
+     * @param int $memberId
      */
-    protected function buildHomeBaseQuery()
+    protected function buildHomeBaseQuery(int $memberId)
     {
-        return DB::table('app_live_room as r')
+        $query = DB::table('app_live_room as r')
             ->leftJoin('app_live_room_stat as rs', 'rs.room_id', '=', 'r.room_id')
             ->whereNull('r.deleted_at')
-            ->where('r.status', AppLiveRoom::STATUS_ENABLED)
-            ->select([
-                'r.room_id as id',
-                'r.room_title as title',
-                'r.room_cover',
-                'r.live_status',
-                'r.live_duration',
-                'r.scheduled_start_time',
-                'r.scheduled_end_time',
-                'r.actual_start_time',
-                'r.actual_end_time',
-                'r.created_at',
-                'rs.total_viewer_count',
-                DB::raw('COALESCE(r.actual_start_time, r.scheduled_start_time) as start_time'),
-                DB::raw('COALESCE(r.actual_end_time, r.scheduled_end_time, r.actual_start_time, r.scheduled_start_time, r.created_at) as replay_sort_time'),
-            ]);
+            ->where('r.status', AppLiveRoom::STATUS_ENABLED);
+
+        $selectFields = [
+            'r.room_id as id',
+            'r.room_title as title',
+            'r.room_cover',
+            'r.live_status',
+            'r.live_duration',
+            'r.scheduled_start_time',
+            'r.scheduled_end_time',
+            'r.actual_start_time',
+            'r.actual_end_time',
+            'r.created_at',
+            'rs.total_viewer_count',
+            DB::raw('COALESCE(rs.reserve_count, 0) as reserve_count'),
+            DB::raw('COALESCE(r.actual_start_time, r.scheduled_start_time) as start_time'),
+            DB::raw('COALESCE(r.actual_end_time, r.scheduled_end_time, r.actual_start_time, r.scheduled_start_time, r.created_at) as replay_sort_time'),
+        ];
+
+        if ($memberId > 0) {
+            $query->leftJoin('app_live_room_reserve as rr', function ($join) use ($memberId) {
+                $join->on('rr.room_id', '=', 'r.room_id')
+                    ->where('rr.member_id', '=', $memberId)
+                    ->where('rr.status', '=', AppLiveRoomReserve::STATUS_RESERVED);
+            });
+            $selectFields[] = DB::raw('CASE WHEN rr.reserve_id IS NULL THEN 0 ELSE 1 END as is_reserved');
+        } else {
+            $selectFields[] = DB::raw('0 as is_reserved');
+        }
+
+        return $query->select($selectFields);
     }
 
     /**
@@ -303,10 +300,12 @@ class LiveCourseController extends Controller
      * 1. 直播中/未开始；
      * 2. 已结束/已取消；
      * 3. 任意最近一条。
+     *
+     * @param int $memberId
      */
-    protected function getLatestLiveRow()
+    protected function getLatestLiveRow(int $memberId)
     {
-        $activeRow = $this->buildHomeBaseQuery()
+        $activeRow = $this->buildHomeBaseQuery($memberId)
             ->whereIn('r.live_status', [
                 AppLiveRoom::LIVE_STATUS_LIVING,
                 AppLiveRoom::LIVE_STATUS_NOT_STARTED,
@@ -323,7 +322,7 @@ class LiveCourseController extends Controller
             return $activeRow;
         }
 
-        $replayRow = $this->buildHomeBaseQuery()
+        $replayRow = $this->buildHomeBaseQuery($memberId)
             ->whereIn('r.live_status', [
                 AppLiveRoom::LIVE_STATUS_ENDED,
                 AppLiveRoom::LIVE_STATUS_CANCELLED,
@@ -336,195 +335,174 @@ class LiveCourseController extends Controller
             return $replayRow;
         }
 
-        return $this->buildHomeBaseQuery()
+        return $this->buildHomeBaseQuery($memberId)
             ->orderBy('replay_sort_time', 'desc')
             ->orderByDesc('r.room_id')
             ->first();
     }
 
     /**
-     * 根据直播ID查找可预约的课程。
+     * 执行直播间预约并返回最新预约人数。
      *
-     * @param int $liveId
-     * @return object|null
-     */
-    protected function findReserveLiveCourse(int $liveId)
-    {
-        return DB::table('app_course_chapter as ch')
-            ->join('app_course_base as c', function ($join) {
-                $join->on('c.course_id', '=', 'ch.course_id')
-                    ->whereNull('c.deleted_at');
-            })
-            ->join('app_chapter_content_live as l', function ($join) {
-                $join->on('l.chapter_id', '=', 'ch.chapter_id')
-                    ->whereNull('l.deleted_at');
-            })
-            ->whereNull('ch.deleted_at')
-            ->where('ch.chapter_id', $liveId)
-            ->where('ch.status', AppCourseChapter::STATUS_ONLINE)
-            ->where('c.play_type', AppCourseBase::PLAY_TYPE_LIVE)
-            ->where('c.status', AppCourseBase::STATUS_ONLINE)
-            ->select([
-                'ch.chapter_id as live_id',
-                'ch.course_id',
-            ])
-            ->first();
-    }
-
-    /**
-     * 执行直播预约并返回最新预约人数。
-     *
-     * 约束：
-     * 1. 事务内对课程记录加锁，避免并发下 enroll_count 被重复累加；
-     * 2. 软删或过期记录恢复后视为重新预约；
-     * 3. 首次预约成功后补齐课表数据，保持与课程领取链路一致。
+     * 关键规则：
+     * 1. 事务内按 room_id 加锁，保证并发下 reserve_count 不会重复累加；
+     * 2. 幂等键为 member_id + room_id，重复预约直接返回当前人数；
+     * 3. 取消后再次预约（status:2->1）会刷新 created_at 为最新预约时间。
      *
      * @param int $memberId
-     * @param int $courseId
+     * @param int $roomId
      * @return int
      */
-    protected function reserveLiveCourse(int $memberId, int $courseId): int
+    protected function reserveLiveRoom(int $memberId, int $roomId): int
     {
-        $course = AppCourseBase::query()
-            ->select(['course_id', 'valid_days', 'total_chapter', 'enroll_count'])
-            ->where('course_id', $courseId)
-            ->where('status', AppCourseBase::STATUS_ONLINE)
-            ->where('play_type', AppCourseBase::PLAY_TYPE_LIVE)
-            ->lockForUpdate()
-            ->first();
-        if (!$course) {
+        $room = $this->lockReservableRoom($roomId);
+        if (!$room) {
             throw new \DomainException('直播不存在');
         }
 
-        $memberCourse = AppMemberCourse::withTrashed()
+        $reserve = AppLiveRoomReserve::query()
             ->where('member_id', $memberId)
-            ->where('course_id', $courseId)
+            ->where('room_id', $roomId)
             ->lockForUpdate()
             ->first();
 
-        $enrollTime = now();
-        $expireTime = null;
-        if ((int)$course->valid_days > 0) {
-            $expireTime = $enrollTime->copy()->addDays((int)$course->valid_days);
-        }
-
+        $reserveTime = now();
         $shouldIncrease = false;
-        $isFirstCreate = false;
 
-        if (!$memberCourse) {
-            $memberCourse = AppMemberCourse::query()->create([
+        if (!$reserve) {
+            $inserted = DB::table('app_live_room_reserve')->insertOrIgnore([
                 'member_id' => $memberId,
-                'course_id' => $courseId,
-                'source_type' => AppMemberCourse::SOURCE_TYPE_ACTIVITY,
-                'paid_amount' => 0,
-                'enroll_time' => $enrollTime,
-                'expire_time' => $expireTime,
-                'is_expired' => 0,
-                'total_chapters' => (int)$course->total_chapter,
+                'room_id' => $roomId,
+                'status' => AppLiveRoomReserve::STATUS_RESERVED,
+                'created_at' => $reserveTime,
+                'updated_at' => $reserveTime,
             ]);
-            $shouldIncrease = true;
-            $isFirstCreate = true;
-        } elseif ($memberCourse->trashed() || (int)$memberCourse->is_expired === 1) {
-            // 仅在非有效预约状态下恢复，避免重复调用导致计数膨胀。
-            if ($memberCourse->trashed()) {
-                $memberCourse->restore();
-            }
-            $memberCourse->is_expired = 0;
-            $memberCourse->enroll_time = $enrollTime;
-            $memberCourse->expire_time = $expireTime;
-            $memberCourse->save();
+
+            // 只有真正写入新预约记录时才累加人数，避免并发重复请求导致计数膨胀。
+            $shouldIncrease = $inserted > 0;
+            $reserve = AppLiveRoomReserve::query()
+                ->where('member_id', $memberId)
+                ->where('room_id', $roomId)
+                ->lockForUpdate()
+                ->first();
+        }
+
+        if ($reserve && !$shouldIncrease && (int)$reserve->status === AppLiveRoomReserve::STATUS_CANCELLED) {
+            // 取消后再次预约视作“新预约”，created_at 刷新为最新预约时间便于前端展示。
+            $reserve->status = AppLiveRoomReserve::STATUS_RESERVED;
+            $reserve->created_at = $reserveTime;
+            $reserve->updated_at = $reserveTime;
+            $reserve->save();
             $shouldIncrease = true;
         }
 
+        $stat = $this->lockOrCreateLiveRoomStat($roomId);
         if ($shouldIncrease) {
-            $course->enroll_count = (int)$course->enroll_count + 1;
-            $course->save();
-
-            if ($isFirstCreate) {
-                $this->learningCenterService->generateSchedule(
-                    $memberId,
-                    $courseId,
-                    (int)$memberCourse->id,
-                    $enrollTime
-                );
-            } else {
-                // 取消预约后会软删课表，恢复预约时需要一并恢复，避免首页显示“已预约”但课表缺失。
-                $this->restoreMemberCourseSchedule((int)$memberCourse->id);
-            }
+            $stat->reserve_count = (int)$stat->reserve_count + 1;
+            $stat->save();
         }
 
-        return (int)$course->enroll_count;
+        return (int)$stat->reserve_count;
     }
 
     /**
-     * 执行取消预约并返回最新预约人数。
+     * 执行直播间取消预约并返回最新预约人数。
      *
      * 失败策略：
      * - 无预约记录或已取消记录按幂等成功处理，不抛错；
-     * - 非预约来源（购买/领取）拒绝取消，避免误删已购课程关系。
+     * - 仅当原状态为预约中时才扣减 reserve_count；
+     * - reserve_count 始终做下限保护，避免出现负数。
      *
      * @param int $memberId
-     * @param int $courseId
+     * @param int $roomId
      * @return int
      */
-    protected function unreserveLiveCourse(int $memberId, int $courseId): int
+    protected function unreserveLiveRoom(int $memberId, int $roomId): int
     {
-        $course = AppCourseBase::query()
-            ->select(['course_id', 'enroll_count', 'status', 'play_type'])
-            ->where('course_id', $courseId)
-            ->where('status', AppCourseBase::STATUS_ONLINE)
-            ->where('play_type', AppCourseBase::PLAY_TYPE_LIVE)
-            ->lockForUpdate()
-            ->first();
-        if (!$course) {
+        $room = $this->lockReservableRoom($roomId);
+        if (!$room) {
             throw new \DomainException('直播不存在');
         }
 
-        $memberCourse = AppMemberCourse::withTrashed()
+        $reserve = AppLiveRoomReserve::query()
             ->where('member_id', $memberId)
-            ->where('course_id', $courseId)
+            ->where('room_id', $roomId)
             ->lockForUpdate()
             ->first();
 
-        // 无记录、软删记录或过期记录都视为“已取消”，直接返回当前人数。
-        if (!$memberCourse || $memberCourse->trashed() || (int)$memberCourse->is_expired === 1) {
-            return (int)$course->enroll_count;
+        $stat = $this->lockOrCreateLiveRoomStat($roomId);
+
+        // 无预约记录或已取消记录直接返回当前统计，避免重复扣减。
+        if (!$reserve || (int)$reserve->status === AppLiveRoomReserve::STATUS_CANCELLED) {
+            return (int)$stat->reserve_count;
         }
 
-        if ((int)$memberCourse->source_type !== AppMemberCourse::SOURCE_TYPE_ACTIVITY) {
-            throw new \LogicException('当前直播不支持取消预约');
+        $reserve->status = AppLiveRoomReserve::STATUS_CANCELLED;
+        $reserve->save();
+
+        if ((int)$stat->reserve_count > 0) {
+            $stat->reserve_count = (int)$stat->reserve_count - 1;
+            $stat->save();
         }
 
-        $memberCourse->is_expired = 1;
-        $memberCourse->expire_time = now();
-        $memberCourse->save();
-        $memberCourse->delete();
-
-        AppMemberSchedule::query()
-            ->where('member_course_id', $memberCourse->id)
-            ->delete();
-
-        // 计数下限保护，避免异常数据导致出现负数。
-        if ((int)$course->enroll_count > 0) {
-            $course->enroll_count = (int)$course->enroll_count - 1;
-            $course->save();
-        }
-
-        return (int)$course->enroll_count;
+        return (int)$stat->reserve_count;
     }
 
     /**
-     * 恢复用户课程对应课表（用于取消后再次预约）。
+     * 锁定可预约直播间。
      *
-     * @param int $memberCourseId
-     * @return void
+     * 约束：
+     * - 仅允许启用且未删除直播间进入预约链路；
+     * - 事务中加锁，保证状态校验与后续写入一致。
+     *
+     * @param int $roomId
+     * @return AppLiveRoom|null
      */
-    protected function restoreMemberCourseSchedule(int $memberCourseId): void
+    protected function lockReservableRoom(int $roomId): ?AppLiveRoom
     {
-        AppMemberSchedule::withTrashed()
-            ->where('member_course_id', $memberCourseId)
-            ->whereNotNull('deleted_at')
-            ->restore();
+        return AppLiveRoom::query()
+            ->select(['room_id', 'status'])
+            ->where('room_id', $roomId)
+            ->where('status', AppLiveRoom::STATUS_ENABLED)
+            ->whereNull('deleted_at')
+            ->lockForUpdate()
+            ->first();
+    }
+
+    /**
+     * 锁定直播间统计记录，不存在时自动初始化。
+     *
+     * @param int $roomId
+     * @return AppLiveRoomStat
+     */
+    protected function lockOrCreateLiveRoomStat(int $roomId): AppLiveRoomStat
+    {
+        $stat = AppLiveRoomStat::query()
+            ->where('room_id', $roomId)
+            ->lockForUpdate()
+            ->first();
+        if ($stat) {
+            return $stat;
+        }
+
+        $now = now();
+        // 先插入默认记录再加锁读取，避免并发初始化时出现唯一索引冲突。
+        DB::table('app_live_room_stat')->insertOrIgnore([
+            'room_id' => $roomId,
+            'reserve_count' => 0,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $stat = AppLiveRoomStat::query()
+            ->where('room_id', $roomId)
+            ->lockForUpdate()
+            ->first();
+        if (!$stat) {
+            throw new \RuntimeException('初始化直播间统计失败');
+        }
+
+        return $stat;
     }
 
     /**
@@ -536,6 +514,7 @@ class LiveCourseController extends Controller
     protected function formatLiveItem($row): array
     {
         $status = $this->mapLiveStatus($row);
+        $isReserved = (int)($row->is_reserved ?? 0) === 1;
 
         $item = [
             'id' => (int)($row->id ?? 0),
@@ -543,7 +522,7 @@ class LiveCourseController extends Controller
             'cover' => $this->buildCoverUrl($row),
             'startTime' => $this->formatDateTime($row->start_time ?? null),
             'status' => $status,
-            'actionText' => $this->buildActionText($status, false),
+            'actionText' => $this->buildActionText($status, $isReserved),
         ];
 
         if ($status === 'replay') {
@@ -555,9 +534,8 @@ class LiveCourseController extends Controller
             return $item;
         }
 
-        // 当前首页不再关联课程预约关系，预约字段先使用占位值。
-        $item['reserveCount'] = 0;
-        $item['isReserved'] = false;
+        $item['reserveCount'] = (int)($row->reserve_count ?? 0);
+        $item['isReserved'] = $isReserved;
 
         return $item;
     }

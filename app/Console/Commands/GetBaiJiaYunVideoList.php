@@ -167,12 +167,12 @@ class GetBaiJiaYunVideoList extends Command
      *
      * 同步策略：
      * 1. video_id 不存在：新增
-     * 2. video_id 已存在：按最新字段更新
+     * 2. video_id 已存在：按最新字段更新（含 create_time -> created_at 对齐）
      * 3. 仅存在软删记录：先恢复再更新
      *
      * 结果结构说明：
      * - created：新增记录数
-     * - updated：已有记录字段变更后更新的数量
+     * - updated：已有记录字段变更（含 created_at 纠偏）后更新的数量
      * - restored：软删恢复数量
      * - skipped：被跳过数量（无效 video_id 或无变化记录）
      * - failed：处理失败数量
@@ -210,6 +210,7 @@ class GetBaiJiaYunVideoList extends Command
 
             try {
                 $payload = $this->buildVideoPayload($video);
+                $createdAt = $this->parseCreateTime($video);
 
                 // 优先查未删除记录：正常场景应只有这一条。
                 $record = AppVideoBaijiayun::query()
@@ -234,6 +235,16 @@ class GetBaiJiaYunVideoList extends Command
                         $isRestored = true;
                     }
 
+                    if ($createdAt !== null) {
+                        $currentCreatedAt = $record->created_at
+                            ? $record->created_at->format('Y-m-d H:i:s')
+                            : null;
+                        // 历史数据可能被写成同步时间，这里统一纠偏为百家云来源时间。
+                        if ($currentCreatedAt !== $createdAt) {
+                            $record->created_at = $createdAt;
+                        }
+                    }
+
                     $record->fill($payload);
                     // 仅字段有变化时写库，减少不必要 update。
                     if ($record->isDirty()) {
@@ -246,15 +257,16 @@ class GetBaiJiaYunVideoList extends Command
                     continue;
                 }
 
-                $createPayload = array_merge(['video_id' => $videoId], $payload);
-                $createdAt = $this->parseCreateTime($video);
+                $newRecord = new AppVideoBaijiayun();
+                $newRecord->fill(array_merge(['video_id' => $videoId], $payload));
                 // 新增时尽量保留百家云原始创建时间，便于后续按来源时间排查。
                 if ($createdAt !== null) {
-                    $createPayload['created_at'] = $createdAt;
-                    $createPayload['updated_at'] = $createdAt;
+                    // 通过属性赋值写入时间戳，避免被 $fillable 过滤导致回退为执行时间。
+                    $newRecord->created_at = $createdAt;
+                    $newRecord->updated_at = $createdAt;
                 }
 
-                AppVideoBaijiayun::query()->create($createPayload);
+                $newRecord->save();
                 $result['created']++;
             } catch (Throwable $e) {
                 // 单条失败不影响后续记录处理，保证任务尽量完成更多数据同步。
@@ -315,7 +327,7 @@ class GetBaiJiaYunVideoList extends Command
      * 解析百家云 create_time 到数据库 datetime 字符串。
      *
      * 输入通常是 "Y-m-d H:i:s"，例如 "2026-01-23 18:40:57"。
-     * 若为空或解析失败，返回 null，让 Eloquent 使用数据库当前时间。
+     * 若为空或解析失败，返回 null，让 Eloquent 使用当前执行时间。
      *
      * @param array<string, mixed> $video
      * @return string|null
@@ -330,7 +342,7 @@ class GetBaiJiaYunVideoList extends Command
         try {
             return Carbon::parse($createTime)->toDateTimeString();
         } catch (Throwable $e) {
-            // 时间格式异常时不阻断主流程，回退为数据库默认时间。
+            // 时间格式异常时不阻断主流程，回退为 Eloquent 自动时间戳。
             return null;
         }
     }

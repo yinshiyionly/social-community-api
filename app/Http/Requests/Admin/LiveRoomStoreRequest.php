@@ -28,7 +28,7 @@ class LiveRoomStoreRequest extends FormRequest
 
         if ($liveType === 2) {
             // 伪直播：videoUrl、scheduledStartTime、scheduledEndTime 必填
-            $rules['videoUrl']            = 'required|string|max:500';
+         //   $rules['videoUrl']            = 'required|string|max:500';
             $rules['scheduledStartTime']  = 'required|date|after:now';
             $rules['scheduledEndTime']    = 'required|date|after:scheduledStartTime';
         }

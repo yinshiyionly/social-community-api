@@ -10,6 +10,7 @@ use App\Http\Resources\Admin\BaijiayunVideoResource;
 use App\Http\Resources\ApiResponse;
 use App\Models\App\AppVideoBaijiayun;
 use App\Services\Admin\BaijiayunVideoService;
+use App\Services\BaijiayunLiveService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -233,9 +234,64 @@ class BaijiayunVideoController extends Controller
         }
     }
 
+    /**
+     * 点播视频转码回调
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function callback(Request $request)
     {
-        Log::info('video-callback-request', ['body' => $request->all()]);
+        $params = $request->all();
+        // 参数中没有 video_id
+        if (!isset($params['video_id'])) {
+            return response()->json(['code' => 0]);
+        }
+        // 参数中没有携带 status
+        if (!isset($params['status'])) {
+            return response()->json(['code' => 0]);
+        }
+        switch ((int)$params['status']) {
+            case 20:
+                Log::info('点播视频上传成功', ['params' => $params]);
+                break;
+            case 30:
+                Log::error('点播视频转码失败', ['params' => $params]);
+                break;
+            case 100:
+                Log::info('点播视频转码成功', ['params' => $params]);
+                // 1. 调用接口获取播放器token
+                $service = new BaijiayunLiveService();
+                $playToken = $service->videoGetPlayerToken((int)$params['video_id']);
+                if (empty($playToken['success']) || empty($playToken['data']['token'])) {
+                    return response()->json(['code' => 0]);
+                }
+                // 2. 组建 play_url 地址
+                $playUrl = sprintf(
+                    "https://%s.at.baijiayun.com/web/video/player?vid=%s&token=%s&player=bplayer",
+                    env('BAIJIAYUN_PRIVATE_DOMAIN'),
+                    $params['video_id'],
+                    $playToken['data']['token']
+                );
+                $update = [
+                    'play_url' => $playUrl,
+                    'preface_url' => $params['preface_url'] ?? '',
+                    'total_size' => $params['total_size'] ?? 0,
+                    'status' => $params['status'] ?? 20,
+                    'length' => $params['length'] ?? 0,
+                    // TODO 后面启用 md5
+                    // 'file_md5' => $params['file_md5'] ?? ''
+                ];
+                try {
+                    AppVideoBaijiayun::query()
+                        ->where(['video_id' => $params['video_id']])
+                        ->update($update);
+                } catch (\Exception $e) {
+                    Log::error('点播视频转码更新数据表失败' . $e->getMessage(), ['params' => $params, 'update' => $update]);
+                }
+                break;
+        }
+        return response()->json(['code' => 0]);
     }
 }
 

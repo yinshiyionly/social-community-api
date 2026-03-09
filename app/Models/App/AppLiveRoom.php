@@ -3,13 +3,14 @@
 namespace App\Models\App;
 
 use App\Models\Traits\HasOperator;
+use App\Models\Traits\HasTosUrl;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppLiveRoom extends Model
 {
-    use HasFactory, SoftDeletes, HasOperator;
+    use HasFactory, SoftDeletes, HasOperator, HasTosUrl;
 
     protected $table = 'app_live_room';
     protected $primaryKey = 'room_id';
@@ -294,5 +295,15 @@ class AppLiveRoom extends Model
     {
         $this->live_status = self::LIVE_STATUS_CANCELLED;
         return $this->save();
+    }
+
+    public function setRoomCoverAttribute($value)
+    {
+        $this->attributes['room_cover'] = $this->extractTosPath($value);
+    }
+
+    public function getAttribute($value)
+    {
+        return $this->getTosUrl($value);
     }
 }

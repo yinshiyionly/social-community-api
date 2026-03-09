@@ -47,8 +47,9 @@ class GetBaiJiaYunVideoList extends Command
      *
      * 步骤：
      * 1. 调用百家云接口全量分页拉取；
-     * 2. 将拉取结果按 video_id 同步到本地；
-     * 3. 输出同步统计（新增/更新/恢复/跳过/失败）。
+     * 2. 对缺失 file_md5 的记录按需补拉视频详情；
+     * 3. 将拉取结果按 video_id 同步到本地；
+     * 4. 输出同步统计（新增/更新/恢复/跳过/失败）。
      *
      * 约定：
      * - 业务异常不抛出中断命令，统一累计到失败统计；
@@ -68,12 +69,13 @@ class GetBaiJiaYunVideoList extends Command
         $result = $this->syncToDatabase($videoList);
 
         $this->info(sprintf(
-            '入库完成：新增 %d 条，更新 %d 条，恢复 %d 条，跳过 %d 条，失败 %d 条',
+            '入库完成：新增 %d 条，更新 %d 条，恢复 %d 条，跳过 %d 条，失败 %d 条，md5补拉失败 %d 条',
             $result['created'],
             $result['updated'],
             $result['restored'],
             $result['skipped'],
-            $result['failed']
+            $result['failed'],
+            $result['md5_fetch_failed']
         ));
 
         // 为避免控制台刷屏，仅展示前 5 条错误明细。
@@ -169,6 +171,7 @@ class GetBaiJiaYunVideoList extends Command
      * 1. video_id 不存在：新增
      * 2. video_id 已存在：按最新字段更新（含 create_time -> created_at 对齐）
      * 3. 仅存在软删记录：先恢复再更新
+     * 4. file_md5 缺失时额外调用 videoGetInfo 补拉，不因单条补拉失败中断任务
      *
      * 结果结构说明：
      * - created：新增记录数
@@ -176,6 +179,7 @@ class GetBaiJiaYunVideoList extends Command
      * - restored：软删恢复数量
      * - skipped：被跳过数量（无效 video_id 或无变化记录）
      * - failed：处理失败数量
+     * - md5_fetch_failed：file_md5 补拉失败数量
      * - errors：失败/跳过明细消息
      *
      * @param array<int, array<string, mixed>> $videoList
@@ -185,6 +189,7 @@ class GetBaiJiaYunVideoList extends Command
      *   restored:int,
      *   skipped:int,
      *   failed:int,
+     *   md5_fetch_failed:int,
      *   errors:array<int, string>
      * }
      */
@@ -196,8 +201,10 @@ class GetBaiJiaYunVideoList extends Command
             'restored' => 0,
             'skipped' => 0,
             'failed' => 0,
+            'md5_fetch_failed' => 0,
             'errors' => [],
         ];
+        $service = new BaijiayunLiveService();
 
         foreach ($videoList as $video) {
             $videoId = (int) ($video['video_id'] ?? 0);
@@ -209,9 +216,6 @@ class GetBaiJiaYunVideoList extends Command
             }
 
             try {
-                $payload = $this->buildVideoPayload($video);
-                $createdAt = $this->parseCreateTime($video);
-
                 // 优先查未删除记录：正常场景应只有这一条。
                 $record = AppVideoBaijiayun::query()
                     ->where('video_id', $videoId)
@@ -225,6 +229,11 @@ class GetBaiJiaYunVideoList extends Command
                         ->orderByDesc('id')
                         ->first();
                 }
+
+                // 仅在“列表无 md5 + 本地无 md5”时补拉详情，避免全量 getInfo 带来额外耗时。
+                $fileMd5 = $this->resolveFileMd5($videoId, $video, $record, $service, $result);
+                $payload = $this->buildVideoPayload($video, $fileMd5);
+                $createdAt = $this->parseCreateTime($video);
 
                 if ($record) {
                     $isRestored = false;
@@ -294,15 +303,17 @@ class GetBaiJiaYunVideoList extends Command
      * - video.length          -> app_video_baijiayun.length
      * - video.width           -> app_video_baijiayun.width
      * - video.height          -> app_video_baijiayun.height
+     * - video.file_md5        -> app_video_baijiayun.file_md5（缺失时会尝试补拉详情）
      * - video.publish_status  -> app_video_baijiayun.publish_status
      *
      * 兜底策略：
      * - 缺失字段按表默认语义给默认值，避免入库时触发 NOT NULL/类型问题。
      *
      * @param array<string, mixed> $video
+     * @param string|null $fileMd5
      * @return array<string, mixed>
      */
-    protected function buildVideoPayload(array $video): array
+    protected function buildVideoPayload(array $video, ?string $fileMd5): array
     {
         return [
             'name' => isset($video['name']) ? (string) $video['name'] : '',
@@ -317,10 +328,107 @@ class GetBaiJiaYunVideoList extends Command
             'length' => isset($video['length']) ? (int) $video['length'] : 0,
             'width' => isset($video['width']) ? (int) $video['width'] : 0,
             'height' => isset($video['height']) ? (int) $video['height'] : 0,
+            'file_md5' => $fileMd5,
             'publish_status' => isset($video['publish_status'])
                 ? (int) $video['publish_status']
                 : AppVideoBaijiayun::PUBLISH_STATUS_UNPUBLISHED,
         ];
+    }
+
+    /**
+     * 解析当前同步应写入的 file_md5。
+     *
+     * 规则：
+     * 1. 列表返回有 file_md5 时直接使用；
+     * 2. 列表缺失但本地已有时沿用本地值，避免被空值覆盖；
+     * 3. 仅在两者都缺失时调用 videoGetInfo 补拉。
+     *
+     * @param int $videoId
+     * @param array<string, mixed> $video
+     * @param AppVideoBaijiayun|null $record
+     * @param BaijiayunLiveService $service
+     * @param array<string, mixed> $result
+     * @return string|null
+     */
+    protected function resolveFileMd5(
+        int $videoId,
+        array $video,
+        ?AppVideoBaijiayun $record,
+        BaijiayunLiveService $service,
+        array &$result
+    ): ?string {
+        $listFileMd5 = $this->normalizeFileMd5($video['file_md5'] ?? null);
+        if ($listFileMd5 !== null) {
+            return $listFileMd5;
+        }
+
+        $recordFileMd5 = $record ? $this->normalizeFileMd5($record->file_md5) : null;
+        if ($recordFileMd5 !== null) {
+            return $recordFileMd5;
+        }
+
+        return $this->fetchFileMd5ByVideoId($videoId, $service, $result);
+    }
+
+    /**
+     * 调用百家云 videoGetInfo 补拉 file_md5。
+     *
+     * 失败策略：
+     * - 单条补拉失败仅记录错误并继续主流程；
+     * - 返回 null 表示本次未获取到有效 md5。
+     *
+     * @param int $videoId
+     * @param BaijiayunLiveService $service
+     * @param array<string, mixed> $result
+     * @return string|null
+     */
+    protected function fetchFileMd5ByVideoId(int $videoId, BaijiayunLiveService $service, array &$result): ?string
+    {
+        $infoResult = $service->videoGetInfo($videoId);
+        if (!($infoResult['success'] ?? false)) {
+            $result['md5_fetch_failed']++;
+            $result['errors'][] = sprintf(
+                'video_id=%d 补拉 file_md5 失败：%s(%s)',
+                $videoId,
+                $infoResult['error_message'] ?? 'UNKNOWN',
+                $infoResult['error_code'] ?? 'UNKNOWN'
+            );
+            return null;
+        }
+
+        $data = is_array($infoResult['data'] ?? null) ? $infoResult['data'] : [];
+        $videoData = is_array($data['video'] ?? null) ? $data['video'] : [];
+        $videoInfoData = is_array($data['video_info'] ?? null) ? $data['video_info'] : [];
+        $fileMd5 = $this->normalizeFileMd5(
+            $data['file_md5']
+                ?? $videoData['file_md5']
+                ?? $videoInfoData['file_md5']
+                ?? null
+        );
+
+        if ($fileMd5 === null) {
+            $result['md5_fetch_failed']++;
+            $result['errors'][] = sprintf('video_id=%d 补拉详情成功但缺少 file_md5 字段', $videoId);
+            return null;
+        }
+
+        return $fileMd5;
+    }
+
+    /**
+     * 归一化 file_md5 值。
+     *
+     * @param mixed $fileMd5
+     * @return string|null
+     */
+    protected function normalizeFileMd5($fileMd5): ?string
+    {
+        if (!is_string($fileMd5)) {
+            return null;
+        }
+
+        $fileMd5 = trim($fileMd5);
+        return $fileMd5 === '' ? null : $fileMd5;
     }
 
     /**

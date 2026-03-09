@@ -33,6 +33,13 @@ class MemberAuthController extends Controller
      */
     protected $weChatService;
 
+    // 白名单手机号
+    protected $whiteList = [
+        '15201064085',
+        '13888888888',
+        '18701433585'
+    ];
+
     public function __construct(
         MemberAuthService $authService,
         SmsService        $smsService,
@@ -77,14 +84,7 @@ class MemberAuthController extends Controller
         $phone = $request->input('phone');
         $code = $request->input('code');
 
-        // 白名单手机号
-        $whiteList  = [
-            '15201064085',
-            '13888888888',
-            '18701433585'
-        ];
-
-        if (!in_array($phone, $whiteList)) {
+        if (!in_array($phone, $this->whiteList)) {
             // 验证验证码
             if (!$this->smsService->verify($phone, $code, SmsService::SCOPE_LOGIN)) {
                 return AppApiResponse::error('验证码错误或已过期');
@@ -230,9 +230,11 @@ class MemberAuthController extends Controller
         $phone = $request->input('phone');
         $code = $request->input('code');
 
-        // 验证绑定手机号验证码
-        if (!$this->smsService->verify($phone, $code, SmsService::SCOPE_BIND_PHONE)) {
-            return AppApiResponse::error('验证码错误或已过期');
+        if (!in_array($phone, $this->whiteList)) {
+            // 验证绑定手机号验证码
+            if (!$this->smsService->verify($phone, $code, SmsService::SCOPE_BIND_PHONE)) {
+                return AppApiResponse::error('验证码错误或已过期');
+            }
         }
 
         $result = $this->authService->bindPhone($memberId, $phone);

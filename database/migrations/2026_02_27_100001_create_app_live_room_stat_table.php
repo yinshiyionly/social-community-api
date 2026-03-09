@@ -23,6 +23,7 @@ class CreateAppLiveRoomStatTable extends Migration
                 gift_count int4 NOT NULL DEFAULT 0,
                 gift_amount numeric(12,2) NOT NULL DEFAULT 0,
                 share_count int4 NOT NULL DEFAULT 0,
+                reserve_count int4 NOT NULL DEFAULT 0,
                 avg_watch_duration int4 NOT NULL DEFAULT 0,
                 created_at timestamp(0) NULL,
                 updated_at timestamp(0) NULL,
@@ -39,6 +40,7 @@ class CreateAppLiveRoomStatTable extends Migration
         DB::statement("COMMENT ON COLUMN app_live_room_stat.gift_count IS '礼物数量'");
         DB::statement("COMMENT ON COLUMN app_live_room_stat.gift_amount IS '礼物总金额'");
         DB::statement("COMMENT ON COLUMN app_live_room_stat.share_count IS '分享次数'");
+        DB::statement("COMMENT ON COLUMN app_live_room_stat.reserve_count IS '直播间预约人数'");
         DB::statement("COMMENT ON COLUMN app_live_room_stat.avg_watch_duration IS '平均观看时长（秒）'");
 
         DB::statement("COMMENT ON TABLE app_live_room_stat IS '直播间数据统计表'");

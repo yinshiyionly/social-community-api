@@ -25,6 +25,7 @@ class AppLiveRoomStat extends Model
         'gift_count',
         'gift_amount',
         'share_count',
+        'reserve_count',
         'avg_watch_duration',
     ];
 
@@ -38,6 +39,7 @@ class AppLiveRoomStat extends Model
         'gift_count' => 'integer',
         'gift_amount' => 'decimal:2',
         'share_count' => 'integer',
+        'reserve_count' => 'integer',
         'avg_watch_duration' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

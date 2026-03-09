@@ -262,6 +262,37 @@ class BaijiayunLiveService
     }
 
     /**
+     * 获取指定ID视频信息
+     * @see https://dev.baijiayun.com/wiki/detail/4#-h5-11
+     *
+     * @param int $videoId
+     * @return array
+     */
+    public function videoGetInfo(int $videoId): array
+    {
+        $params = [
+            'video_id' => $videoId
+        ];
+        return $this->sendRequest('openapi/video/getInfo', $params);
+    }
+
+    /**
+     * 获取播放器token
+     * @see https://dev.baijiayun.com/wiki/detail/4#-h5-23
+     *
+     * @param int $videoId
+     * @return array
+     */
+    public function videoGetPlayerToken(int $videoId): array
+    {
+        $params = [
+            'video_id' => $videoId,
+            'expires_in' => 0
+        ];
+        return $this->sendRequest('openapi/video/getPlayerToken', $params);
+    }
+
+    /**
      * 获取视频/音频上传地址
      * @see https://dev.baijiayun.com/wiki/detail/4#-h5-7
      *

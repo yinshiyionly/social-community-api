@@ -13,6 +13,15 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+/**
+ * 不需要鉴权的接口
+ */
+// 点播视频转码回调的地址
+Route::post('/video/baijiayun/callback', [BaijiayunVideoController::class, 'callback']);
+
+/**
+ * 需要鉴权的接口
+ */
 Route::middleware('system.auth')->group(function () {
     Route::prefix('/video/baijiayun')->group(function () {
         // 常量选项（状态、发布状态、来源）
@@ -22,6 +31,8 @@ Route::middleware('system.auth')->group(function () {
         // 详情
         Route::get('/{videoId}', [BaijiayunVideoController::class, 'show'])
             ->where('videoId', '[0-9]+');
+        // 上传
+        Route::post('/upload', [BaijiayunVideoController::class, 'uploadVideo']);
         // 创建
         Route::post('/', [BaijiayunVideoController::class, 'store']);
         // 更新

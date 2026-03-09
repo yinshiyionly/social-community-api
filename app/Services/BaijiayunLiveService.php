@@ -274,7 +274,8 @@ class BaijiayunLiveService
             'file_name' => $data['fileName'] ?? '', // 文件名
             'definition' => $data['definition'] ?? 8, // 目标清晰度(16:标清 1:高清 2:超清 4:720p 8:1080p 多种清晰度用英文逗号分隔)
             'audio_with_view' => $data['audioWithView'] ?? 0, // 是否作为音频处理 0：否 1：是
-            'format' => $data['format'] ?? 'mp4', // 转码格式（1:mp4 2:flv 4:m3u8 多种格式用英文逗号分隔）默认是3种格式都转
+            //'format' => $data['format'] ?? 'mp4', // 转码格式（1:mp4 2:flv 4:m3u8 多种格式用英文逗号分隔）默认是3种格式都转
+            'callback_url' => $data['callbackUrl'] ?? ''
         ];
         return $this->sendRequest('/openapi/video/getUploadUrl', $params);
     }

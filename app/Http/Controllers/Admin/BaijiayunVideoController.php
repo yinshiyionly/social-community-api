@@ -12,6 +12,7 @@ use App\Models\App\AppVideoBaijiayun;
 use App\Services\Admin\BaijiayunVideoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class BaijiayunVideoController extends Controller
 {
@@ -66,8 +67,8 @@ class BaijiayunVideoController extends Controller
             'endTime' => $request->input('endTime'),
         ];
 
-        $pageNum = (int) $request->input('pageNum', 1);
-        $pageSize = (int) $request->input('pageSize', 10);
+        $pageNum = (int)$request->input('pageNum', 1);
+        $pageSize = (int)$request->input('pageSize', 10);
 
         $paginator = $this->baijiayunVideoService->getList($filters, $pageNum, $pageSize);
 
@@ -82,13 +83,53 @@ class BaijiayunVideoController extends Controller
      */
     public function show($videoId)
     {
-        $video = $this->baijiayunVideoService->getDetail((int) $videoId);
+        $video = $this->baijiayunVideoService->getDetail((int)$videoId);
 
         if (!$video) {
             return ApiResponse::error('视频不存在');
         }
 
         return ApiResponse::resource($video, BaijiayunVideoResource::class, '查询成功');
+    }
+
+    /**
+     * 上传视频到百家云
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function uploadVideo(Request $request)
+    {
+        // 验证参数
+        $validator = Validator::make($request->all(), [
+            'file' => 'required|file|max:1024000', // 只允许mp4格式，最大1000MB
+            'file_name' => 'nullable|string|max:255',
+        ], [
+            'file.required' => '请选择要上传的文件',
+            // 'file.mimes' => '只支持MP4格式的视频文件',
+            'file.max' => '文件大小不能超过1000MB',
+        ]);
+
+        if ($validator->fails()) {
+            return ApiResponse::error($validator->errors()->first());
+        }
+
+        try {
+            // 1. 获取上传文件
+            $file = $request->file('file');
+
+            // 2. 获取文件大小（字节）
+            $fileSizeBytes = $file->getSize();
+            // 3. 如果没有提供文件名，则使用原始文件名
+            $fileName = $request->file_name ?? $file->getClientOriginalName();
+
+            // 4. 上传视频
+            $this->baijiayunVideoService->uploadVideo($file, $fileName, $fileSizeBytes);
+
+            return ApiResponse::success();
+        } catch (\Exception $e) {
+            return ApiResponse::error('视频上传异常: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -101,7 +142,7 @@ class BaijiayunVideoController extends Controller
     {
         try {
             $data = $request->validated();
-            $videoId = (int) $data['videoId'];
+            $videoId = (int)$data['videoId'];
 
             if ($this->baijiayunVideoService->existsByVideoId($videoId)) {
                 return ApiResponse::error('视频ID已存在');
@@ -111,7 +152,7 @@ class BaijiayunVideoController extends Controller
 
             return ApiResponse::success([
                 'data' => [
-                    'videoId' => (int) $video->video_id,
+                    'videoId' => (int)$video->video_id,
                 ],
             ], '新增成功');
         } catch (\Exception $e) {
@@ -133,7 +174,7 @@ class BaijiayunVideoController extends Controller
     {
         try {
             $data = $request->validated();
-            $videoId = (int) $data['videoId'];
+            $videoId = (int)$data['videoId'];
             unset($data['videoId']);
 
             $result = $this->baijiayunVideoService->update($videoId, $data);
@@ -162,7 +203,7 @@ class BaijiayunVideoController extends Controller
     public function destroy($videoIds)
     {
         try {
-            $ids = array_map('intval', explode(',', (string) $videoIds));
+            $ids = array_map('intval', explode(',', (string)$videoIds));
             $ids = array_values(array_filter(array_unique($ids), function ($id) {
                 return $id > 0;
             }));
@@ -190,6 +231,11 @@ class BaijiayunVideoController extends Controller
             ]);
             return ApiResponse::error('操作失败，请稍后重试');
         }
+    }
+
+    public function callback(Request $request)
+    {
+        Log::info('video-callback-request', ['body' => $request->all()]);
     }
 }
 

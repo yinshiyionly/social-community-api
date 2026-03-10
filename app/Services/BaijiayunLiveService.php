@@ -96,7 +96,7 @@ class BaijiayunLiveService
             // 代表普通大班课最大人数, 不传或传0表示不限制。
             'max_users'    => 0,
             // 可选值, APP端模板样式，1是横屏，2是竖屏;
-            'app_template' => 2
+            // 'app_template' => 2
         ];
         // 其他参数
         // is_mock_live 是否是伪直播，0:否 1:是（注：需要给账号开通伪直播权限才可以创建伪直播，选择伪直播时，必须要选择mock_video_id或mock_room_id和mock_session_id；伪直播模式下，不能设置长期教室）
@@ -119,7 +119,10 @@ class BaijiayunLiveService
         if (isset($options['enable_live_sell'])) {
             $params['enable_live_sell'] = $options['enable_live_sell'];
         }
-
+        // app_template 可选值, APP端模板样式，1是横屏，2是竖屏;
+        if (isset($options['app_template'])) {
+            $params['app_template'] = $options['app_template'];
+        }
 
         return $this->sendRequest('/openapi/room/create', $params);
     }

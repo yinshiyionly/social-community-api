@@ -84,17 +84,17 @@ class BaijiayunLiveService
     {
         $params = [
             // 直播课标题，不超过50个字符或汉字，超过部分将进行截取
-            'title' => $title,
+            'title'        => $title,
             // 开课时间, unix时间戳（秒），系统做统一化处理，格式化为开始分钟
-            'start_time' => Carbon::make($startTime)->startOfMinute()->timestamp,
+            'start_time'   => Carbon::make($startTime)->startOfMinute()->timestamp,
             // 下课时间, unix时间戳（秒），系统做统一化处理，格式化为结束分钟
-            'end_time' => Carbon::make($endTime)->endOfMinute()->timestamp,
+            'end_time'     => Carbon::make($endTime)->endOfMinute()->timestamp,
             // 当前unix时间戳（秒）
             // 'timestamp' => time(),
             // 1:一对一课（老的班型，老账号支持） 2:普通大班课 3:小班课普通版（老的班型，老账号支持）
-            'type' => 2,
+            'type'         => 2,
             // 代表普通大班课最大人数, 不传或传0表示不限制。
-            'max_users' => 0,
+            'max_users'    => 0,
             // 可选值, APP端模板样式，1是横屏，2是竖屏;
             'app_template' => 2
         ];
@@ -138,19 +138,19 @@ class BaijiayunLiveService
     {
         $params = [
             // 房间ID，14位
-            'room_id' => $roomId,
+            'room_id'    => $roomId,
             // 直播课标题，不超过50个字符或汉字，超过部分将进行截取
-            'title' => $title,
+            'title'      => $title,
             // 开课时间, unix时间戳（秒），系统做统一化处理，格式化为开始分钟
             'start_time' => Carbon::make($startTime)->startOfMinute()->timestamp,
             // 下课时间, unix时间戳（秒），系统做统一化处理，格式化为结束分钟
-            'end_time' => Carbon::make($endTime)->endOfMinute()->timestamp,
+            'end_time'   => Carbon::make($endTime)->endOfMinute()->timestamp,
             // 当前unix时间戳（秒）
             // 'timestamp' => time(),
             // 1:一对一课（老的班型，老账号支持） 2:普通大班课 3:小班课普通版（老的班型，老账号支持）
-            'type' => 2,
+            'type'       => 2,
             // 代表普通大班课最大人数, 不传或传0表示不限制。
-            'max_users' => 0,
+            'max_users'  => 0,
             // 可选值, APP端模板样式，1是横屏，2是竖屏;
             // 'app_template' => 2
         ];
@@ -216,8 +216,8 @@ class BaijiayunLiveService
         // 需求 4.2: 房间不存在时记录 warning 级别日志（区别于一般 error）
         if (!$result['success']) {
             Log::warning('百家云查询直播间失败', [
-                'room_id' => $roomId,
-                'error_code' => $result['error_code'],
+                'room_id'       => $roomId,
+                'error_code'    => $result['error_code'],
                 'error_message' => $result['error_message'],
             ]);
         }
@@ -255,7 +255,7 @@ class BaijiayunLiveService
     public function videoGetVideoList(int $page, int $pageSize): array
     {
         $params = [
-            'page' => $page,
+            'page'      => $page,
             'page_size' => $pageSize
         ];
         return $this->sendRequest('/openapi/video/getVideoList', $params);
@@ -286,7 +286,7 @@ class BaijiayunLiveService
     public function videoGetPlayerToken(int $videoId): array
     {
         $params = [
-            'video_id' => $videoId,
+            'video_id'   => $videoId,
             'expires_in' => 0
         ];
         return $this->sendRequest('openapi/video/getPlayerToken', $params);
@@ -302,11 +302,11 @@ class BaijiayunLiveService
     public function videoGetUploadUrl(array $data): array
     {
         $params = [
-            'file_name' => $data['fileName'] ?? '', // 文件名
-            'definition' => $data['definition'] ?? 8, // 目标清晰度(16:标清 1:高清 2:超清 4:720p 8:1080p 多种清晰度用英文逗号分隔)
+            'file_name'       => $data['fileName'] ?? '', // 文件名
+            'definition'      => $data['definition'] ?? 8, // 目标清晰度(16:标清 1:高清 2:超清 4:720p 8:1080p 多种清晰度用英文逗号分隔)
             'audio_with_view' => $data['audioWithView'] ?? 0, // 是否作为音频处理 0：否 1：是
             //'format' => $data['format'] ?? 'mp4', // 转码格式（1:mp4 2:flv 4:m3u8 多种格式用英文逗号分隔）默认是3种格式都转
-            'callback_url' => $data['callbackUrl'] ?? ''
+            'callback_url'    => $data['callbackUrl'] ?? ''
         ];
         return $this->sendRequest('/openapi/video/getUploadUrl', $params);
     }
@@ -352,8 +352,8 @@ class BaijiayunLiveService
     {
         $params = [
             'product_type' => 1, // 教育直播
-            'page' => $page,
-            'page_size' => $pageSize
+            'page'         => $page,
+            'page_size'    => $pageSize
         ];
         return $this->sendRequest('openapi/playback/getList', $params);
     }
@@ -377,16 +377,16 @@ class BaijiayunLiveService
             Log::warning('百家云生成令牌失败：无效的角色类型', [
                 'room_id' => $roomId,
                 'user_id' => $userId,
-                'role' => $role,
+                'role'    => $role,
             ]);
             return $this->buildResult(false, null, 'INVALID_ROLE', '无效的角色类型');
         }
 
         $params = [
-            'room_id' => $roomId,
+            'room_id'     => $roomId,
             'user_number' => $userId,
-            'user_name' => $nickname,
-            'user_role' => $role,
+            'user_name'   => $nickname,
+            'user_role'   => $role,
         ];
 
         if ($avatar !== '') {
@@ -440,8 +440,8 @@ class BaijiayunLiveService
         // 检查必要字段
         if (!isset($callbackData['sign']) || !isset($callbackData['event']) || !isset($callbackData['room_id'])) {
             Log::error('百家云回调数据格式错误：缺少必要字段', [
-                'has_sign' => isset($callbackData['sign']),
-                'has_event' => isset($callbackData['event']),
+                'has_sign'    => isset($callbackData['sign']),
+                'has_event'   => isset($callbackData['event']),
                 'has_room_id' => isset($callbackData['room_id']),
             ]);
             return $this->buildResult(false, null, 'INVALID_CALLBACK', '回调数据格式错误：缺少必要字段');
@@ -460,7 +460,7 @@ class BaijiayunLiveService
         if ($providedSign !== $expectedSign) {
             Log::warning('百家云回调签名验证失败', [
                 'room_id' => $callbackData['room_id'],
-                'event' => $callbackData['event'],
+                'event'   => $callbackData['event'],
             ]);
             return $this->buildResult(false, null, 'INVALID_SIGN', '回调签名验证失败');
         }
@@ -529,12 +529,14 @@ class BaijiayunLiveService
      */
     protected function buildResult(bool $success, $data = null, string $errorCode = '', string $errorMessage = ''): array
     {
-        return [
-            'success' => $success,
-            'data' => $data,
-            'error_code' => $errorCode,
+        $data = [
+            'success'       => $success,
+            'data'          => $data,
+            'error_code'    => $errorCode,
             'error_message' => $errorMessage,
         ];
+        Log::info('百家云API请求响应', ['response' => $data]);
+        return $data;
     }
 
     /**
@@ -561,7 +563,7 @@ class BaijiayunLiveService
 
             // 记录请求日志（排除敏感参数 sign、partner_id）
             Log::debug('百家云API请求', [
-                'path' => $path,
+                'path'   => $path,
                 'method' => $method,
                 'params' => $params
             ]);
@@ -575,7 +577,7 @@ class BaijiayunLiveService
             return $this->parseResponse($response, $path);
         } catch (\Exception $e) {
             Log::error('百家云API请求异常', [
-                'path' => $path,
+                'path'  => $path,
                 'error' => $e->getMessage(),
             ]);
 
@@ -606,7 +608,7 @@ class BaijiayunLiveService
         $data = json_decode($body, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
             Log::error('百家云API响应JSON解析失败', [
-                'path' => $path,
+                'path'       => $path,
                 'json_error' => json_last_error_msg(),
             ]);
             return $this->buildResult(false, null, 'INVALID_JSON', '响应JSON解析失败: ' . json_last_error_msg());
@@ -623,8 +625,8 @@ class BaijiayunLiveService
         $errorMessage = $data['msg'] ?? ($data['message'] ?? '未知错误');
 
         Log::error('百家云API业务错误', [
-            'path' => $path,
-            'error_code' => $errorCode,
+            'path'          => $path,
+            'error_code'    => $errorCode,
             'error_message' => $errorMessage,
         ]);
 

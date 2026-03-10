@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Admin;
 
+use App\Models\App\AppLiveRoom;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
@@ -9,46 +10,38 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class LiveRoomResource extends JsonResource
 {
+    /**
+     * 输出直播间详情字段。
+     *
+     * 字段约定：
+     * - 返回字段统一使用 camelCase；
+     * - 伪直播扩展字段仅在 liveType=2 时返回真实值，其他类型固定返回 null，避免前端误用脏数据；
+     * - 时间字段统一格式化为 Y-m-d H:i:s。
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return array<string, mixed>
+     */
     public function toArray($request)
     {
         $stat = $this->relationLoaded('stat') ? $this->stat : null;
+        $isPseudoLive = (int)$this->live_type === AppLiveRoom::LIVE_TYPE_PSEUDO;
 
         return [
             'roomId'             => $this->room_id,
             'roomTitle'          => $this->room_title,
             'roomCover'          => $this->room_cover,
-            'roomIntro'          => $this->room_intro,
             'liveType'           => $this->live_type,
-            'livePlatform'       => $this->live_platform,
             'thirdPartyRoomId'   => $this->third_party_room_id,
-            'pushUrl'            => $this->push_url,
-            'pullUrl'            => $this->pull_url,
-            'videoUrl'           => $this->video_url,
-            'anchorId'           => $this->anchor_id,
             'anchorName'         => $this->anchor_name,
-            'anchorAvatar'       => $this->anchor_avatar,
             'scheduledStartTime' => $this->scheduled_start_time ? $this->scheduled_start_time->format('Y-m-d H:i:s') : null,
             'scheduledEndTime'   => $this->scheduled_end_time ? $this->scheduled_end_time->format('Y-m-d H:i:s') : null,
-            'actualStartTime'    => $this->actual_start_time ? $this->actual_start_time->format('Y-m-d H:i:s') : null,
-            'actualEndTime'      => $this->actual_end_time ? $this->actual_end_time->format('Y-m-d H:i:s') : null,
-            'liveDuration'       => $this->live_duration,
+            'enableLiveSell'     => $this->enable_live_sell,
+            'mockVideoSource'    => $isPseudoLive ? $this->mock_video_source : null,
+            'mockVideoId'        => $isPseudoLive ? $this->mock_video_id : null,
+            'mockRoomId'         => $isPseudoLive ? $this->mock_room_id : null,
             'liveStatus'         => $this->live_status,
             'liveStatusText'     => $this->live_status_text,
-            'allowChat'          => $this->allow_chat,
-            'allowGift'          => $this->allow_gift,
-            'allowLike'          => $this->allow_like,
-            'password'           => $this->password ? '******' : null,
-            'extConfig'          => $this->ext_config,
             'status'             => $this->status,
-            // 统计数据
-            'totalViewerCount'   => $stat ? $stat->total_viewer_count : 0,
-            'maxOnlineCount'     => $stat ? $stat->max_online_count : 0,
-            'currentOnlineCount' => $stat ? $stat->current_online_count : 0,
-            'likeCount'          => $stat ? $stat->like_count : 0,
-            'messageCount'       => $stat ? $stat->message_count : 0,
-            // 时间
-            'createdAt'          => $this->created_at ? $this->created_at->format('Y-m-d H:i:s') : null,
-            'updatedAt'          => $this->updated_at ? $this->updated_at->format('Y-m-d H:i:s') : null,
         ];
     }
 }

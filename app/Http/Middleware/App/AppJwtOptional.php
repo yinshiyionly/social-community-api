@@ -26,8 +26,16 @@ class AppJwtOptional
             $secret = config('app.jwt_app_secret', config('app.key'));
             $payload = JwtHelper::decode($token, $secret);
 
+            // 绑定流程临时 token 不参与可选鉴权，避免在未绑定前拿到登录态能力。
+            $isBindPhoneToken = ($payload['token_scene'] ?? '') === 'bind_phone';
+
             // Token 有效且未过期时，注入用户信息
-            if ($payload && !JwtHelper::isExpired($payload) && isset($payload['member_id'])) {
+            if (
+                $payload
+                && !$isBindPhoneToken
+                && !JwtHelper::isExpired($payload)
+                && isset($payload['member_id'])
+            ) {
                 $request->attributes->set('member_id', $payload['member_id']);
                 $request->attributes->set('jwt_payload', $payload);
             }

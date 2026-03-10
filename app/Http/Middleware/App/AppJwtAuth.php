@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware\App;
 
+use App\Http\Controllers\App\MemberAuthController;
 use App\Http\Resources\App\AppApiResponse;
 use Closure;
 use Illuminate\Http\Request;
@@ -42,10 +43,35 @@ class AppJwtAuth
             return AppApiResponse::tokenInvalid();
         }
 
+        // 绑定流程临时 token 只允许访问 bindPhone，避免在未完成手机号绑定前访问其他鉴权接口。
+        if (($payload['token_scene'] ?? '') === 'bind_phone' && !$this->isBindPhoneRoute($request)) {
+            return AppApiResponse::forbidden('请先完成手机号绑定');
+        }
+
         // 将 member_id 注入到 request 中
         $request->attributes->set('member_id', $payload['member_id']);
         $request->attributes->set('jwt_payload', $payload);
 
         return $next($request);
+    }
+
+    /**
+     * 判断当前请求是否为手机号绑定接口。
+     *
+     * @param Request $request
+     * @return bool
+     */
+    protected function isBindPhoneRoute(Request $request): bool
+    {
+        $route = $request->route();
+        if (!$route) {
+            return false;
+        }
+
+        $actionMethod = $route->getActionMethod();
+        $actionName = $route->getActionName();
+
+        return $actionMethod === 'bindPhone'
+            && strpos($actionName, MemberAuthController::class . '@') === 0;
     }
 }

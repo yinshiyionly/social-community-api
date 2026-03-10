@@ -5,9 +5,11 @@
 
 | 功能             | 方法     | 路径                                   |
 |----------------|--------|--------------------------------------|
+| 获取课程常量选项        | GET    | `/api/admin/live/room/constants`          |
 | 直播间分页列表        | GET    | `/api/admin/live/room/list`          |
 | 新增直播间          | POST   | `/api/admin/live/room`               |
 | 伪直播点播视频分页列表    | GET    | `/api/admin/live/room/mockVideoList` |
+| 伪直播回放分页列表      | GET    | `/api/admin/live/room/mockPlaybackList` |
 | 删除直播间（不支持批量）   | DELETE | `/api/admin/live/room/{roomId}`      |
 
 ### 2.1 通用响应示例
@@ -209,7 +211,66 @@
 | uploadTime        | string\|null | 上传时间（当前与 `createdAt` 一致）     |
 | createdAt         | string\|null | 创建时间                         |
 
-### 3.3 获取直播间分页列表
+### 3.3 获取伪直播回放分页列表
+
+- 方法：`GET`
+- 路径：`/api/admin/live/room/mockPlaybackList`
+- 说明：
+    - 仅用于“创建直播-伪直播-选择回放”场景；
+    - 固定只返回“转码成功 + 未屏蔽 + 有播放地址 + 有教室号”的可用回放；
+    - 按 `third_party_room_id` 去重，同教室号仅保留最新一条回放记录。
+
+#### Query 参数
+
+| 参数         | 类型     | 必填 | 说明                                 |
+|------------|--------|----|------------------------------------|
+| pageNum    | number | 否  | 页码，默认 `1`                          |
+| pageSize   | number | 否  | 每页条数，默认 `10`                       |
+| mockRoomId | string | 否  | 教室号（`third_party_room_id`）精确匹配      |
+| name       | string | 否  | 回放名称（模糊匹配）                         |
+
+#### 响应示例 JSON
+
+```json
+{
+    "code": 200,
+    "msg": "查询成功",
+    "total": 1,
+    "rows": [
+        {
+            "mockRoomId": "26030953664321",
+            "name": "中医公开课回放",
+            "prefaceUrl": "https://cdn.example.com/playback/26030953664321-cover.jpg",
+            "playUrl": "https://cdn.example.com/playback/26030953664321.m3u8",
+            "length": 3600,
+            "lengthText": "01:00:00",
+            "status": 100,
+            "statusText": "转码成功",
+            "publishStatus": 1,
+            "publishStatusText": "未屏蔽",
+            "createTime": "2026-03-10 10:30:00"
+        }
+    ]
+}
+```
+
+#### `rows` 字段说明
+
+| 字段              | 类型           | 说明                                  |
+|-----------------|--------------|-------------------------------------|
+| mockRoomId      | string       | 百家云教室号，创建直播时透传到 `mockRoomId`          |
+| name            | string       | 回放名称                                |
+| prefaceUrl      | string\|null | 回放封面地址                              |
+| playUrl         | string       | 回放播放地址                              |
+| length          | number       | 时长（秒）                               |
+| lengthText      | string       | 时长展示文案（`HH:mm:ss`）                 |
+| status          | number       | 回放状态（固定返回 `100`）                    |
+| statusText      | string       | 回放状态文本                              |
+| publishStatus   | number       | 屏蔽状态（固定返回 `1`）                      |
+| publishStatusText | string     | 屏蔽状态文本                              |
+| createTime      | string\|null | 回放生成时间（`create_time`）               |
+
+### 3.4 获取直播间分页列表
 
 - 方法：`GET`
 - 路径：`/api/admin/live/room/list`
@@ -284,7 +345,7 @@
 
 ---
 
-### 3.4 新增直播间
+### 3.5 新增直播间
 
 - 方法：`POST`
 - 路径：`/api/admin/live/room`
@@ -388,7 +449,7 @@
 }
 ```
 
-### 3.5 删除直播间（不支持批量）
+### 3.6 删除直播间（不支持批量）
 
 - 方法：`DELETE`
 - 路径：`/api/admin/live/room/{roomId}`

@@ -84,17 +84,17 @@ class BaijiayunLiveService
     {
         $params = [
             // 直播课标题，不超过50个字符或汉字，超过部分将进行截取
-            'title'        => $title,
+            'title'      => $title,
             // 开课时间, unix时间戳（秒），系统做统一化处理，格式化为开始分钟
-            'start_time'   => Carbon::make($startTime)->startOfMinute()->timestamp,
+            'start_time' => Carbon::make($startTime)->startOfMinute()->timestamp,
             // 下课时间, unix时间戳（秒），系统做统一化处理，格式化为结束分钟
-            'end_time'     => Carbon::make($endTime)->endOfMinute()->timestamp,
+            'end_time'   => Carbon::make($endTime)->endOfMinute()->timestamp,
             // 当前unix时间戳（秒）
             // 'timestamp' => time(),
             // 1:一对一课（老的班型，老账号支持） 2:普通大班课 3:小班课普通版（老的班型，老账号支持）
-            'type'         => 2,
+            'type'       => 2,
             // 代表普通大班课最大人数, 不传或传0表示不限制。
-            'max_users'    => 0,
+            'max_users'  => 0,
             // 可选值, APP端模板样式，1是横屏，2是竖屏;
             // 'app_template' => 2
         ];
@@ -359,6 +359,23 @@ class BaijiayunLiveService
             'page_size'    => $pageSize
         ];
         return $this->sendRequest('openapi/playback/getList', $params);
+    }
+
+    /**
+     * 获取回放token
+     * @see https://dev.baijiayun.com/wiki/detail/6#-h2-5
+     *
+     * @param int $roomId
+     * @return array
+     */
+    public function playbackGetPlayerToken(int $roomId)
+    {
+        $parms = [
+            'room_id'    => $roomId,
+            'expires_in' => 0 // 过期时间，以秒为单位。如果传0则表示不过期
+        ];
+
+        return $this->sendRequest('openapi/playback/getPlayerToken', $parms);
     }
 
     /**

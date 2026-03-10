@@ -15,7 +15,8 @@ use Throwable;
  * 职责：
  * 1. 分页拉取百家云回放列表并做幂等同步；
  * 2. 通过 third_party_room_id 关联本地直播间 room_id；
- * 3. 输出新增/更新/恢复/跳过/失败统计，便于任务巡检。
+ * 3. 仅在本地缺失 player_token 时补拉回放 token；
+ * 4. 输出新增/更新/恢复/跳过/失败统计，便于任务巡检。
  *
  * 触发时机：
  * - 支持手动执行或由调度任务定时执行，适用于回放库增量巡检同步。
@@ -44,15 +45,27 @@ class GetBaiJiaYunPlaybackList extends Command
     protected $roomIdCache = [];
 
     /**
+     * 回放 token 缓存（key=third_party_room_id, value=player_token）。
+     *
+     * 设计意图：
+     * - 同一房间可能对应多条回放，单次任务内复用 token，避免重复调用第三方接口。
+     *
+     * @var array<string, string>
+     */
+    protected $playbackTokenCache = [];
+
+    /**
      * 执行命令入口。
      *
      * 步骤：
      * 1. 分页调用百家云 playback/getList 拉取全量回放；
-     * 2. 按 playback_id 幂等同步到本地表；
-     * 3. 输出聚合统计（新增/更新/恢复/跳过/失败/房间未匹配）。
+     * 2. 对本地缺失 player_token 的回放补拉 token；
+     * 3. 按 playback_id 幂等同步到本地表；
+     * 4. 输出聚合统计（新增/更新/恢复/跳过/失败/房间未匹配/token补拉）。
      *
      * 失败策略：
      * - 接口分页失败时提前结束拉取并输出错误；
+     * - 回放 token 获取失败仅记录并继续；
      * - 单条入库失败不影响后续记录处理；
      * - 退出码固定返回 0，依赖统计与日志判断执行质量。
      *
@@ -60,6 +73,10 @@ class GetBaiJiaYunPlaybackList extends Command
      */
     public function handle()
     {
+        // 命令实例可能被复用，执行前清空缓存，避免跨批次污染。
+        $this->roomIdCache = [];
+        $this->playbackTokenCache = [];
+
         $playbackList = $this->getData();
         $this->info('拉取完成，共获取回放 ' . count($playbackList) . ' 条');
 
@@ -71,13 +88,15 @@ class GetBaiJiaYunPlaybackList extends Command
         $result = $this->syncToDatabase($playbackList);
 
         $this->info(sprintf(
-            '入库完成：新增 %d 条，更新 %d 条，恢复 %d 条，跳过 %d 条，失败 %d 条，房间未匹配 %d 条',
+            '入库完成：新增 %d 条，更新 %d 条，恢复 %d 条，跳过 %d 条，失败 %d 条，房间未匹配 %d 条，token补拉成功 %d 条，token补拉失败 %d 条',
             $result['created'],
             $result['updated'],
             $result['restored'],
             $result['skipped'],
             $result['failed'],
-            $result['room_unmatched']
+            $result['room_unmatched'],
+            $result['token_fetched'],
+            $result['token_fetch_failed']
         ));
 
         // 为避免控制台刷屏，仅展示前 5 条错误明细。
@@ -113,7 +132,7 @@ class GetBaiJiaYunPlaybackList extends Command
         $total = 0;
         $allPlaybacks = [];
 
-        $service = new BaijiayunLiveService();
+        $service = $this->createBaijiayunLiveService();
 
         while (true) {
             // 约定服务层已把 HTTP 失败和业务失败收敛为 success=false。
@@ -158,7 +177,8 @@ class GetBaiJiaYunPlaybackList extends Command
      * 1. playback_id 不存在：新增；
      * 2. playback_id 已存在：按最新字段更新；
      * 3. 仅存在软删记录：先恢复再更新；
-     * 4. third_party_room_id 无法匹配本地 room_id 时保留数据并将 room_id 置为 NULL。
+     * 4. third_party_room_id 无法匹配本地 room_id 时保留数据并将 room_id 置为 NULL；
+     * 5. player_token 仅在本地为空时补拉，避免重复调用第三方 token 接口。
      *
      * @param array<int, array<string, mixed>> $playbackList
      * @return array{
@@ -168,6 +188,8 @@ class GetBaiJiaYunPlaybackList extends Command
      *   skipped:int,
      *   failed:int,
      *   room_unmatched:int,
+     *   token_fetched:int,
+     *   token_fetch_failed:int,
      *   errors:array<int, string>
      * }
      */
@@ -180,8 +202,11 @@ class GetBaiJiaYunPlaybackList extends Command
             'skipped' => 0,
             'failed' => 0,
             'room_unmatched' => 0,
+            'token_fetched' => 0,
+            'token_fetch_failed' => 0,
             'errors' => [],
         ];
+        $service = $this->createBaijiayunLiveService();
 
         foreach ($playbackList as $playback) {
             $playbackId = (int)($playback['playback_id'] ?? 0);
@@ -208,7 +233,14 @@ class GetBaiJiaYunPlaybackList extends Command
 
                 $thirdPartyRoomId = $this->normalizeThirdPartyRoomId($playback['room_id'] ?? null);
                 $localRoomId = $this->resolveLocalRoomId($thirdPartyRoomId, $result);
-                $payload = $this->buildPlaybackPayload($playback, $thirdPartyRoomId, $localRoomId);
+                $playerToken = $this->resolvePlaybackToken(
+                    $playback,
+                    $thirdPartyRoomId,
+                    $record ? (string)$record->player_token : '',
+                    $service,
+                    $result
+                );
+                $payload = $this->buildPlaybackPayload($playback, $thirdPartyRoomId, $localRoomId, $playerToken);
 
                 if ($record) {
                     $isRestored = false;
@@ -256,10 +288,15 @@ class GetBaiJiaYunPlaybackList extends Command
      * @param array<string, mixed> $playback
      * @param string $thirdPartyRoomId
      * @param int|null $localRoomId
+     * @param string $playerToken
      * @return array<string, mixed>
      */
-    protected function buildPlaybackPayload(array $playback, string $thirdPartyRoomId, ?int $localRoomId): array
-    {
+    protected function buildPlaybackPayload(
+        array $playback,
+        string $thirdPartyRoomId,
+        ?int $localRoomId,
+        string $playerToken
+    ): array {
         return [
             'room_id' => $localRoomId,
             'third_party_room_id' => $thirdPartyRoomId,
@@ -275,11 +312,85 @@ class GetBaiJiaYunPlaybackList extends Command
             'preface_url' => isset($playback['preface_url']) && $playback['preface_url'] !== ''
                 ? (string)$playback['preface_url']
                 : null,
+            'player_token' => $playerToken,
             'publish_status' => isset($playback['publish_status'])
                 ? (int)$playback['publish_status']
                 : AppLivePlayback::PUBLISH_STATUS_UNSHIELDED,
             'version' => isset($playback['version']) ? (int)$playback['version'] : 0,
         ];
+    }
+
+    /**
+     * 解析回放 player_token。
+     *
+     * 规则：
+     * 1. 本地已有非空 token 时直接复用，不重复请求；
+     * 2. 本地 token 为空时，按 third_party_room_id 调用 getPlayerToken；
+     * 3. 调用失败仅记录错误并返回空串，不中断主同步流程。
+     *
+     * @param array<string, mixed> $playback
+     * @param string $thirdPartyRoomId
+     * @param string $existingToken
+     * @param BaijiayunLiveService $service
+     * @param array<string, mixed> $result
+     * @return string
+     */
+    protected function resolvePlaybackToken(
+        array $playback,
+        string $thirdPartyRoomId,
+        string $existingToken,
+        BaijiayunLiveService $service,
+        array &$result
+    ): string {
+        $normalizedToken = $this->normalizePlayerToken($existingToken);
+        if ($normalizedToken !== '') {
+            return $normalizedToken;
+        }
+
+        if ($thirdPartyRoomId === '') {
+            $result['token_fetch_failed']++;
+            $result['errors'][] = sprintf(
+                'playback_id=%s 获取回放token失败：room_id 缺失或非法',
+                $playback['playback_id'] ?? 'UNKNOWN'
+            );
+            return '';
+        }
+
+        if (array_key_exists($thirdPartyRoomId, $this->playbackTokenCache)) {
+            return $this->playbackTokenCache[$thirdPartyRoomId];
+        }
+
+        $roomId = $this->parseThirdPartyRoomId($thirdPartyRoomId);
+        if ($roomId === null) {
+            $result['token_fetch_failed']++;
+            $result['errors'][] = sprintf(
+                'playback_id=%s 获取回放token失败：room_id=%s 不是有效正整数',
+                $playback['playback_id'] ?? 'UNKNOWN',
+                $thirdPartyRoomId
+            );
+            return '';
+        }
+
+        $tokenResult = $service->playbackGetPlayerToken($roomId);
+        $token = $this->normalizePlayerToken($tokenResult['data']['token'] ?? '');
+
+        if (($tokenResult['success'] ?? false) && $token !== '') {
+            $this->playbackTokenCache[$thirdPartyRoomId] = $token;
+            $result['token_fetched']++;
+            return $token;
+        }
+
+        // 缓存空串，避免同一 room 在单次任务内重复触发失败请求。
+        $this->playbackTokenCache[$thirdPartyRoomId] = '';
+        $result['token_fetch_failed']++;
+        $result['errors'][] = sprintf(
+            'playback_id=%s 获取回放token失败：%s(%s)',
+            $playback['playback_id'] ?? 'UNKNOWN',
+            $tokenResult['error_message'] ?? 'TOKEN_EMPTY',
+            $tokenResult['error_code'] ?? 'TOKEN_EMPTY'
+        );
+
+        return '';
     }
 
     /**
@@ -295,6 +406,22 @@ class GetBaiJiaYunPlaybackList extends Command
         }
 
         return trim((string)$roomId);
+    }
+
+    /**
+     * 解析第三方 room_id 为正整数。
+     *
+     * @param string $thirdPartyRoomId
+     * @return int|null
+     */
+    protected function parseThirdPartyRoomId(string $thirdPartyRoomId): ?int
+    {
+        if (!preg_match('/^\d+$/', $thirdPartyRoomId)) {
+            return null;
+        }
+
+        $roomId = (int)$thirdPartyRoomId;
+        return $roomId > 0 ? $roomId : null;
     }
 
     /**
@@ -332,6 +459,21 @@ class GetBaiJiaYunPlaybackList extends Command
     }
 
     /**
+     * 标准化 player_token。
+     *
+     * @param mixed $token
+     * @return string
+     */
+    protected function normalizePlayerToken($token): string
+    {
+        if (!is_string($token)) {
+            return '';
+        }
+
+        return trim($token);
+    }
+
+    /**
      * 解析百家云 create_time 到数据库 datetime 字符串。
      *
      * 由于 create_time 在表中为 NOT NULL，解析失败时回退为当前时间，
@@ -352,5 +494,18 @@ class GetBaiJiaYunPlaybackList extends Command
         } catch (Throwable $e) {
             return Carbon::now()->toDateTimeString();
         }
+    }
+
+    /**
+     * 创建百家云服务实例。
+     *
+     * 说明：
+     * - 单独抽取工厂方法，便于测试阶段替换为桩服务。
+     *
+     * @return BaijiayunLiveService
+     */
+    protected function createBaijiayunLiveService(): BaijiayunLiveService
+    {
+        return new BaijiayunLiveService();
     }
 }

@@ -27,6 +27,8 @@ Route::middleware('system.auth')->group(function () {
     Route::prefix('/live/room')->group(function () {
         // 直播间常量配置项
         Route::get('/constants', [LiveRoomController::class, 'constants']);
+        // 伪直播选择点播视频列表
+        Route::get('/mockVideoList', [LiveRoomController::class, 'mockVideoList']);
         // 列表
         Route::get('/list', [LiveRoomController::class, 'list']);
         // 详情

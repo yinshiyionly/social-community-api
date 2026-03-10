@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\LiveRoomStoreRequest;
 use App\Http\Requests\Admin\LiveRoomStatusRequest;
 use App\Http\Requests\Admin\LiveRoomUpdateRequest;
 use App\Http\Resources\ApiResponse;
+use App\Http\Resources\Admin\LiveRoomMockVideoListResource;
 use App\Http\Resources\Admin\LiveRoomResource;
 use App\Http\Resources\Admin\LiveRoomListResource;
 use App\Models\App\AppLiveRoom;
@@ -81,6 +82,52 @@ class LiveRoomController extends Controller
         ];
 
         return ApiResponse::success(['data' => $data]);
+    }
+
+    /**
+     * 获取伪直播可选的点播视频分页列表。
+     *
+     * 接口用途：
+     * - 仅用于 Admin 创建直播时选择百家云点播视频；
+     * - 前端选择后透传 videoId 到创建接口的 mockVideoId 字段。
+     *
+     * 关键输入：
+     * - pageNum/pageSize：分页参数，默认 1/10；
+     * - videoId：可选精确匹配；
+     * - name：可选视频名称模糊匹配。
+     *
+     * 关键输出：
+     * - 返回 ApiResponse::paginate 结构（code/msg/total/rows）；
+     * - rows 仅返回创建直播所需的轻量视频字段。
+     *
+     * 失败分支：
+     * - 异常统一记录日志并返回通用错误，避免泄露内部异常细节。
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function mockVideoList(Request $request)
+    {
+        try {
+            $filters = [
+                'videoId' => $request->input('videoId'),
+                'name'    => $request->input('name'),
+            ];
+
+            $pageNum = (int)$request->input('pageNum', 1);
+            $pageSize = (int)$request->input('pageSize', 10);
+
+            $paginator = $this->liveRoomService->getMockVideoList($filters, $pageNum, $pageSize);
+
+            return ApiResponse::paginate($paginator, LiveRoomMockVideoListResource::class, '查询成功');
+        } catch (\Exception $e) {
+            Log::error('直播间操作失败', [
+                'action' => 'mockVideoList',
+                'error'  => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error('操作失败，请稍后重试');
+        }
     }
 
     /**

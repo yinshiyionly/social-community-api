@@ -187,6 +187,7 @@ class LiveHomeService
                 p.play_times as watch_count,
                 p.create_time as playback_create_time,
                 p.preface_url as playback_cover,
+                p.player_token,
                 r.room_title,
                 r.room_cover,
                 r.scheduled_start_time,
@@ -211,6 +212,7 @@ class LiveHomeService
                 'rp.playback_length',
                 'rp.playback_create_time',
                 'rp.playback_cover',
+                'rp.player_token',
                 'rp.live_duration',
                 'rp.playback_pk',
             ])
@@ -295,7 +297,7 @@ class LiveHomeService
             'durationSec' => $this->buildReplayDuration($row),
             'replayUrl'   => $this->normalizeUrl((string)($row->replay_url ?? '')),
             'actionText'  => '回放',
-            'liveToken'   => $this->player_token ?? null
+            'player_token' => (string)($row->player_token ?? ''),
         ];
     }
 

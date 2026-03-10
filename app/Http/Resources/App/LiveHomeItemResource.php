@@ -20,7 +20,7 @@ class LiveHomeItemResource extends JsonResource
      *
      * 字段约定：
      * - upcoming 返回 reserveCount/isReserved；
-     * - replay 返回 watchCount/durationSec/replayUrl；
+     * - replay 返回 watchCount/durationSec/replayUrl/liveToken；
      * - status 仅输出 `upcoming` 或 `replay`。
      *
      * @param \Illuminate\Http\Request $request
@@ -43,6 +43,7 @@ class LiveHomeItemResource extends JsonResource
             $item['watchCount'] = (int)($this['watchCount'] ?? 0);
             $item['durationSec'] = (int)($this['durationSec'] ?? 0);
             $item['replayUrl'] = (string)($this['replayUrl'] ?? '');
+            $item['liveToken'] = (string)($this['player_token'] ?? '');
 
             return $item;
         }

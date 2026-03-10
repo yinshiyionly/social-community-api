@@ -16,6 +16,14 @@ use App\Services\App\WeChatService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * App 端会员认证控制器。
+ *
+ * 职责：
+ * 1. 处理手机号/短信/微信登录入口；
+ * 2. 处理绑定手机号、退出登录等认证相关接口；
+ * 3. 协调短信服务、微信服务与会员认证服务，统一输出 AppApiResponse。
+ */
 class MemberAuthController extends Controller
 {
     /**
@@ -114,7 +122,12 @@ class MemberAuthController extends Controller
     }
 
     /**
-     * 移动应用微信登录
+     * 移动应用微信登录。
+     *
+     * 返回规则：
+     * 1. 已绑定手机号：返回正式登录 token（7天）；
+     * 2. 未绑定手机号：返回临时 token（10分钟），仅用于调用绑定手机号接口；
+     * 3. 首次注册用户额外返回 isNew=true。
      *
      * @param WeChatLoginRequest $request
      * @return \Illuminate\Http\JsonResponse
@@ -183,12 +196,20 @@ class MemberAuthController extends Controller
         // 6. 检查是否需要绑定手机号
         $needBindPhone = empty($result['member']->phone);
 
+        // 7. 未绑定手机号时签发短期 token，限制其仅用于绑定手机号流程。
+        // 已绑定手机号的用户继续返回正式 token，保持原登录态语义不变。
+        $token = $needBindPhone
+            ? $this->authService->generateBindPhoneToken($result['member'])
+            : $result['token'];
+
+        $data = [
+            'token' => $token,
+            'isNew' => $result['is_new'],
+            'needBindPhone' => $needBindPhone
+        ];
+
         return AppApiResponse::success([
-            'data' => [
-                'token' => $result['token'],
-                'isNew' => $result['is_new'],
-                'needBindPhone' => $needBindPhone,
-            ]
+            'data' => $data
         ]);
     }
 
@@ -219,7 +240,12 @@ class MemberAuthController extends Controller
     }
 
     /**
-     * 绑定手机号
+     * 绑定手机号。
+     *
+     * 约束：
+     * 1. 需携带登录 token（正式 token 或绑定流程临时 token）；
+     * 2. 绑定成功后返回正式登录 token，供客户端替换临时 token；
+     * 3. 验证码失败或手机号冲突时返回业务错误，不签发 token。
      *
      * @param BindPhoneRequest $request
      * @return \Illuminate\Http\JsonResponse
@@ -243,7 +269,13 @@ class MemberAuthController extends Controller
             return AppApiResponse::error($result['message']);
         }
 
-        return AppApiResponse::success();
+        $token = $this->authService->generateToken($result['member']);
+
+        return AppApiResponse::success([
+            'data' => [
+                'token' => $token
+            ]
+        ]);
     }
 
     /**

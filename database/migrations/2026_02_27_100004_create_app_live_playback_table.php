@@ -28,6 +28,7 @@ class CreateAppLivePlaybackTable extends Migration
                 play_times int4 NOT NULL DEFAULT 0,
                 play_url varchar(512) NOT NULL DEFAULT '',
                 preface_url varchar(512) NULL,
+                player_token varchar(512) NULL,
                 publish_status int2 NOT NULL DEFAULT 1,
                 version int4 NOT NULL DEFAULT 0,
                 created_at timestamp(0) NULL,
@@ -51,6 +52,7 @@ class CreateAppLivePlaybackTable extends Migration
         DB::statement("COMMENT ON COLUMN app_live_playback.play_times IS '回放观看次数'");
         DB::statement("COMMENT ON COLUMN app_live_playback.play_url IS '回放WEB端观看地址'");
         DB::statement("COMMENT ON COLUMN app_live_playback.preface_url IS '回放视频封面地址'");
+        DB::statement("COMMENT ON COLUMN app_live_playback.player_token IS '回放播放鉴权token'");
         DB::statement("COMMENT ON COLUMN app_live_playback.publish_status IS '视频屏蔽状态：1=未屏蔽 2=已屏蔽'");
         DB::statement("COMMENT ON COLUMN app_live_playback.version IS '裁剪版本，未裁剪为0'");
         DB::statement("COMMENT ON COLUMN app_live_playback.created_at IS '创建时间'");

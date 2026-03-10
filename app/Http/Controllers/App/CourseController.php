@@ -194,7 +194,9 @@ class CourseController extends Controller
     public function purchase(CourseEnrollRequest $request)
     {
         $memberId = (int)$request->attributes->get('member_id');
-        $courseId = (int) $request->input('courseId');
+        // 前端传递的是 id
+        // 等同于 courseId
+        $courseId = (int) $request->input('id');
         $phone = $request->input('phone');
         $ageRange = $request->input('age');
 

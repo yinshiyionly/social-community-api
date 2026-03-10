@@ -11,7 +11,7 @@ class LiveRoomListResource extends JsonResource
 {
     public function toArray($request)
     {
-        $stat = $this->relationLoaded('stat') ? $this->stat : null;
+        // $stat = $this->relationLoaded('stat') ? $this->stat : null;
 
         return [
             'roomId'             => $this->room_id,
@@ -30,9 +30,36 @@ class LiveRoomListResource extends JsonResource
             'mockVideoSource'    => $this->mock_video_course ?? null,
             'mockVideoId'        => $this->mock_video_id ?? null,
             'mockRoomId'         => $this->mock_room_id ?? null,
+            'adminUrl'           => [
+                'app' => $this->buildBaiJiaYunUrl((int)$this->third_party_room_id ?? null, $this->admin_code ?? null),
+                'web' => $this->buildBaiJiaYunUrl((int)$this->third_party_room_id ?? null, $this->admin_code ?? null)
+            ],
+            'teacherUrl'         => [
+                'app' => $this->buildBaiJiaYunUrl((int)$this->third_party_room_id ?? null, $this->teacher_code ?? null),
+                'web' => $this->buildBaiJiaYunUrl((int)$this->third_party_room_id ?? null, $this->teacher_code ?? null)
+            ],
+            'studentUrl'         => [
+                'app' => $this->buildBaiJiaYunUrl((int)$this->third_party_room_id ?? null, $this->student_code ?? null),
+                'web' => $this->buildBaiJiaYunUrl((int)$this->third_party_room_id ?? null, $this->student_code ?? null)
+            ],
             'liveStatus'         => $this->live_status,
             'liveStatusText'     => $this->live_status_text,
             'status'             => $this->status,
         ];
+    }
+
+    /**
+     * 构建百家云直播入口地址
+     *
+     * @param $roomId
+     * @param $code
+     * @return string|null
+     */
+    protected function buildBaiJiaYunUrl($roomId, $code)
+    {
+        if (!empty($roomId) && !empty($code)) {
+            return sprintf("%s/web/room/prepare?room_id=%s&code=%s", env('BAIJIAYUN_BASE_URL'), $roomId, $code);
+        }
+        return null;
     }
 }

@@ -12,7 +12,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * 数据语义：
  * 1. playback_id 是第三方回放唯一键，用于幂等同步；
  * 2. room_id 关联本地直播间，third_party_room_id 保留百家云教室号；
- * 3. create_time 为百家云回放生成时间，不等于本地 created_at。
+ * 3. create_time 为百家云回放生成时间，不等于本地 created_at；
+ * 4. player_token 为回放播放鉴权 token，仅用于播放鉴权，不参与业务主键判断。
  */
 class AppLivePlayback extends Model
 {
@@ -45,6 +46,7 @@ class AppLivePlayback extends Model
         'play_times',
         'play_url',
         'preface_url',
+        'player_token',
         'publish_status',
         'version',
     ];
@@ -60,6 +62,7 @@ class AppLivePlayback extends Model
         'length' => 'integer',
         'total_transcode_size' => 'integer',
         'play_times' => 'integer',
+        'player_token' => 'string',
         'publish_status' => 'integer',
         'version' => 'integer',
         'created_at' => 'datetime',

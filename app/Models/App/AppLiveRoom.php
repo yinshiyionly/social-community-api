@@ -36,6 +36,20 @@ class AppLiveRoom extends Model
     const STATUS_DISABLED = 0;
     const STATUS_ENABLED = 1;
 
+    // 伪直播素材来源
+    const MOCK_VIDEO_SOURCE_PLAYBACK = 1; // 百家云回放
+    const MOCK_VIDEO_SOURCE_VIDEO = 2; // 百家云点播视频
+    const MOCK_VIDEO_SOURCE_SYSTEM = 3; // 系统视频文件
+
+    // APP 端模版样式
+    const APP_TEMPLATE_HORIZONTAL = 1; // 横屏
+    const APP_TEMPLATE_VERTICAL = 2; // 竖屏
+
+    // 带货模版
+    const ENABLE_LIVE_SELL_OFF = 0; // 禁用带货模版
+    const ENABLE_LIVE_SELL_VIDEO = 1; // 视频带货模版
+    const ENABLE_LIVE_SELL_PPT = 2; // PPT带货模版
+
     protected $fillable = [
         'room_title',
         'room_cover',
@@ -79,33 +93,33 @@ class AppLiveRoom extends Model
     ];
 
     protected $casts = [
-        'room_id' => 'integer',
-        'live_type' => 'integer',
-        'mock_video_source' => 'integer',
-        'material_video_id' => 'integer',
-        'playback_id' => 'integer',
-        'mock_video_id' => 'integer',
-        'mock_room_id' => 'integer',
-        'app_template' => 'integer',
-        'enable_live_sell' => 'integer',
-        'entrance' => 'integer',
-        'anchor_id' => 'integer',
+        'room_id'              => 'integer',
+        'live_type'            => 'integer',
+        'mock_video_source'    => 'integer',
+        'material_video_id'    => 'integer',
+        'playback_id'          => 'integer',
+        'mock_video_id'        => 'integer',
+        'mock_room_id'         => 'integer',
+        'app_template'         => 'integer',
+        'enable_live_sell'     => 'integer',
+        'entrance'             => 'integer',
+        'anchor_id'            => 'integer',
         'scheduled_start_time' => 'datetime',
-        'scheduled_end_time' => 'datetime',
-        'actual_start_time' => 'datetime',
-        'actual_end_time' => 'datetime',
-        'live_duration' => 'integer',
-        'live_status' => 'integer',
-        'allow_chat' => 'integer',
-        'allow_gift' => 'integer',
-        'allow_like' => 'integer',
-        'ext_config' => 'array',
-        'status' => 'integer',
-        'created_by' => 'integer',
-        'updated_by' => 'integer',
-        'deleted_by' => 'integer',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        'scheduled_end_time'   => 'datetime',
+        'actual_start_time'    => 'datetime',
+        'actual_end_time'      => 'datetime',
+        'live_duration'        => 'integer',
+        'live_status'          => 'integer',
+        'allow_chat'           => 'integer',
+        'allow_gift'           => 'integer',
+        'allow_like'           => 'integer',
+        'ext_config'           => 'array',
+        'status'               => 'integer',
+        'created_by'           => 'integer',
+        'updated_by'           => 'integer',
+        'deleted_by'           => 'integer',
+        'created_at'           => 'datetime',
+        'updated_at'           => 'datetime',
     ];
 
     // ========== 关联关系 ==========
@@ -258,9 +272,9 @@ class AppLiveRoom extends Model
     {
         $map = [
             self::LIVE_STATUS_NOT_STARTED => '未开始',
-            self::LIVE_STATUS_LIVING => '直播中',
-            self::LIVE_STATUS_ENDED => '已结束',
-            self::LIVE_STATUS_CANCELLED => '已取消',
+            self::LIVE_STATUS_LIVING      => '直播中',
+            self::LIVE_STATUS_ENDED       => '已结束',
+            self::LIVE_STATUS_CANCELLED   => '已取消',
         ];
 
         return isset($map[$this->live_status]) ? $map[$this->live_status] : '未知';

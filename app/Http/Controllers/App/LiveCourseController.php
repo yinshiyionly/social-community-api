@@ -4,12 +4,13 @@ namespace App\Http\Controllers\App;
 
 use App\Constant\AppResponseCode;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\App\LiveHomeRequest;
 use App\Http\Resources\App\AppApiResponse;
+use App\Http\Resources\App\LiveHomeResource;
 use App\Models\App\AppLiveRoom;
 use App\Models\App\AppLiveRoomReserve;
 use App\Models\App\AppLiveRoomStat;
-use App\Services\AppFileUploadService;
-use Carbon\Carbon;
+use App\Services\App\LiveHomeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -18,25 +19,20 @@ use Illuminate\Support\Facades\Log;
  * App 端直播首页与预约控制器。
  *
  * 职责：
- * 1. 输出直播首页 latest 与分 tab 列表；
+ * 1. 调用服务层输出直播首页 latest 与分 tab 列表；
  * 2. 处理会员对直播间的预约/取消预约；
- * 3. 统一组装直播卡片字段，保证首页与操作返回口径一致。
+ * 3. 在控制器层统一处理接口响应与异常日志。
  */
 class LiveCourseController extends Controller
 {
-    const TAB_UPCOMING = 'upcoming';
-    const TAB_REPLAY = 'replay';
-    const DEFAULT_PAGE_SIZE = 20;
-    const MAX_PAGE_SIZE = 100;
-
     /**
-     * @var AppFileUploadService
+     * @var LiveHomeService
      */
-    protected $fileUploadService;
+    protected $liveHomeService;
 
-    public function __construct(AppFileUploadService $fileUploadService)
+    public function __construct(LiveHomeService $liveHomeService)
     {
-        $this->fileUploadService = $fileUploadService;
+        $this->liveHomeService = $liveHomeService;
     }
 
     /**
@@ -51,61 +47,25 @@ class LiveCourseController extends Controller
     }
 
     /**
-     * 获取直播首页数据。
+     * 获取直播首页数据（预告/回放）。
      *
-     * 接口用途：
-     * - App 直播页按 tab 返回预告/回放列表，并返回顶部 latest 卡片。
-     *
-     * 关键输入：
-     * - tab：`upcoming`（预告）或 `replay`（回放）；
-     * - page/pageSize：分页参数，pageSize 使用固定上限保护。
-     *
-     * 关键输出：
-     * - id 使用直播间 `room_id`；
-     * - 预告/直播中场景 `reserveCount/isReserved` 来自直播域数据表；
-     * - 回放场景 `replayUrl` 当前固定返回空串。
-     *
-     * 失败策略：
-     * - 参数非法返回业务错误；
-     * - 运行异常仅记录日志并返回通用服务错误，避免暴露内部细节。
+     * 流程：
+     * 1. 由 LiveHomeRequest 负责参数验证和默认值处理；
+     * 2. 控制器仅负责透传参数给服务层并包装资源响应；
+     * 3. 异常场景记录必要上下文，统一返回通用错误，避免暴露内部细节。
      */
-    public function home(Request $request)
+    public function home(LiveHomeRequest $request)
     {
-        $tab = strtolower((string)$request->input('tab', ''));
-        if (!in_array($tab, [self::TAB_UPCOMING, self::TAB_REPLAY], true)) {
-            return AppApiResponse::error('tab 参数错误', AppResponseCode::INVALID_PARAMS);
-        }
-
-        $page = max((int)$request->input('page', 1), 1);
-        $pageSize = (int)$request->input('pageSize', self::DEFAULT_PAGE_SIZE);
-        if ($pageSize <= 0) {
-            $pageSize = self::DEFAULT_PAGE_SIZE;
-        }
-        $pageSize = min($pageSize, self::MAX_PAGE_SIZE);
-
+        $tab = $request->getTab();
+        $page = $request->getPage();
+        $pageSize = $request->getPageSize();
         $memberId = $this->getMemberId($request);
 
         try {
-            $listQuery = $this->buildHomeBaseQuery($memberId);
-            $this->applyTabFilter($listQuery, $tab);
-            $paginator = $listQuery->paginate($pageSize, ['*'], 'page', $page);
-
-            $latestRow = $this->getLatestLiveRow($memberId);
-            $rows = collect($paginator->items());
-            $list = $rows->map(function ($row) {
-                return $this->formatLiveItem($row);
-            })->values()->all();
+            $result = $this->liveHomeService->getHomeData($tab, $page, $pageSize, $memberId);
 
             return AppApiResponse::success([
-                'data' => [
-                    'latest' => $latestRow ? $this->formatLiveItem($latestRow) : null,
-                    'tab' => $tab,
-                    'list' => $list,
-                    'total' => $paginator->total(),
-                    'page' => $paginator->currentPage(),
-                    'pageSize' => $paginator->perPage(),
-                    'hasMore' => $paginator->currentPage() < $paginator->lastPage(),
-                ],
+                'data' => (new LiveHomeResource($result))->resolve(),
             ]);
         } catch (\Exception $e) {
             Log::error('获取直播首页数据失败', [
@@ -214,131 +174,6 @@ class LiveCourseController extends Controller
 
             return AppApiResponse::serverError();
         }
-    }
-
-    /**
-     * 构建直播首页基础查询（直播表直查）。
-     *
-     * 设计约束：
-     * - 仅依赖直播域数据表 `app_live_room/app_live_room_stat`；
-     * - 登录态下追加 member_id 维度的预约态查询，未登录统一返回未预约；
-     * - 仅返回启用且未删除的直播间；
-     * - 统一生成 start_time 与 replay_sort_time，避免各分支重复拼装排序字段。
-     *
-     * @param int $memberId
-     */
-    protected function buildHomeBaseQuery(int $memberId)
-    {
-        $query = DB::table('app_live_room as r')
-            ->leftJoin('app_live_room_stat as rs', 'rs.room_id', '=', 'r.room_id')
-            ->whereNull('r.deleted_at')
-            ->where('r.status', AppLiveRoom::STATUS_ENABLED);
-
-        $selectFields = [
-            'r.room_id as id',
-            'r.room_title as title',
-            'r.room_cover',
-            'r.live_status',
-            'r.live_duration',
-            'r.scheduled_start_time',
-            'r.scheduled_end_time',
-            'r.actual_start_time',
-            'r.actual_end_time',
-            'r.created_at',
-            'rs.total_viewer_count',
-            DB::raw('COALESCE(rs.reserve_count, 0) as reserve_count'),
-            DB::raw('COALESCE(r.actual_start_time, r.scheduled_start_time) as start_time'),
-            DB::raw('COALESCE(r.actual_end_time, r.scheduled_end_time, r.actual_start_time, r.scheduled_start_time, r.created_at) as replay_sort_time'),
-        ];
-
-        if ($memberId > 0) {
-            $query->leftJoin('app_live_room_reserve as rr', function ($join) use ($memberId) {
-                $join->on('rr.room_id', '=', 'r.room_id')
-                    ->where('rr.member_id', '=', $memberId)
-                    ->where('rr.status', '=', AppLiveRoomReserve::STATUS_RESERVED);
-            });
-            $selectFields[] = DB::raw('CASE WHEN rr.reserve_id IS NULL THEN 0 ELSE 1 END as is_reserved');
-        } else {
-            $selectFields[] = DB::raw('0 as is_reserved');
-        }
-
-        return $query->select($selectFields);
-    }
-
-    /**
-     * 应用 tab 查询条件
-     *
-     * @param \Illuminate\Database\Query\Builder $query
-     * @param string $tab
-     */
-    protected function applyTabFilter($query, string $tab): void
-    {
-        if ($tab === self::TAB_UPCOMING) {
-            $query->whereIn('r.live_status', [
-                AppLiveRoom::LIVE_STATUS_LIVING,
-                AppLiveRoom::LIVE_STATUS_NOT_STARTED,
-            ])->orderByRaw(
-                'CASE WHEN r.live_status = ? THEN 0 ELSE 1 END',
-                [AppLiveRoom::LIVE_STATUS_LIVING]
-            )->orderBy('start_time', 'asc')
-                ->orderByDesc('r.room_id');
-
-            return;
-        }
-
-        $query->whereIn('r.live_status', [
-            AppLiveRoom::LIVE_STATUS_ENDED,
-            AppLiveRoom::LIVE_STATUS_CANCELLED,
-        ])->orderBy('replay_sort_time', 'desc')
-            ->orderByDesc('r.room_id');
-    }
-
-    /**
-     * 获取顶部 latest 卡片
-     *
-     * 优先级：
-     * 1. 直播中/未开始；
-     * 2. 已结束/已取消；
-     * 3. 任意最近一条。
-     *
-     * @param int $memberId
-     */
-    protected function getLatestLiveRow(int $memberId)
-    {
-        $activeRow = $this->buildHomeBaseQuery($memberId)
-            ->whereIn('r.live_status', [
-                AppLiveRoom::LIVE_STATUS_LIVING,
-                AppLiveRoom::LIVE_STATUS_NOT_STARTED,
-            ])
-            ->orderByRaw(
-                'CASE WHEN r.live_status = ? THEN 0 ELSE 1 END',
-                [AppLiveRoom::LIVE_STATUS_LIVING]
-            )
-            ->orderBy('start_time', 'asc')
-            ->orderByDesc('r.room_id')
-            ->first();
-
-        if ($activeRow) {
-            return $activeRow;
-        }
-
-        $replayRow = $this->buildHomeBaseQuery($memberId)
-            ->whereIn('r.live_status', [
-                AppLiveRoom::LIVE_STATUS_ENDED,
-                AppLiveRoom::LIVE_STATUS_CANCELLED,
-            ])
-            ->orderBy('replay_sort_time', 'desc')
-            ->orderByDesc('r.room_id')
-            ->first();
-
-        if ($replayRow) {
-            return $replayRow;
-        }
-
-        return $this->buildHomeBaseQuery($memberId)
-            ->orderBy('replay_sort_time', 'desc')
-            ->orderByDesc('r.room_id')
-            ->first();
     }
 
     /**
@@ -505,154 +340,4 @@ class LiveCourseController extends Controller
         return $stat;
     }
 
-    /**
-     * 格式化单条直播数据
-     *
-     * @param object $row
-     * @return array
-     */
-    protected function formatLiveItem($row): array
-    {
-        $status = $this->mapLiveStatus($row);
-        $isReserved = (int)($row->is_reserved ?? 0) === 1;
-
-        $item = [
-            'id' => (int)($row->id ?? 0),
-            'title' => (string)($row->title ?? ''),
-            'cover' => $this->buildCoverUrl($row),
-            'startTime' => $this->formatDateTime($row->start_time ?? null),
-            'status' => $status,
-            'actionText' => $this->buildActionText($status, $isReserved),
-        ];
-
-        if ($status === 'replay') {
-            $item['watchCount'] = $this->buildWatchCount($row);
-            $item['durationSec'] = $this->buildDurationSec($row);
-            // 直播表直查阶段先返回空串，后续接回放聚合链路再补齐地址。
-            $item['replayUrl'] = '';
-
-            return $item;
-        }
-
-        $item['reserveCount'] = (int)($row->reserve_count ?? 0);
-        $item['isReserved'] = $isReserved;
-
-        return $item;
-    }
-
-    /**
-     * 构建封面 URL
-     *
-     * 优先级：
-     * 1. 直播间封面 room_cover；
-     * 2. 历史兼容字段 live_cover/chapter_cover/course_cover（仅兜底）。
-     */
-    protected function buildCoverUrl($row): string
-    {
-        $cover = (string)(($row->room_cover ?? '') ?: (($row->live_cover ?? '') ?: (($row->chapter_cover ?? '') ?: (($row->course_cover ?? '') ?: ''))));
-        if ($cover === '') {
-            return '';
-        }
-
-        if (stripos($cover, 'http://') === 0 || stripos($cover, 'https://') === 0) {
-            return $cover;
-        }
-
-        return $this->fileUploadService->generateFileUrl($cover);
-    }
-
-    /**
-     * 映射状态到接口状态值
-     */
-    protected function mapLiveStatus($row): string
-    {
-        $liveStatus = (int)($row->live_status ?? AppLiveRoom::LIVE_STATUS_NOT_STARTED);
-
-        if ($liveStatus === AppLiveRoom::LIVE_STATUS_LIVING) {
-            return 'live';
-        }
-
-        if ($liveStatus === AppLiveRoom::LIVE_STATUS_NOT_STARTED) {
-            return 'upcoming';
-        }
-
-        if (in_array($liveStatus, [
-            AppLiveRoom::LIVE_STATUS_ENDED,
-            AppLiveRoom::LIVE_STATUS_CANCELLED,
-        ], true)) {
-            return 'replay';
-        }
-
-        return 'ended';
-    }
-
-    /**
-     * 按状态生成按钮文案
-     */
-    protected function buildActionText(string $status, bool $isReserved): string
-    {
-        if ($status === 'replay') {
-            return '回放';
-        }
-
-        if ($status === 'live') {
-            return '直播中';
-        }
-
-        if ($status === 'ended') {
-            return '已结束';
-        }
-
-        return $isReserved ? '已预约' : '预约';
-    }
-
-    /**
-     * 观看人数（回放场景）
-     */
-    protected function buildWatchCount($row): int
-    {
-        return (int)($row->total_viewer_count ?? 0);
-    }
-
-    /**
-     * 回放时长（秒）
-     */
-    protected function buildDurationSec($row): int
-    {
-        $duration = (int)($row->live_duration ?? 0);
-        if ($duration > 0) {
-            // live_duration 单位为分钟，接口返回秒。
-            return $duration * 60;
-        }
-
-        try {
-            if (!empty($row->actual_start_time) && !empty($row->actual_end_time)) {
-                return Carbon::parse($row->actual_end_time)->diffInSeconds(Carbon::parse($row->actual_start_time));
-            }
-
-            if (!empty($row->scheduled_start_time) && !empty($row->scheduled_end_time)) {
-                return Carbon::parse($row->scheduled_end_time)->diffInSeconds(Carbon::parse($row->scheduled_start_time));
-            }
-        } catch (\Exception $e) {
-            // 数据异常时返回 0
-        }
-
-        return 0;
-    }
-
-    /**
-     * 格式化时间
-     */
-    protected function formatDateTime($value): string
-    {
-        if (!$value) {
-            return '';
-        }
-
-        try {
-            return Carbon::parse($value)->format('Y-m-d H:i:s');
-        } catch (\Exception $e) {
-            return '';
-        }
-    }
 }

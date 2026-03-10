@@ -58,9 +58,6 @@ class LiveHomeService
         $latestRow = $this->getLatestUpcomingRow($memberId);
         if ($tab === LiveHomeRequest::TAB_REPLAY) {
             $paginator = $this->buildReplayListQuery()->paginate($pageSize, ['*'], 'page', $page);
-            dd(
-                $paginator
-            );
             $list = $this->formatReplayList($paginator->items());
         } else {
             $paginator = $this->buildUpcomingListQuery($memberId)->paginate($pageSize, ['*'], 'page', $page);
@@ -68,13 +65,13 @@ class LiveHomeService
         }
 
         return [
-            'latest' => $latestRow ? $this->formatUpcomingItem($latestRow) : null,
-            'tab' => $tab,
-            'list' => $list,
-            'total' => (int)$paginator->total(),
-            'page' => (int)$paginator->currentPage(),
+            'latest'   => $latestRow ? $this->formatUpcomingItem($latestRow) : null,
+            'tab'      => $tab,
+            'list'     => $list,
+            'total'    => (int)$paginator->total(),
+            'page'     => (int)$paginator->currentPage(),
             'pageSize' => (int)$paginator->perPage(),
-            'hasMore' => $paginator->currentPage() < $paginator->lastPage(),
+            'hasMore'  => $paginator->currentPage() < $paginator->lastPage(),
         ];
     }
 
@@ -168,7 +165,7 @@ class LiveHomeService
     {
         $latestPlaybackByRoom = DB::table('app_live_playback as p')
             ->join('app_live_room as r', function ($join) {
-                $join->on('r.room_id', '=', 'p.room_id')
+                $join->on('r.third_party_room_id', '=', 'p.third_party_room_id')
                     ->whereNull('r.deleted_at')
                     ->where('r.status', '=', AppLiveRoom::STATUS_ENABLED);
             })
@@ -177,12 +174,13 @@ class LiveHomeService
             ->where('p.publish_status', AppLivePlayback::PUBLISH_STATUS_UNSHIELDED)
             ->whereNotNull('p.play_url')
             ->where('p.play_url', '!=', '')
-            ->whereNotNull('p.room_id')
-            ->where('p.room_id', '>', 0)
+            //->whereNotNull('p.room_id')
+            // ->where('p.room_id', '>', 0)
             // DISTINCT ON 依赖先按去重键排序，再按“最新回放”排序。
             ->selectRaw(
                 'DISTINCT ON (p.room_id)
                 p.room_id,
+                p.third_party_room_id,
                 p.id as playback_pk,
                 p.play_url as replay_url,
                 p.length as playback_length,
@@ -203,6 +201,7 @@ class LiveHomeService
             ->fromSub($latestPlaybackByRoom, 'rp')
             ->select([
                 'rp.room_id',
+                'rp.third_party_room_id',
                 'rp.room_title',
                 'rp.room_cover',
                 'rp.scheduled_start_time',
@@ -262,14 +261,14 @@ class LiveHomeService
         $isReserved = (int)($row->is_reserved ?? 0) === 1;
 
         return [
-            'id' => (int)($row->room_id ?? 0),
-            'title' => (string)($row->room_title ?? ''),
-            'cover' => $this->buildCoverUrl((string)($row->room_cover ?? '')),
-            'startTime' => $this->formatDateTime($row->start_time ?? null),
-            'status' => LiveHomeRequest::TAB_UPCOMING,
+            'id'           => (int)($row->room_id ?? 0),
+            'title'        => (string)($row->room_title ?? ''),
+            'cover'        => $this->buildCoverUrl((string)($row->room_cover ?? '')),
+            'startTime'    => $this->formatDateTime($row->start_time ?? null),
+            'status'       => LiveHomeRequest::TAB_UPCOMING,
             'reserveCount' => (int)($row->reserve_count ?? 0),
-            'isReserved' => $isReserved,
-            'actionText' => $isReserved ? '已预约' : '预约',
+            'isReserved'   => $isReserved,
+            'actionText'   => $isReserved ? '已预约' : '预约',
         ];
     }
 
@@ -284,19 +283,30 @@ class LiveHomeService
         $startTime = $row->actual_start_time ?? $row->scheduled_start_time ?? $row->playback_create_time ?? null;
 
         return [
-            'id' => (int)($row->room_id ?? 0),
-            'title' => (string)($row->room_title ?? ''),
-            'cover' => $this->buildCoverUrl(
+            'id'          => (int)($row->third_party_room_id ?? 0),
+            'title'       => (string)($row->room_title ?? ''),
+            'cover'       => $this->buildCoverUrl(
                 (string)($row->room_cover ?? ''),
                 (string)($row->playback_cover ?? '')
             ),
-            'startTime' => $this->formatDateTime($startTime),
-            'status' => LiveHomeRequest::TAB_REPLAY,
-            'watchCount' => (int)($row->watch_count ?? 0),
+            'startTime'   => $this->formatDateTime($startTime),
+            'status'      => LiveHomeRequest::TAB_REPLAY,
+            'watchCount'  => (int)($row->watch_count ?? 0),
             'durationSec' => $this->buildReplayDuration($row),
-            'replayUrl' => $this->normalizeUrl((string)($row->replay_url ?? '')),
-            'actionText' => '回放',
+            'replayUrl'   => $this->normalizeUrl((string)($row->replay_url ?? '')),
+            'actionText'  => '回放',
+            'liveToken'   => $this->getPlaybackToken($row->replay_url ?? null)
         ];
+    }
+
+    protected function getPlaybackToken($replayUrl)
+    {
+        $token = null;
+        if (!empty($replayUrl)) {
+            parse_str(parse_url($replayUrl, PHP_URL_QUERY), $query);
+            $token = $query['token'] ?? null;
+        }
+        return $token;
     }
 
     /**

@@ -21,6 +21,11 @@ class MemberAuthService
     const TOKEN_EXPIRE_SECONDS = 604800;
 
     /**
+     * 绑定手机号临时 Token 过期时间（秒）- 10分钟
+     */
+    const BIND_PHONE_TOKEN_EXPIRE_SECONDS = 600;
+
+    /**
      * 手机号密码登录
      *
      * @param string $phone
@@ -98,9 +103,14 @@ class MemberAuthService
     /**
      * 绑定手机号
      *
+     * 关键规则：
+     * 1. 同一 member_id 使用行锁避免并发重复绑定；
+     * 2. 手机号全局唯一，禁止绑定到其他账号；
+     * 3. 绑定成功后返回最新 member，用于上层签发正式登录 token。
+     *
      * @param int $memberId
      * @param string $phone
-     * @return array ['success' => bool, 'message' => string]
+     * @return array{success:bool, message:string, member?:AppMemberBase}
      */
     public function bindPhone(int $memberId, string $phone): array
     {
@@ -148,6 +158,7 @@ class MemberAuthService
                 return [
                     'success' => true,
                     'message' => 'success',
+                    'member' => $member,
                 ];
             });
         } catch (\Exception $e) {
@@ -454,12 +465,40 @@ class MemberAuthService
     }
 
     /**
-     * 生成 JWT Token
+     * 生成正式登录 JWT Token（默认 7 天）。
      *
      * @param AppMemberBase $member
      * @return string
      */
     public function generateToken(AppMemberBase $member): string
+    {
+        return $this->buildToken($member, self::TOKEN_EXPIRE_SECONDS);
+    }
+
+    /**
+     * 生成绑定手机号临时 JWT Token（10分钟）。
+     *
+     * 该 Token 仅用于绑定手机号流程，中间件会限制其访问范围。
+     *
+     * @param AppMemberBase $member
+     * @return string
+     */
+    public function generateBindPhoneToken(AppMemberBase $member): string
+    {
+        return $this->buildToken($member, self::BIND_PHONE_TOKEN_EXPIRE_SECONDS, [
+            'token_scene' => 'bind_phone',
+        ]);
+    }
+
+    /**
+     * 生成 JWT Token。
+     *
+     * @param AppMemberBase $member
+     * @param int $expireSeconds
+     * @param array<string, mixed> $extraPayload
+     * @return string
+     */
+    protected function buildToken(AppMemberBase $member, int $expireSeconds, array $extraPayload = []): string
     {
         $payload = [
             'member_id' => $member->member_id,
@@ -467,9 +506,12 @@ class MemberAuthService
             'nickname' => $member->nickname,
             'iss' => 'app',
         ];
+        if (!empty($extraPayload)) {
+            $payload = array_merge($payload, $extraPayload);
+        }
 
         $secret = config('app.jwt_app_secret', config('app.key'));
 
-        return JwtHelper::encode($payload, $secret, self::TOKEN_EXPIRE_SECONDS);
+        return JwtHelper::encode($payload, $secret, $expireSeconds);
     }
 }

@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\LiveRoomStoreRequest;
 use App\Http\Requests\Admin\LiveRoomStatusRequest;
 use App\Http\Requests\Admin\LiveRoomUpdateRequest;
 use App\Http\Resources\ApiResponse;
+use App\Http\Resources\Admin\LiveRoomMockPlaybackListResource;
 use App\Http\Resources\Admin\LiveRoomMockVideoListResource;
 use App\Http\Resources\Admin\LiveRoomResource;
 use App\Http\Resources\Admin\LiveRoomListResource;
@@ -123,6 +124,52 @@ class LiveRoomController extends Controller
         } catch (\Exception $e) {
             Log::error('直播间操作失败', [
                 'action' => 'mockVideoList',
+                'error'  => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error('操作失败，请稍后重试');
+        }
+    }
+
+    /**
+     * 获取伪直播可选的回放分页列表。
+     *
+     * 接口用途：
+     * - 仅用于 Admin 创建伪直播时选择百家云回放；
+     * - 前端选择后透传 mockRoomId 到创建接口的 mockRoomId 字段。
+     *
+     * 关键输入：
+     * - pageNum/pageSize：分页参数，默认 1/10；
+     * - mockRoomId：可选精确匹配 third_party_room_id；
+     * - name：可选回放名称模糊匹配。
+     *
+     * 关键输出：
+     * - 返回 ApiResponse::paginate 结构（code/msg/total/rows）；
+     * - rows 仅返回创建伪直播所需的轻量字段。
+     *
+     * 失败分支：
+     * - 异常统一记录日志并返回通用错误，避免泄露内部异常细节。
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function mockPlaybackList(Request $request)
+    {
+        try {
+            $filters = [
+                'mockRoomId' => $request->input('mockRoomId'),
+                'name'       => $request->input('name'),
+            ];
+
+            $pageNum = (int)$request->input('pageNum', 1);
+            $pageSize = (int)$request->input('pageSize', 10);
+
+            $paginator = $this->liveRoomService->getMockPlaybackList($filters, $pageNum, $pageSize);
+
+            return ApiResponse::paginate($paginator, LiveRoomMockPlaybackListResource::class, '查询成功');
+        } catch (\Exception $e) {
+            Log::error('直播间操作失败', [
+                'action' => 'mockPlaybackList',
                 'error'  => $e->getMessage(),
             ]);
 

@@ -5,6 +5,7 @@ namespace App\Services\Admin;
 use App\Events\LiveRedPacketSent;
 use App\Models\App\AppCourseBase;
 use App\Models\App\AppLiveChatMessage;
+use App\Models\App\AppLivePlayback;
 use App\Models\App\AppLiveRoom;
 use App\Models\App\AppLiveRoomStat;
 use App\Models\App\AppVideoBaijiayun;
@@ -121,6 +122,64 @@ class LiveRoomService
         }
 
         $query->orderByDesc('created_at')->orderByDesc('id');
+
+        return $query->paginate($pageSize, ['*'], 'pageNum', $pageNum);
+    }
+
+    /**
+     * 获取创建伪直播用的回放分页列表。
+     *
+     * 业务规则：
+     * 1. 仅返回“转码成功 + 未屏蔽 + 有播放地址 + 有教室号”的回放；
+     * 2. 同一个 third_party_room_id 可能有多条回放，按 create_time/id 保留最新一条；
+     * 3. mockRoomId 为教室号精确匹配，name 为回放名称模糊匹配。
+     *
+     * @param array<string, mixed> $filters
+     * @param int $pageNum 页码
+     * @param int $pageSize 每页条数
+     * @return LengthAwarePaginator
+     */
+    public function getMockPlaybackList(array $filters, int $pageNum = 1, int $pageSize = 10): LengthAwarePaginator
+    {
+        $latestPlaybackQuery = AppLivePlayback::query()
+            ->where('status', AppLivePlayback::STATUS_TRANSCODE_SUCCESS)
+            ->where('publish_status', AppLivePlayback::PUBLISH_STATUS_UNSHIELDED)
+            ->whereNotNull('play_url')
+            ->where('play_url', '!=', '')
+            ->whereNotNull('third_party_room_id')
+            ->where('third_party_room_id', '!=', '');
+
+        if (isset($filters['mockRoomId']) && $filters['mockRoomId'] !== '') {
+            $latestPlaybackQuery->where('third_party_room_id', (string)$filters['mockRoomId']);
+        }
+
+        if (!empty($filters['name'])) {
+            $latestPlaybackQuery->where('name', 'like', '%' . $filters['name'] . '%');
+        }
+
+        // DISTINCT ON 需要先按去重键排序，再按“最新记录”排序。
+        $latestPlaybackQuery->selectRaw(
+            'DISTINCT ON (third_party_room_id) id, third_party_room_id, name, status, publish_status, preface_url, play_url, length, create_time'
+        )->orderBy('third_party_room_id')
+            ->orderByDesc('create_time')
+            ->orderByDesc('id');
+
+        // 外层统一按时间倒序输出，保证最近可用回放优先展示。
+        $query = DB::query()
+            ->fromSub($latestPlaybackQuery, 'latest_playback')
+            ->select([
+                'id',
+                'third_party_room_id',
+                'name',
+                'status',
+                'publish_status',
+                'preface_url',
+                'play_url',
+                'length',
+                'create_time',
+            ])
+            ->orderByDesc('create_time')
+            ->orderByDesc('id');
 
         return $query->paginate($pageSize, ['*'], 'pageNum', $pageNum);
     }

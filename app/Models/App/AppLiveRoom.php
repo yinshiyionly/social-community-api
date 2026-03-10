@@ -302,7 +302,7 @@ class AppLiveRoom extends Model
         $this->attributes['room_cover'] = $this->extractTosPath($value);
     }
 
-    public function getAttribute($value)
+    public function getRoomCoverAttribute($value)
     {
         return $this->getTosUrl($value);
     }

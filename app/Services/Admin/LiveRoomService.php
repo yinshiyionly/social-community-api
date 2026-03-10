@@ -409,6 +409,7 @@ class LiveRoomService
     public function delete(int $roomId): array
     {
         $room = AppLiveRoom::query()
+            ->select(['room_id', 'third_party_room_id', 'live_status'])
             ->where('room_id', $roomId)
             ->first();
 
@@ -425,6 +426,15 @@ class LiveRoomService
         }
 
         $deleted = $room->delete() ? 1 : 0;
+
+        try {
+            // 实例化百家云服务类调用接口删除房间
+            $service = new BaijiayunLiveService();
+            $result = $service->deleteRoom($room['third_party_room_id']);
+            // TODO 完善对 result 的处理
+        } catch (\Exception $e) {
+
+        }
 
         Log::info('直播间删除成功', [
             'room_id' => $roomId,
@@ -450,8 +460,7 @@ class LiveRoomService
             ->whereNull('c.deleted_at')
             ->where('c.play_type', AppCourseBase::PLAY_TYPE_LIVE)
             ->where(function ($query) use ($roomId) {
-                $query->where('l.room_id', $roomId)
-                    ->orWhere('l.live_room_id', (string)$roomId);
+                $query->where('l.live_room_id', $roomId);
             })
             ->exists();
     }

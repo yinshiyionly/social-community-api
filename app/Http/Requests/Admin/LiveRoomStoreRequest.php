@@ -26,13 +26,6 @@ class LiveRoomStoreRequest extends FormRequest
             'scheduledEndTime'   => 'nullable|date|after:scheduledStartTime',
         ];
 
-        if ($liveType === 2) {
-            // 伪直播：videoUrl、scheduledStartTime、scheduledEndTime 必填
-         //   $rules['videoUrl']            = 'required|string|max:500';
-            $rules['scheduledStartTime']  = 'required|date|after:now';
-            $rules['scheduledEndTime']    = 'required|date|after:scheduledStartTime';
-        }
-
         return $rules;
     }
 
@@ -45,24 +38,12 @@ class LiveRoomStoreRequest extends FormRequest
             'liveType.in'                  => '直播类型值无效',
             'roomCover.required'           => '直播封面不能为空',
             'roomCover.max'                => '封面地址不能超过500个字符',
-            'roomIntro.max'                => '简介不能超过5000个字符',
             'anchorName.max'               => '主播名称不能超过100个字符',
             'anchorAvatar.max'             => '主播头像地址不能超过500个字符',
-            'scheduledStartTime.date'      => '计划开始时间格式无效',
-            'scheduledStartTime.after'     => '计划开始时间必须晚于当前时间',
-            'scheduledEndTime.date'        => '计划结束时间格式无效',
-            'scheduledEndTime.after'       => '计划结束时间必须晚于开始时间',
-            'videoUrl.required'            => '伪直播视频地址不能为空',
-            'videoUrl.max'                 => '视频地址不能超过500个字符',
-            'livePlatform.in'              => '直播平台值无效',
-            'pushUrl.max'                  => '推流地址不能超过500个字符',
-            'pullUrl.max'                  => '拉流地址不能超过500个字符',
-            'liveDuration.integer'         => '预计时长必须是整数',
-            'liveDuration.min'             => '预计时长不能小于0',
-            'allowChat.in'                 => '允许聊天值无效',
-            'allowGift.in'                 => '允许送礼值无效',
-            'allowLike.in'                 => '允许点赞值无效',
-            'password.max'                 => '密码不能超过100个字符',
+            'scheduledStartTime.date'      => '直播开始时间格式无效',
+            'scheduledStartTime.after'     => '直播开始时间必须晚于当前时间',
+            'scheduledEndTime.date'        => '直播结束时间格式无效',
+            'scheduledEndTime.after'       => '直播结束时间必须晚于开始时间',
             'status.in'                    => '状态值无效',
         ];
     }

@@ -35,9 +35,10 @@ class LiveRoomService
     {
         $query = AppLiveRoom::query()
             ->select([
-                'room_id', 'room_title', 'room_cover', 'live_type', 'live_platform',
+                'room_id', 'room_title', 'room_cover', 'live_type', 'third_party_room_id',
                 'anchor_name', 'scheduled_start_time', 'scheduled_end_time',
-                'live_status', 'allow_chat', 'allow_gift', 'status', 'created_at',
+                'student_code', 'teacher_code', 'admin_code', 'mock_video_id', 'mock_room_id',
+                'live_status', 'app_template', 'enable_live_sell', 'status', 'created_at',
             ])
             ->with('stat:room_id,current_online_count,total_viewer_count');
 
@@ -113,13 +114,13 @@ class LiveRoomService
         $liveType = (int)($data['liveType'] ?? AppLiveRoom::LIVE_TYPE_REAL);
 
         $roomData = [
-            'room_title' => $data['roomTitle'],
-            'room_cover' => $data['roomCover'],
-            'live_type' => $liveType,
+            'room_title'           => $data['roomTitle'],
+            'room_cover'           => $data['roomCover'],
+            'live_type'            => $liveType,
             'scheduled_start_time' => $data['scheduledStartTime'] ?? null,
-            'scheduled_end_time' => $data['scheduledEndTime'] ?? null,
-            'live_status' => AppLiveRoom::LIVE_STATUS_NOT_STARTED,
-            'enable_live_sell' => 2, // ppt 带货模版
+            'scheduled_end_time'   => $data['scheduledEndTime'] ?? null,
+            'live_status'          => AppLiveRoom::LIVE_STATUS_NOT_STARTED,
+            'enable_live_sell'     => 2, // ppt 带货模版
         ];
 
         if ($liveType === AppLiveRoom::LIVE_TYPE_PSEUDO) {
@@ -154,8 +155,8 @@ class LiveRoomService
 //            ]);
 
             Log::info('直播间创建成功', [
-                'room_id' => $room->room_id,
-                'live_type' => $liveType,
+                'room_id'    => $room->room_id,
+                'live_type'  => $liveType,
                 'room_title' => $room->room_title,
             ]);
             return $room;
@@ -165,70 +166,177 @@ class LiveRoomService
     }
 
     /**
-     * 创建伪直播房间-选择点播
+     * 按直播类型创建直播间。
      *
-     * @param array $data
-     * @return array
+     * 关键规则：
+     * 1. 真实直播与伪直播统一走百家云建房流程，避免分支实现漂移；
+     * 2. 伪直播仅按 mockVideoSource 透传一种素材参数，避免 mock_room_id 与 mock_video_id 同时生效；
+     * 3. 主播模式会忽略 mock 字段，不落库也不透传第三方。
+     *
+     * 失败策略：
+     * - 第三方建房失败：返回错误结构，不抛异常中断控制器流程；
+     * - 数据库写入失败：记录日志并返回错误结构，交由控制器统一返回业务错误。
+     *
+     * @param array<string, mixed> $data
+     * @return array{success:bool,error:string,data:array<string,mixed>}
      */
-    public function createMockRoom(array $data): array
+    public function createByType(array $data): array
     {
-        // 1. 实例化百家云服务
+        $liveType = (int)($data['liveType'] ?? AppLiveRoom::LIVE_TYPE_REAL);
+        $roomTitle = (string)($data['roomTitle'] ?? '');
+        $scheduledStartTime = (string)($data['scheduledStartTime'] ?? '');
+        $scheduledEndTime = (string)($data['scheduledEndTime'] ?? '');
+        $enableLiveSell = (int)($data['enableLiveSell'] ?? 0);
+        $appTemplate = (int)($data['app_template'] ?? 1);
+
+        if ($roomTitle === '' || $scheduledStartTime === '' || $scheduledEndTime === '') {
+            return [
+                'success' => false,
+                'error'   => '创建直播间参数不完整',
+                'data'    => [],
+            ];
+        }
+
+        if (!in_array($liveType, [AppLiveRoom::LIVE_TYPE_REAL, AppLiveRoom::LIVE_TYPE_PSEUDO], true)) {
+            return [
+                'success' => false,
+                'error'   => '直播类型值无效',
+                'data'    => [],
+            ];
+        }
+
+        $createRoomOptions = [
+            'enable_live_sell' => $enableLiveSell,
+            'app_template'     => $appTemplate
+        ];
+
+        $roomData = [
+            'room_title'           => $roomTitle,
+            'room_cover'           => $data['roomCover'] ?? '',
+            'room_intro'           => $data['roomIntro'] ?? '',
+            'live_type'            => $liveType,
+            'anchor_name'          => $data['anchorName'] ?? '',
+            'anchor_avatar'        => $data['anchorAvatar'] ?? null,
+            'scheduled_start_time' => $scheduledStartTime,
+            'scheduled_end_time'   => $scheduledEndTime,
+            'live_status'          => AppLiveRoom::LIVE_STATUS_NOT_STARTED,
+            'enable_live_sell'     => $enableLiveSell,
+        ];
+
+        if ($liveType === AppLiveRoom::LIVE_TYPE_PSEUDO) {
+            $mockVideoSource = (int)($data['mockVideoSource'] ?? 0);
+            if (!in_array($mockVideoSource, [1, 2], true)) {
+                return [
+                    'success' => false,
+                    'error'   => '伪直播视频来源值无效',
+                    'data'    => [],
+                ];
+            }
+
+            $createRoomOptions['is_mock_live'] = 1;
+            $roomData['mock_video_source'] = $mockVideoSource;
+
+            if ($mockVideoSource === 1) {
+                $mockRoomId = isset($data['mockRoomId']) ? (int)$data['mockRoomId'] : 0;
+                if ($mockRoomId <= 0) {
+                    return [
+                        'success' => false,
+                        'error'   => '伪直播关联的回放教室号无效',
+                        'data'    => [],
+                    ];
+                }
+
+                $createRoomOptions['mock_room_id'] = $mockRoomId;
+                $roomData['mock_room_id'] = $mockRoomId;
+                // 回放模式只落 mock_room_id，避免残留历史 mock_video_id 污染数据语义。
+                $roomData['mock_video_id'] = null;
+            } else {
+                $mockVideoId = isset($data['mockVideoId']) ? (int)$data['mockVideoId'] : 0;
+                if ($mockVideoId <= 0) {
+                    return [
+                        'success' => false,
+                        'error'   => '伪直播视频ID无效',
+                        'data'    => [],
+                    ];
+                }
+
+                $createRoomOptions['mock_video_id'] = $mockVideoId;
+                $roomData['mock_video_id'] = $mockVideoId;
+                // 点播模式只落 mock_video_id，避免与 mock_room_id 冲突。
+                $roomData['mock_room_id'] = null;
+            }
+        }
+
         $service = new BaijiayunLiveService();
-        // 2. 调用创建房间服务
         $createRoomResult = $service->createRoom(
-            $data['roomTitle'],
-            $data['scheduledStartTime'],
-            $data['scheduledEndTime'],
-            [
-                'is_mock_live' => 1, // 是伪直播
-                'mock_video_id' => $data['mockVideoId']
-            ]
+            $roomTitle,
+            $scheduledStartTime,
+            $scheduledEndTime,
+            $createRoomOptions
         );
-        // 3. 伪直播房间创建失败
+
         if (empty($createRoomResult['success']) || empty($createRoomResult['data'])) {
             return [
                 'success' => false,
-                'error' => sprintf("直播间[%s]创建失败,错误原因: %s", $data['roomTitle'], $createRoomResult['error_message']),
-                'data' => []
+                'error'   => sprintf(
+                    '直播间[%s]创建失败,错误原因: %s',
+                    $roomTitle,
+                    (string)($createRoomResult['error_message'] ?? '未知错误')
+                ),
+                'data'    => [],
             ];
         }
-        $roomData = [
-            // 直播间标题
-            'room_title' => $data['roomTitle'] ?? '',
-            // 直播间封面
-            'room_cover' => $data['roomCover'] ?? '',
-            // 直播类型 2=伪直播
-            'liveType' => 2,
-            // 直播开始时间
-            'scheduled_start_time' => $data['scheduledStartTime'],
-            // 直播结束时间
-            'scheduled_end_time' => $data['scheduledEndTime'],
 
-            'third_party_room_id' => $createRoomResult['data']['room_id'] ?? 0,
-            'student_code' => $createRoomResult['data']['student_code'] ?? 0,
-            'admin_code' => $createRoomResult['data']['admin_code'] ?? 0,
-            'teacher_code' => $createRoomResult['data']['teacher_code'] ?? 0,
-        ];
+        $roomData['third_party_room_id'] = $createRoomResult['data']['room_id'] ?? 0;
+        $roomData['student_code'] = $createRoomResult['data']['student_code'] ?? 0;
+        $roomData['admin_code'] = $createRoomResult['data']['admin_code'] ?? 0;
+        $roomData['teacher_code'] = $createRoomResult['data']['teacher_code'] ?? 0;
 
-        // 4. 创建房间成功后将有用的返回信息保存数据库
         try {
             $room = AppLiveRoom::query()->create($roomData);
-            // TODO 初始化统计记录
-            /*AppLiveRoomStat::query()->create([
-                'room_id' => $room->room_id,
-            ]);*/
+
+            Log::info('直播间创建成功', [
+                'room_id'    => $room->room_id,
+                'live_type'  => $liveType,
+                'room_title' => $roomTitle,
+            ]);
+
             return [
                 'success' => true,
-                'error' => '',
-                'data' => $createRoomResult['data']
+                'error'   => '',
+                'data'    => $createRoomResult['data'],
             ];
         } catch (\Exception $e) {
+            Log::error('直播间入库失败', [
+                'room_title' => $roomTitle,
+                'live_type'  => $liveType,
+                'error'      => $e->getMessage(),
+            ]);
+
             return [
                 'success' => false,
-                'error' => sprintf("直播间[%s]创建失败,错误原因: %s", $data['roomTitle'], $e->getMessage()),
-                'data' => []
+                'error'   => sprintf('直播间[%s]创建失败,错误原因: %s', $roomTitle, $e->getMessage()),
+                'data'    => [],
             ];
         }
+    }
+
+    /**
+     * 创建伪直播房间（兼容旧入口）。
+     *
+     * @param array $data
+     * @return array{success:bool,error:string,data:array<string,mixed>}
+     * @deprecated 建议使用 createByType()，该方法仅保留历史调用兼容。
+     *
+     */
+    public function createMockRoom(array $data): array
+    {
+        // 兼容旧调用：未显式传来源时按历史行为默认走点播视频ID。
+        $data['liveType'] = AppLiveRoom::LIVE_TYPE_PSEUDO;
+        $data['enableLiveSell'] = $data['enableLiveSell'] ?? 0;
+        $data['mockVideoSource'] = $data['mockVideoSource'] ?? (isset($data['mockRoomId']) ? 1 : 2);
+
+        return $this->createByType($data);
     }
 
     /**
@@ -257,23 +365,23 @@ class LiveRoomService
         }
 
         $fieldMap = [
-            'roomTitle' => 'room_title',
-            'roomCover' => 'room_cover',
-            'roomIntro' => 'room_intro',
-            'videoUrl' => 'video_url',
-            'anchorName' => 'anchor_name',
-            'anchorAvatar' => 'anchor_avatar',
+            'roomTitle'          => 'room_title',
+            'roomCover'          => 'room_cover',
+            'roomIntro'          => 'room_intro',
+            'videoUrl'           => 'video_url',
+            'anchorName'         => 'anchor_name',
+            'anchorAvatar'       => 'anchor_avatar',
             'scheduledStartTime' => 'scheduled_start_time',
-            'scheduledEndTime' => 'scheduled_end_time',
-            'liveDuration' => 'live_duration',
-            'allowChat' => 'allow_chat',
-            'allowGift' => 'allow_gift',
-            'allowLike' => 'allow_like',
-            'password' => 'password',
-            'extConfig' => 'ext_config',
-            'status' => 'status',
-            'pushUrl' => 'push_url',
-            'pullUrl' => 'pull_url',
+            'scheduledEndTime'   => 'scheduled_end_time',
+            'liveDuration'       => 'live_duration',
+            'allowChat'          => 'allow_chat',
+            'allowGift'          => 'allow_gift',
+            'allowLike'          => 'allow_like',
+            'password'           => 'password',
+            'extConfig'          => 'ext_config',
+            'status'             => 'status',
+            'pushUrl'            => 'push_url',
+            'pullUrl'            => 'pull_url',
         ];
 
         $updateData = [];
@@ -311,7 +419,7 @@ class LiveRoomService
             return [
                 'success' => false,
                 'deleted' => 0,
-                'error' => '直播间"' . $room->room_title . '"正在直播中，无法删除',
+                'error'   => '直播间"' . $room->room_title . '"正在直播中，无法删除',
             ];
         }
 
@@ -357,8 +465,8 @@ class LiveRoomService
     public function changeStatus(int $roomId, int $status): bool
     {
         return AppLiveRoom::query()
-                ->where('room_id', $roomId)
-                ->update(['status' => $status]) > 0;
+                   ->where('room_id', $roomId)
+                   ->update(['status' => $status]) > 0;
     }
 
     /**
@@ -400,9 +508,9 @@ class LiveRoomService
         $content = (string)$data['content'];
 
         $extData = [
-            'title' => $title,
-            'totalAmount' => $totalAmount,
-            'packetCount' => $packetCount,
+            'title'         => $title,
+            'totalAmount'   => $totalAmount,
+            'packetCount'   => $packetCount,
             'expireSeconds' => $expireSeconds,
         ];
         if (!empty($data['extra']) && is_array($data['extra'])) {
@@ -412,29 +520,29 @@ class LiveRoomService
         $message = null;
         DB::transaction(function () use ($roomId, $senderName, $content, $extData, $packetCount, $totalAmount, &$message) {
             $message = AppLiveChatMessage::query()->create([
-                'room_id' => $roomId,
-                'member_id' => 0,
-                'member_name' => $senderName,
+                'room_id'       => $roomId,
+                'member_id'     => 0,
+                'member_name'   => $senderName,
                 'member_avatar' => null,
-                'message_type' => AppLiveChatMessage::TYPE_RED_PACKET,
-                'content' => $content,
-                'ext_data' => $extData,
-                'is_top' => 0,
-                'is_blocked' => 0,
+                'message_type'  => AppLiveChatMessage::TYPE_RED_PACKET,
+                'content'       => $content,
+                'ext_data'      => $extData,
+                'is_top'        => 0,
+                'is_blocked'    => 0,
             ]);
 
             AppLiveRoomStat::query()->firstOrCreate(
                 ['room_id' => $roomId],
                 [
-                    'total_viewer_count' => 0,
-                    'max_online_count' => 0,
+                    'total_viewer_count'   => 0,
+                    'max_online_count'     => 0,
                     'current_online_count' => 0,
-                    'like_count' => 0,
-                    'message_count' => 0,
-                    'gift_count' => 0,
-                    'gift_amount' => 0,
-                    'share_count' => 0,
-                    'avg_watch_duration' => 0,
+                    'like_count'           => 0,
+                    'message_count'        => 0,
+                    'gift_count'           => 0,
+                    'gift_amount'          => 0,
+                    'share_count'          => 0,
+                    'avg_watch_duration'   => 0,
                 ]
             );
 
@@ -442,9 +550,9 @@ class LiveRoomService
                 ->where('room_id', $roomId)
                 ->update([
                     'message_count' => DB::raw('message_count + 1'),
-                    'gift_count' => DB::raw('gift_count + ' . $packetCount),
-                    'gift_amount' => DB::raw('gift_amount + ' . $totalAmount),
-                    'updated_at' => now(),
+                    'gift_count'    => DB::raw('gift_count + ' . $packetCount),
+                    'gift_amount'   => DB::raw('gift_amount + ' . $totalAmount),
+                    'updated_at'    => now(),
                 ]);
         });
 
@@ -455,7 +563,7 @@ class LiveRoomService
             $extData,
             [
                 'type' => 'admin',
-                'id' => $senderId,
+                'id'   => $senderId,
                 'name' => $senderName,
             ],
             $message->created_at ? $message->created_at->format('Y-m-d H:i:s') : now()->format('Y-m-d H:i:s')
@@ -463,11 +571,11 @@ class LiveRoomService
 
         return [
             'success' => true,
-            'error' => null,
-            'data' => [
+            'error'   => null,
+            'data'    => [
                 'messageId' => (int)$message->message_id,
-                'roomId' => $roomId,
-                'event' => 'live.red_packet.sent',
+                'roomId'    => $roomId,
+                'event'     => 'live.red_packet.sent',
                 'createdAt' => $message->created_at ? $message->created_at->format('Y-m-d H:i:s') : null,
             ],
         ];

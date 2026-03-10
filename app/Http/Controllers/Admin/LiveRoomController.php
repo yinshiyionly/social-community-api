@@ -41,6 +41,49 @@ class LiveRoomController extends Controller
     }
 
     /**
+     * 直播间常量配置项
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function constants()
+    {
+        $data = [
+            // 直播类型
+            'liveTypeOptions'        => [
+                ['label' => '主播模式', 'value' => AppLiveRoom::LIVE_TYPE_REAL],
+                ['label' => '伪直播', 'value' => AppLiveRoom::LIVE_TYPE_PSEUDO],
+                // ['label' => '24小时直播', 'value' => AppCourseBase::PAY_TYPE_HIGHER],
+            ],
+            // 直播状态
+            'liveStatusOptions'      => [
+                ['label' => '未开始', 'value' => AppLiveRoom::LIVE_STATUS_NOT_STARTED],
+                ['label' => '直播中', 'value' => AppLiveRoom::LIVE_STATUS_LIVING],
+                ['label' => '已结束', 'value' => AppLiveRoom::LIVE_STATUS_ENDED],
+                ['label' => '已取消', 'value' => AppLiveRoom::LIVE_STATUS_CANCELLED]
+            ],
+            // 伪直播素材来源
+            'mockVideoSourceOptions' => [
+                ['label' => '百家云回放', 'value' => AppLiveRoom::MOCK_VIDEO_SOURCE_PLAYBACK],
+                ['label' => '百家云点播视频', 'value' => AppLiveRoom::MOCK_VIDEO_SOURCE_VIDEO],
+                ['label' => '系统视频文件', 'value' => AppLiveRoom::MOCK_VIDEO_SOURCE_SYSTEM]
+            ],
+            // APP 端模版样式
+            'appTemplateOptions'     => [
+                ['label' => '横屏', 'value' => AppLiveRoom::APP_TEMPLATE_HORIZONTAL],
+                ['label' => '竖屏', 'value' => AppLiveRoom::APP_TEMPLATE_VERTICAL]
+            ],
+            // 带货模版
+            'enableLiveSellOptions'  => [
+                ['label' => '禁用带货模版', 'value' => AppLiveRoom::ENABLE_LIVE_SELL_OFF],
+                ['label' => '视频带货模版', 'value' => AppLiveRoom::ENABLE_LIVE_SELL_VIDEO],
+                ['label' => 'PPT带货模版', 'value' => AppLiveRoom::ENABLE_LIVE_SELL_PPT]
+            ]
+        ];
+
+        return ApiResponse::success(['data' => $data]);
+    }
+
+    /**
      * 直播间列表
      *
      * @param Request $request
@@ -50,14 +93,14 @@ class LiveRoomController extends Controller
     {
         try {
             $filters = [
-                'liveType' => $request->input('liveType'),
-                'liveStatus' => $request->input('liveStatus'),
-                'status' => $request->input('status'),
-                'roomTitle' => $request->input('roomTitle'),
-                'anchorName' => $request->input('anchorName'),
+                'liveType'     => $request->input('liveType'),
+                'liveStatus'   => $request->input('liveStatus'),
+                'status'       => $request->input('status'),
+                'roomTitle'    => $request->input('roomTitle'),
+                'anchorName'   => $request->input('anchorName'),
                 'livePlatform' => $request->input('livePlatform'),
-                'beginTime' => $request->input('beginTime'),
-                'endTime' => $request->input('endTime'),
+                'beginTime'    => $request->input('beginTime'),
+                'endTime'      => $request->input('endTime'),
             ];
 
             $pageNum = (int)$request->input('pageNum', 1);
@@ -69,7 +112,7 @@ class LiveRoomController extends Controller
         } catch (\Exception $e) {
             Log::error('直播间操作失败', [
                 'action' => 'list',
-                'error' => $e->getMessage(),
+                'error'  => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');
         }
@@ -93,9 +136,9 @@ class LiveRoomController extends Controller
             return ApiResponse::resource($room, LiveRoomResource::class, '查询成功');
         } catch (\Exception $e) {
             Log::error('直播间操作失败', [
-                'action' => 'show',
+                'action'  => 'show',
                 'room_id' => $roomId,
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');
         }
@@ -106,7 +149,8 @@ class LiveRoomController extends Controller
      *
      * 关键约束：
      * 1. roomCover 必须显式传入，确保直播创建后可直接在 App 列表展示；
-     * 2. 创建时会调用第三方服务创建房间，本地仅落库必要字段。
+     * 2. liveType=2 时按 mockVideoSource 二选一校验伪直播素材参数；
+     * 3. 创建时会调用第三方服务创建房间，本地仅落库必要字段。
      *
      * @param LiveRoomStoreRequest $request
      * @return \Illuminate\Http\JsonResponse
@@ -114,16 +158,7 @@ class LiveRoomController extends Controller
     public function store(LiveRoomStoreRequest $request)
     {
         try {
-            $data = [
-                'roomTitle' => $request->input('roomTitle'),
-                'liveType' => $request->input('liveType'),
-                'roomCover' => $request->input('roomCover'),
-                'scheduledStartTime' => $request->input('scheduledStartTime'),
-                'scheduledEndTime' => $request->input('scheduledEndTime'),
-            ];
-
-            // $this->liveRoomService->create($data);
-            $result = $this->liveRoomService->createMockRoom($request->all());
+            $result = $this->liveRoomService->createByType($request->validated());
 
             if ($result['success'] === false) {
                 return ApiResponse::error($result['error']);
@@ -133,9 +168,9 @@ class LiveRoomController extends Controller
         } catch (\Exception $e) {
             Log::error('直播间操作失败', [
                 'action' => 'store',
-                'error' => $e->getMessage(),
+                'error'  => $e->getMessage(),
             ]);
-            return ApiResponse::error('操作失败，请稍后重试' . $e->getMessage() . $e->getFile() . $e->getLine());
+            return ApiResponse::error('操作失败，请稍后重试');
         }
     }
 
@@ -173,9 +208,9 @@ class LiveRoomController extends Controller
             return ApiResponse::success([], '修改成功');
         } catch (\Exception $e) {
             Log::error('直播间操作失败', [
-                'action' => 'update',
+                'action'  => 'update',
                 'room_id' => $request->input('roomId'),
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');
         }
@@ -207,9 +242,9 @@ class LiveRoomController extends Controller
             return ApiResponse::success([], '删除成功');
         } catch (\Exception $e) {
             Log::error('直播间操作失败', [
-                'action' => 'destroy',
+                'action'  => 'destroy',
                 'room_id' => $roomId,
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');
         }
@@ -236,9 +271,9 @@ class LiveRoomController extends Controller
             return ApiResponse::success([], '修改成功');
         } catch (\Exception $e) {
             Log::error('直播间操作失败', [
-                'action' => 'changeStatus',
+                'action'  => 'changeStatus',
                 'room_id' => $request->input('roomId'),
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');
         }
@@ -267,9 +302,9 @@ class LiveRoomController extends Controller
             ], '发送成功');
         } catch (\Exception $e) {
             Log::error('直播间操作失败', [
-                'action' => 'sendRedPacket',
+                'action'  => 'sendRedPacket',
                 'room_id' => $request->input('roomId'),
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');
         }

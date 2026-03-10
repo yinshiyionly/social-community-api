@@ -221,6 +221,7 @@ class LiveRoomService
             'scheduled_end_time'   => $scheduledEndTime,
             'live_status'          => AppLiveRoom::LIVE_STATUS_NOT_STARTED,
             'enable_live_sell'     => $enableLiveSell,
+            'app_template'         => $appTemplate
         ];
 
         if ($liveType === AppLiveRoom::LIVE_TYPE_PSEUDO) {

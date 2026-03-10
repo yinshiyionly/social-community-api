@@ -219,7 +219,7 @@ class LiveRoomService
             'scheduled_start_time' => $data['scheduledStartTime'] ?? null,
             'scheduled_end_time'   => $data['scheduledEndTime'] ?? null,
             'live_status'          => AppLiveRoom::LIVE_STATUS_NOT_STARTED,
-            'enable_live_sell'     => 2, // ppt 带货模版
+            'enable_live_sell'     => AppLiveRoom::ENABLE_LIVE_SELL_OFF, // 禁用带货模版
         ];
 
         if ($liveType === AppLiveRoom::LIVE_TYPE_PSEUDO) {
@@ -239,10 +239,10 @@ class LiveRoomService
             ]
         );
         if (isset($thirdResult['success']) && $thirdResult['success']) {
-            $roomData['third_party_room_id'] = $thirdResult['data']['room_id'] ?? 0;
-            $roomData['student_code'] = $thirdResult['data']['student_code'] ?? 0;
-            $roomData['admin_code'] = $thirdResult['data']['admin_code'] ?? 0;
-            $roomData['teacher_code'] = $thirdResult['data']['teacher_code'] ?? 0;
+            $roomData['third_party_room_id'] = $thirdResult['data']['room_id'] ?? '';
+            $roomData['student_code'] = $thirdResult['data']['student_code'] ?? '';
+            $roomData['admin_code'] = $thirdResult['data']['admin_code'] ?? '';
+            $roomData['teacher_code'] = $thirdResult['data']['teacher_code'] ?? '';
 
             // 2. 创建房间成功后将有用的返回信息保存数据库
 
@@ -285,8 +285,8 @@ class LiveRoomService
         $roomTitle = (string)($data['roomTitle'] ?? '');
         $scheduledStartTime = (string)($data['scheduledStartTime'] ?? '');
         $scheduledEndTime = (string)($data['scheduledEndTime'] ?? '');
-        $enableLiveSell = (int)($data['enableLiveSell'] ?? 0);
-        $appTemplate = (int)($data['app_template'] ?? 1);
+        $enableLiveSell = (int)($data['enableLiveSell'] ?? AppLiveRoom::ENABLE_LIVE_SELL_OFF);
+        $appTemplate = (int)($data['app_template'] ?? AppLiveRoom::APP_TEMPLATE_HORIZONTAL);
 
         if ($roomTitle === '' || $scheduledStartTime === '' || $scheduledEndTime === '') {
             return [
@@ -325,7 +325,7 @@ class LiveRoomService
 
         if ($liveType === AppLiveRoom::LIVE_TYPE_PSEUDO) {
             $mockVideoSource = (int)($data['mockVideoSource'] ?? 0);
-            if (!in_array($mockVideoSource, [1, 2], true)) {
+            if (!in_array($mockVideoSource, [AppLiveRoom::MOCK_VIDEO_SOURCE_PLAYBACK, AppLiveRoom::MOCK_VIDEO_SOURCE_VIDEO], true)) {
                 return [
                     'success' => false,
                     'error'   => '伪直播视频来源值无效',
@@ -336,7 +336,7 @@ class LiveRoomService
             $createRoomOptions['is_mock_live'] = 1;
             $roomData['mock_video_source'] = $mockVideoSource;
 
-            if ($mockVideoSource === 1) {
+            if ($mockVideoSource === AppLiveRoom::MOCK_VIDEO_SOURCE_PLAYBACK) {
                 $mockRoomId = isset($data['mockRoomId']) ? (int)$data['mockRoomId'] : 0;
                 if ($mockRoomId <= 0) {
                     return [
@@ -388,9 +388,9 @@ class LiveRoomService
         }
 
         $roomData['third_party_room_id'] = $createRoomResult['data']['room_id'] ?? 0;
-        $roomData['student_code'] = $createRoomResult['data']['student_code'] ?? 0;
-        $roomData['admin_code'] = $createRoomResult['data']['admin_code'] ?? 0;
-        $roomData['teacher_code'] = $createRoomResult['data']['teacher_code'] ?? 0;
+        $roomData['student_code'] = $createRoomResult['data']['student_code'] ?? '';
+        $roomData['admin_code'] = $createRoomResult['data']['admin_code'] ?? '';
+        $roomData['teacher_code'] = $createRoomResult['data']['teacher_code'] ?? '';
 
         try {
             $room = AppLiveRoom::query()->create($roomData);

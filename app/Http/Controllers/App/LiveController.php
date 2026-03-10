@@ -62,6 +62,7 @@ class LiveController extends Controller
             'data' => [
                 'roomId' => $roomInfo['room_id'],
                 'thirdPartyRoomId' => $roomInfo['third_party_room_id'],
+                'title' => $roomInfo['room_title'],
                 'name' => $memberInfo['nickname'],
                 'number' => $memberInfo['member_id'],
                 'avatar' => $memberInfo['avatar'],
@@ -95,6 +96,7 @@ class LiveController extends Controller
             'data' => [
                 'id' => $roomInfo['room_id'],
                 'liveId' => $roomInfo['third_party_room_id'],
+                'title' => $roomInfo['room_title'],
                 'enterMode' => 'code',
                 'classType' => 'sell',
                 'code' => $roomInfo['student_code'],

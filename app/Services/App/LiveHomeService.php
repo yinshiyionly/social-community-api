@@ -295,18 +295,8 @@ class LiveHomeService
             'durationSec' => $this->buildReplayDuration($row),
             'replayUrl'   => $this->normalizeUrl((string)($row->replay_url ?? '')),
             'actionText'  => '回放',
-            'liveToken'   => $this->getPlaybackToken($row->replay_url ?? null)
+            'liveToken'   => $this->player_token ?? null
         ];
-    }
-
-    protected function getPlaybackToken($replayUrl)
-    {
-        $token = null;
-        if (!empty($replayUrl)) {
-            parse_str(parse_url($replayUrl, PHP_URL_QUERY), $query);
-            $token = $query['token'] ?? null;
-        }
-        return $token;
     }
 
     /**

@@ -163,9 +163,9 @@ class CourseController extends Controller
     public function claim(CourseEnrollRequest $request)
     {
         $memberId = $request->attributes->get('member_id');
-        $courseId = (int) $request->input('courseId');
+        $courseId = (int) $request->input('id');
         $phone = $request->input('phone');
-        $ageRange = $request->input('ageRange');
+        $ageRange = $request->input('age');
 
         try {
             $memberCourse = $this->courseService->claimFreeCourse($memberId, $courseId, $phone, $ageRange);

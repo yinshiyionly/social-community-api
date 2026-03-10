@@ -61,7 +61,7 @@ class PostListResource extends JsonResource
     {
         return [
             'id' => $this->post_id,
-            'cover' => $this->cover['url'],
+            'cover' => $this->cover['url'] ?? null,
             'title' => $this->title ?? '',
             // 帖子作者ID
             'memberId' => $this->member_id ?? 0,

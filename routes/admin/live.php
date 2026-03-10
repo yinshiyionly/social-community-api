@@ -25,6 +25,8 @@ Route::middleware('system.auth')->group(function () {
 
     // 直播间管理
     Route::prefix('/live/room')->group(function () {
+        // 直播间常量配置项
+        Route::get('/constants', [LiveRoomController::class, 'constants']);
         // 列表
         Route::get('/list', [LiveRoomController::class, 'list']);
         // 详情

@@ -7,6 +7,7 @@ use App\Models\App\AppCourseBase;
 use App\Models\App\AppLiveChatMessage;
 use App\Models\App\AppLiveRoom;
 use App\Models\App\AppLiveRoomStat;
+use App\Models\App\AppVideoBaijiayun;
 use App\Models\System\SystemUser;
 use App\Services\BaijiayunLiveService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -81,6 +82,45 @@ class LiveRoomService
         }
 
         $query->orderByDesc('room_id');
+
+        return $query->paginate($pageSize, ['*'], 'pageNum', $pageNum);
+    }
+
+    /**
+     * 获取创建直播用的点播视频分页列表。
+     *
+     * 业务规则：
+     * 1. 仅返回“转码成功 + 有播放地址”的百家云视频，避免前端选择后无法开播；
+     * 2. videoId 为精确匹配，name 为模糊匹配；
+     * 3. 默认按创建时间倒序，保证最近同步的视频优先展示。
+     *
+     * @param array<string, mixed> $filters
+     * @param int $pageNum 页码
+     * @param int $pageSize 每页条数
+     * @return LengthAwarePaginator
+     */
+    public function getMockVideoList(array $filters, int $pageNum = 1, int $pageSize = 10): LengthAwarePaginator
+    {
+        $query = AppVideoBaijiayun::query()
+            ->select([
+                'id', 'video_id', 'name', 'status', 'publish_status',
+                'preface_url', 'play_url', 'length', 'created_at',
+            ])
+            ->where('status', AppVideoBaijiayun::STATUS_TRANSCODE_SUCCESS);
+
+        // play_url 为空时无法作为伪直播素材，需在查询阶段剔除。
+        $query->whereNotNull('play_url')
+            ->where('play_url', '!=', '');
+
+        if (isset($filters['videoId']) && $filters['videoId'] !== '') {
+            $query->where('video_id', (int)$filters['videoId']);
+        }
+
+        if (!empty($filters['name'])) {
+            $query->where('name', 'like', '%' . $filters['name'] . '%');
+        }
+
+        $query->orderByDesc('created_at')->orderByDesc('id');
 
         return $query->paginate($pageSize, ['*'], 'pageNum', $pageNum);
     }

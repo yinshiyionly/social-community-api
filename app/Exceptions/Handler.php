@@ -273,7 +273,13 @@ class Handler extends ExceptionHandler
 
         // 方法不允许异常 - 记录日志但返回通用错误
         if ($e instanceof MethodNotAllowedHttpException) {
-            Log::error('App端方法不允许异常', ['content' => $e->getMessage()]);
+            Log::error('App端方法不允许异常',
+                [
+                    'content' => $e->getMessage(),
+                    'method' => request()->method(),
+                    'params' => request()->input()
+                ]
+            );
             return response()->json([
                 'code' => AppResponseCode::NOT_FOUND,
                 'msg' => AppResponseCode::getMessage(AppResponseCode::NOT_FOUND),

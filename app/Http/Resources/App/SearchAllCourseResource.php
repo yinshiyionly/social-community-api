@@ -2,14 +2,21 @@
 
 namespace App\Http\Resources\App;
 
+use App\Http\Resources\App\Concerns\FormatsCoursePrice;
 use App\Services\AppFileUploadService;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * 搜索全部 - 课程资源类
+ * 搜索课程资源类。
+ *
+ * 字段约定：
+ * 1. price / originalPrice 基于课程价格字段去尾零后输出；
+ * 2. 搜索场景金额字段保持 number，兼容既有前端类型判断。
  */
 class SearchAllCourseResource extends JsonResource
 {
+    use FormatsCoursePrice;
+
     /**
      * 是否正在学习（外部注入）
      *
@@ -33,7 +40,7 @@ class SearchAllCourseResource extends JsonResource
      * 转换资源为数组
      *
      * @param \Illuminate\Http\Request $request
-     * @return array
+     * @return array<string, mixed>
      */
     public function toArray($request): array
     {
@@ -46,8 +53,8 @@ class SearchAllCourseResource extends JsonResource
             'id' => $this->course_id,
             'title' => $this->course_title ?? '',
             'subtitle' => $this->course_subtitle ?? '',
-            'price' => (float)($this->current_price ?? 0),
-            'originalPrice' => (float)($this->original_price ?? 0),
+            'price' => $this->formatPriceNumber($this->current_price),
+            'originalPrice' => $this->formatPriceNumber($this->original_price),
             'cover' => $coverImage ?? '',
             'lessonCount' => $this->total_chapter ?? 0,
             'isLearning' => $this->isLearning,

@@ -31,8 +31,8 @@ Route::prefix('v1/course')->group(function () {
     // 名师好课列表
     Route::get('/recommend', [CourseController::class, 'recommendCourses']);
 
-    // 大咖直播列表
-    Route::get('/live', [CourseController::class, 'liveCourses']);
+    // 大咖直播列表（可选登录，登录态可返回预约状态）
+    Route::get('/live', [CourseController::class, 'liveCourses'])->middleware('app.auth.optional');
 
     // 微信支付回调（无需登录）
     Route::post('/pay/wechat/notify', [CourseController::class, 'wechatPayNotify']);

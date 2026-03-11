@@ -338,18 +338,36 @@ class CourseController extends Controller
     }
 
     /**
-     * 获取大咖直播列表
+     * 获取课程页大咖直播卡片列表。
+     *
+     * 接口约束：
+     * 1. limit 为每种状态（live/upcoming/replay）的条数上限，默认 2；
+     * 2. 接口允许游客访问，登录态通过可选鉴权返回真实 isReserved；
+     * 3. 返回结构使用 AppApiResponse::collection，data 为卡片数组。
+     *
+     * 失败策略：
+     * - 记录必要上下文日志后统一返回通用错误，避免暴露内部异常细节。
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function liveCourses(Request $request)
     {
-        $limit = $request->input('limit', 10);
+        $limit = (int)$request->input('limit', 2);
+        if ($limit <= 0) {
+            $limit = 2;
+        }
+
+        $memberId = (int)$request->attributes->get('member_id', 0);
 
         try {
-            $courses = $this->courseService->getLiveCourses($limit);
+            $courses = $this->courseService->getLiveCourses($limit, $memberId);
 
             return AppApiResponse::collection($courses, LiveCourseListResource::class);
         } catch (\Exception $e) {
             Log::error('获取大咖直播列表失败', [
+                'limit' => $limit,
+                'member_id' => $memberId,
                 'error' => $e->getMessage(),
             ]);
 

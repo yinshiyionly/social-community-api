@@ -4,13 +4,25 @@ namespace App\Services\App;
 
 use App\Models\App\AppCourseBase;
 use App\Models\App\AppCourseCategory;
+use App\Models\App\AppLivePlayback;
+use App\Models\App\AppLiveRoom;
+use App\Models\App\AppLiveRoomReserve;
 use App\Models\App\AppMemberBase;
 use App\Models\App\AppMemberCourse;
 use App\Services\App\LearningCenterService;
 use App\Services\AppFileUploadService;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * App 端课程服务。
+ *
+ * 职责：
+ * 1. 提供课程分类、课程列表、课程详情等查询能力；
+ * 2. 提供课程领取与下单前的数据准备；
+ * 3. 聚合课程页大咖直播卡片数据并统一字段口径。
+ */
 class CourseService
 {
     /**
@@ -320,40 +332,295 @@ class CourseService
     }
 
     /**
-     * 获取大咖直播列表
+     * 获取课程页「大咖直播」卡片列表。
+     *
+     * 关键规则：
+     * 1. 分别查询 live/upcoming/replay 三种状态，各取 limit 条；
+     * 2. 合并顺序固定为 live -> upcoming -> replay；
+     * 3. replay 使用 third_party_room_id 作为 id 字段返回，避免与 room_id 语义混淆。
+     *
+     * @param int $limit 每种状态的最大条数
+     * @param int $memberId 会员ID，游客传 0
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function getLiveCourses(int $limit = 2, int $memberId = 0): Collection
+    {
+        $normalizedLimit = $this->normalizeLiveCourseLimit($limit);
+
+        $livingCards = $this->getLivingLiveCards($normalizedLimit);
+        $upcomingCards = $this->getUpcomingLiveCards($normalizedLimit, $memberId);
+        $replayCards = $this->getReplayLiveCards($normalizedLimit);
+
+        return collect(array_merge($livingCards, $upcomingCards, $replayCards));
+    }
+
+    /**
+     * 获取直播中卡片列表。
+     *
+     * 查询规则：
+     * 1. 仅取启用且未删除的直播间；
+     * 2. 仅取 live_status=直播中；
+     * 3. watchCount 取 app_live_room_stat.total_viewer_count。
      *
      * @param int $limit
-     * @return Collection
+     * @return array<int, array<string, mixed>>
      */
-    public function getLiveCourses(int $limit = 10): Collection
+    protected function getLivingLiveCards(int $limit): array
     {
-        return AppCourseBase::query()
+        $rows = DB::table('app_live_room as r')
+            ->leftJoin('app_live_room_stat as rs', 'rs.room_id', '=', 'r.room_id')
+            ->whereNull('r.deleted_at')
+            ->where('r.status', AppLiveRoom::STATUS_ENABLED)
+            ->where('r.live_status', AppLiveRoom::LIVE_STATUS_LIVING)
             ->select([
-                'course_id',
-                'course_title',
-                'cover_image',
-                'view_count',
+                'r.room_id',
+                'r.room_title',
+                'r.room_cover',
+                DB::raw('COALESCE(r.actual_start_time, r.scheduled_start_time) as start_time'),
+                DB::raw('COALESCE(rs.total_viewer_count, 0) as watch_count'),
             ])
-            ->with(['chapters' => function ($query) {
-                $query->select(['chapter_id', 'course_id'])
-                    ->online()
-                    ->orderBy('chapter_no')
-                    ->with(['liveContent' => function ($q) {
-                        $q->select([
-                            'id',
-                            'chapter_id',
-                            'live_start_time',
-                            'playback_url',
-                            'has_playback',
-                        ]);
-                    }]);
-            }])
-            ->online()
-            ->where('play_type', AppCourseBase::PLAY_TYPE_LIVE)
-            ->orderByDesc('sort_order')
-            ->orderByDesc('publish_time')
+            // 直播中场景按开播时间由近到远展示，优先返回“更接近当前时刻”的场次。
+            ->orderByRaw('COALESCE(r.actual_start_time, r.scheduled_start_time) DESC NULLS LAST')
+            ->orderByDesc('r.room_id')
             ->limit($limit)
             ->get();
+
+        return $rows->map(function ($row) {
+            return [
+                'id' => (int)($row->room_id ?? 0),
+                'title' => (string)($row->room_title ?? ''),
+                'cover' => $this->buildCoverUrl((string)($row->room_cover ?? '')),
+                'startTime' => $this->formatDateTime($row->start_time ?? null),
+                'status' => 'live',
+                'reserveCount' => 0,
+                'isReserved' => false,
+                'watchCount' => (int)($row->watch_count ?? 0),
+                'liveToken' => '',
+                'actionText' => '进入直播',
+            ];
+        })->values()->all();
+    }
+
+    /**
+     * 获取直播预告卡片列表。
+     *
+     * 查询规则：
+     * 1. 仅取启用且未删除的直播间；
+     * 2. 仅取 live_status=未开始；
+     * 3. 登录态下关联预约表输出 isReserved，游客固定 false。
+     *
+     * @param int $limit
+     * @param int $memberId
+     * @return array<int, array<string, mixed>>
+     */
+    protected function getUpcomingLiveCards(int $limit, int $memberId): array
+    {
+        $query = DB::table('app_live_room as r')
+            ->leftJoin('app_live_room_stat as rs', 'rs.room_id', '=', 'r.room_id')
+            ->whereNull('r.deleted_at')
+            ->where('r.status', AppLiveRoom::STATUS_ENABLED)
+            ->where('r.live_status', AppLiveRoom::LIVE_STATUS_NOT_STARTED);
+
+        $selectFields = [
+            'r.room_id',
+            'r.room_title',
+            'r.room_cover',
+            DB::raw('COALESCE(r.actual_start_time, r.scheduled_start_time) as start_time'),
+            DB::raw('COALESCE(rs.reserve_count, 0) as reserve_count'),
+        ];
+
+        if ($memberId > 0) {
+            $query->leftJoin('app_live_room_reserve as rr', function ($join) use ($memberId) {
+                $join->on('rr.room_id', '=', 'r.room_id')
+                    ->where('rr.member_id', '=', $memberId)
+                    ->where('rr.status', '=', AppLiveRoomReserve::STATUS_RESERVED);
+            });
+
+            $selectFields[] = DB::raw('CASE WHEN rr.reserve_id IS NULL THEN 0 ELSE 1 END as is_reserved');
+        } else {
+            // 游客态不查预约明细，固定 false，避免无意义联表。
+            $selectFields[] = DB::raw('0 as is_reserved');
+        }
+
+        $rows = $query->select($selectFields)
+            ->orderByRaw('COALESCE(r.actual_start_time, r.scheduled_start_time) ASC NULLS LAST')
+            ->orderByDesc('r.room_id')
+            ->limit($limit)
+            ->get();
+
+        return $rows->map(function ($row) {
+            $isReserved = (int)($row->is_reserved ?? 0) === 1;
+
+            return [
+                'id' => (int)($row->room_id ?? 0),
+                'title' => (string)($row->room_title ?? ''),
+                'cover' => $this->buildCoverUrl((string)($row->room_cover ?? '')),
+                'startTime' => $this->formatDateTime($row->start_time ?? null),
+                'status' => 'upcoming',
+                'reserveCount' => (int)($row->reserve_count ?? 0),
+                'isReserved' => $isReserved,
+                'watchCount' => 0,
+                'liveToken' => '',
+                'actionText' => $isReserved ? '已预约' : '预约',
+            ];
+        })->values()->all();
+    }
+
+    /**
+     * 获取回放卡片列表。
+     *
+     * 过滤规则：
+     * 1. 仅取转码成功 + 未屏蔽 + player_token 可用的回放；
+     * 2. 同一 third_party_room_id 仅保留最新一条回放；
+     * 3. 返回 id 使用 third_party_room_id（字符串）。
+     *
+     * @param int $limit
+     * @return array<int, array<string, mixed>>
+     */
+    protected function getReplayLiveCards(int $limit): array
+    {
+        $latestPlaybackByRoom = DB::table('app_live_playback as p')
+            ->join('app_live_room as r', function ($join) {
+                $join->on('r.third_party_room_id', '=', 'p.third_party_room_id')
+                    ->whereNull('r.deleted_at')
+                    ->where('r.status', '=', AppLiveRoom::STATUS_ENABLED);
+            })
+            ->whereNull('p.deleted_at')
+            ->where('p.status', AppLivePlayback::STATUS_TRANSCODE_SUCCESS)
+            ->where('p.publish_status', AppLivePlayback::PUBLISH_STATUS_UNSHIELDED)
+            ->whereNotNull('p.third_party_room_id')
+            ->where('p.third_party_room_id', '!=', '')
+            ->whereNotNull('p.player_token')
+            ->where('p.player_token', '!=', '')
+            ->selectRaw(
+                'DISTINCT ON (p.third_party_room_id)
+                p.third_party_room_id,
+                p.id as playback_pk,
+                p.play_times as watch_count,
+                p.player_token,
+                p.create_time as playback_create_time,
+                p.preface_url as playback_cover,
+                p.name as playback_name,
+                r.room_title,
+                r.room_cover,
+                r.actual_start_time,
+                r.scheduled_start_time,
+                COALESCE(r.actual_start_time, r.scheduled_start_time, p.create_time) as start_time'
+            )
+            // DISTINCT ON 依赖先按去重键排序，再按“最新回放”排序。
+            ->orderBy('p.third_party_room_id')
+            ->orderByDesc('p.create_time')
+            ->orderByDesc('p.id');
+
+        $rows = DB::query()
+            ->fromSub($latestPlaybackByRoom, 'rp')
+            ->select([
+                'rp.third_party_room_id',
+                'rp.room_title',
+                'rp.room_cover',
+                'rp.playback_name',
+                'rp.playback_cover',
+                'rp.start_time',
+                'rp.watch_count',
+                'rp.player_token',
+                'rp.playback_pk',
+            ])
+            // 回放列表按开播时间由近到远展示，优先最近可看的场次。
+            ->orderByRaw('rp.start_time DESC NULLS LAST')
+            ->orderByDesc('rp.playback_pk')
+            ->limit($limit)
+            ->get();
+
+        return $rows->map(function ($row) {
+            return [
+                'id' => (string)($row->third_party_room_id ?? ''),
+                'title' => (string)($row->room_title ?: $row->playback_name ?: ''),
+                'cover' => $this->buildCoverUrl(
+                    (string)($row->room_cover ?? ''),
+                    (string)($row->playback_cover ?? '')
+                ),
+                'startTime' => $this->formatDateTime($row->start_time ?? null),
+                'status' => 'replay',
+                'reserveCount' => 0,
+                'isReserved' => false,
+                'watchCount' => (int)($row->watch_count ?? 0),
+                'liveToken' => (string)($row->player_token ?? ''),
+                'actionText' => '看回放',
+            ];
+        })->values()->all();
+    }
+
+    /**
+     * 规范课程页直播卡片 limit。
+     *
+     * @param int $limit
+     * @return int
+     */
+    protected function normalizeLiveCourseLimit(int $limit): int
+    {
+        if ($limit <= 0) {
+            return 2;
+        }
+
+        return min($limit, 50);
+    }
+
+    /**
+     * 构建封面地址，主封面缺失时回退备用封面。
+     *
+     * @param string $primary
+     * @param string $fallback
+     * @return string
+     */
+    protected function buildCoverUrl(string $primary, string $fallback = ''): string
+    {
+        $cover = trim($primary) !== '' ? $primary : $fallback;
+
+        return $this->normalizeUrl($cover);
+    }
+
+    /**
+     * 规范化 URL。
+     *
+     * 规则：
+     * - http/https 地址直接透传；
+     * - 相对路径统一通过文件服务补齐完整 URL；
+     * - 空值返回空串。
+     *
+     * @param string $value
+     * @return string
+     */
+    protected function normalizeUrl(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        if (stripos($value, 'http://') === 0 || stripos($value, 'https://') === 0) {
+            return $value;
+        }
+
+        return (new AppFileUploadService())->generateFileUrl($value);
+    }
+
+    /**
+     * 统一时间格式输出。
+     *
+     * @param mixed $value
+     * @return string
+     */
+    protected function formatDateTime($value): string
+    {
+        if (!$value) {
+            return '';
+        }
+
+        try {
+            return Carbon::parse($value)->format('Y-m-d H:i:s');
+        } catch (\Exception $e) {
+            return '';
+        }
     }
 
 }

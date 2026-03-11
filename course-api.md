@@ -67,16 +67,16 @@
       "cover": "https://example.com/course1.jpg",
       "title": "小寒养生3步走 欧林好养生",
       "desc": "欧林国医馆本草生活馆",
-      "price": "1.00",
-      "originalPrice": "99.00"
+      "price": "1",
+      "originalPrice": "99"
     },
     {
       "id": 2,
       "cover": "https://example.com/course2.jpg",
       "title": "冬季养生指南",
       "desc": "中医养生堂",
-      "price": "9.90",
-      "originalPrice": "199.00"
+      "price": "9.9",
+      "originalPrice": "199"
     }
   ]
 }
@@ -89,8 +89,8 @@
 | cover | string | 课程封面图片URL |
 | title | string | 课程标题 |
 | desc | string | 课程描述/机构名称 |
-| price | string | 现价（元） |
-| originalPrice | string | 原价（元） |
+| price | string | 现价（元，去尾零展示） |
+| originalPrice | string | 原价（元，去尾零展示） |
 
 ---
 
@@ -114,16 +114,16 @@
       "cover": "https://example.com/teacher1.jpg",
       "title": "小寒养生3步走 欧林好养生",
       "desc": "欧林国医馆本草生活馆",
-      "price": "1.00",
-      "originalPrice": "99.00"
+      "price": "1",
+      "originalPrice": "99"
     },
     {
       "id": 2,
       "cover": "https://example.com/teacher2.jpg",
       "title": "传统健身养生课",
       "desc": "养生大师工作室",
-      "price": "19.90",
-      "originalPrice": "299.00"
+      "price": "19.9",
+      "originalPrice": "299"
     }
   ]
 }
@@ -136,8 +136,8 @@
 | cover | string | 课程封面图片URL |
 | title | string | 课程标题 |
 | desc | string | 课程描述/机构名称 |
-| price | string | 现价（元） |
-| originalPrice | string | 原价（元） |
+| price | string | 现价（元，去尾零展示） |
+| originalPrice | string | 原价（元，去尾零展示） |
 
 ---
 
@@ -163,6 +163,6 @@
 
 ### 注意事项
 1. 所有接口返回的图片URL需要是完整的HTTPS地址
-2. 价格字段为字符串类型，保留两位小数
+2. 价格字段为字符串类型，按去尾零规则返回（如 `99.00 -> "99"`、`99.10 -> "99.1"`）
 3. 直播时间格式统一为"月日 时:分"（如：1月5日 19:00）
 4. replayUrl 为空字符串表示无回放，前端不显示"看回放"按钮

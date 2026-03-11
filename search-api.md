@@ -45,7 +45,7 @@
           "id": "course-1",
           "title": "课程标题",
           "subtitle": "课程副标题",
-          "price": 1.00,
+          "price": 1,
           "originalPrice": 99,
           "cover": "https://example.com/cover.jpg",
           "lessonCount": 10,
@@ -131,7 +131,7 @@
         "id": "course-1",
         "title": "小寒养生3步走：练好、吃好、睡得好",
         "subtitle": "副标题描述不超过10个字",
-        "price": 1.00,
+        "price": 1,
         "originalPrice": 99,
         "cover": "https://example.com/cover.jpg",
         "lessonCount": 10,
@@ -151,8 +151,8 @@
 | id | string/number | 是 | 课程ID |
 | title | string | 是 | 课程标题 |
 | subtitle | string | 否 | 课程副标题 |
-| price | number | 是 | 课程价格 |
-| originalPrice | number | 否 | 课程原价（用于显示划线价格） |
+| price | number | 是 | 课程价格（按去尾零规则返回） |
+| originalPrice | number | 否 | 课程原价（用于显示划线价格，按去尾零规则返回） |
 | cover | string | 是 | 课程封面图URL |
 | lessonCount | number | 是 | 课程节数 |
 | isLearning | boolean | 否 | 是否正在学习，默认false。true时显示"继续学"按钮，false时显示价格 |
@@ -167,6 +167,7 @@
 4. **用户状态：** `isFollowed` 和 `isLearning` 字段需要根据当前登录用户返回正确的状态
 5. **错误处理：** 接口异常时返回合适的错误码和错误信息
 6. **搜索关键词：** 需要对搜索关键词进行 URL 编码处理
+7. **课程价格展示：** `price`、`originalPrice` 按去尾零规则返回（如 `99.00 -> 99`、`99.10 -> 99.1`）
 
 ---
 

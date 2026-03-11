@@ -38,6 +38,8 @@ class CreateAppCourseOrderTable extends Migration
                 commission_amount numeric(10,2) NOT NULL DEFAULT 0,
                 commission_status int2 NOT NULL DEFAULT 0,
                 remark varchar(500) NULL,
+                enroll_phone varchar(20) NULL,
+                enroll_age_range varchar(20) NULL,
                 client_ip varchar(50) NULL,
                 user_agent varchar(500) NULL,
                 created_at timestamp(0) NULL,
@@ -76,6 +78,8 @@ class CreateAppCourseOrderTable extends Migration
         DB::statement("COMMENT ON COLUMN app_course_order.commission_amount IS '佣金金额'");
         DB::statement("COMMENT ON COLUMN app_course_order.commission_status IS '佣金状态：0=待结算 1=已结算'");
         DB::statement("COMMENT ON COLUMN app_course_order.remark IS '备注'");
+        DB::statement("COMMENT ON COLUMN app_course_order.enroll_phone IS '报名手机号'");
+        DB::statement("COMMENT ON COLUMN app_course_order.enroll_age_range IS '报名年龄段'");
 
         DB::statement('CREATE UNIQUE INDEX uk_app_course_order_order_no ON app_course_order (order_no)');
         DB::statement('CREATE INDEX idx_app_course_order_member_id ON app_course_order (member_id)');

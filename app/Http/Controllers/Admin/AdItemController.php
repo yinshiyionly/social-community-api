@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\AdItemBatchSortRequest;
 use App\Http\Requests\Admin\AdItemStoreRequest;
 use App\Http\Requests\Admin\AdItemUpdateRequest;
 use App\Http\Requests\Admin\AdItemStatusRequest;
@@ -13,6 +14,14 @@ use App\Services\Admin\AdItemService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Admin 广告内容管理控制器。
+ *
+ * 职责：
+ * 1. 提供广告内容增删改查、状态切换与批量排序接口；
+ * 2. 统一处理请求字段到 Service 层字段映射；
+ * 3. 异常场景记录日志并返回通用错误，避免暴露内部实现细节。
+ */
 class AdItemController extends Controller
 {
     /**
@@ -143,6 +152,34 @@ class AdItemController extends Controller
             Log::error('更新广告内容失败', [
                 'action' => 'update',
                 'ad_id' => $request->input('adId'),
+                'error' => $e->getMessage(),
+            ]);
+            return ApiResponse::error('操作失败，请稍后重试');
+        }
+    }
+
+    /**
+     * 批量更新广告排序。
+     *
+     * 规则：
+     * 1. 请求中 adId 不能重复，避免同条记录排序结果不确定；
+     * 2. 单次请求在事务内执行，保证同批排序要么全部成功要么全部失败。
+     *
+     * @param AdItemBatchSortRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function batchSort(AdItemBatchSortRequest $request)
+    {
+        try {
+            $items = $request->input('items', []);
+
+            $this->adItemService->batchUpdateSort($items);
+
+            return ApiResponse::success([], '排序成功');
+        } catch (\Exception $e) {
+            Log::error('批量更新广告内容排序失败', [
+                'action' => 'batchSort',
+                'items_count' => count($request->input('items', [])),
                 'error' => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');

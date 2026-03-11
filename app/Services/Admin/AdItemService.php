@@ -4,8 +4,16 @@ namespace App\Services\Admin;
 
 use App\Models\App\AppAdItem;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
+/**
+ * Admin 广告内容业务服务。
+ *
+ * 职责：
+ * 1. 提供广告内容查询、写入、状态变更能力；
+ * 2. 统一封装排序与批量操作的事务边界；
+ * 3. 保持 Controller 层聚焦参数映射与响应编排。
+ */
 class AdItemService
 {
     /**
@@ -170,5 +178,28 @@ class AdItemService
         return AppAdItem::query()
                 ->where('ad_id', $adId)
                 ->update(['status' => $status]) > 0;
+    }
+
+    /**
+     * 批量更新广告排序值。
+     *
+     * 关键规则：
+     * 1. 同批次排序在事务中执行，避免部分更新导致顺序错乱；
+     * 2. 单条更新失败会触发回滚，保持列表排序一致性。
+     *
+     * @param array<int, array{adId:int, sortNum:int}> $items
+     * @return bool
+     */
+    public function batchUpdateSort(array $items): bool
+    {
+        return DB::transaction(function () use ($items) {
+            foreach ($items as $item) {
+                AppAdItem::query()
+                    ->where('ad_id', $item['adId'])
+                    ->update(['sort_num' => $item['sortNum']]);
+            }
+
+            return true;
+        });
     }
 }

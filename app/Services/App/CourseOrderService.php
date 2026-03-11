@@ -136,11 +136,12 @@ class CourseOrderService
         $wechatAppPayParams = $this->createWechatAppPayParams($order);
 
         return [
-            'orderNo' => $order->order_no,
+            'provider' => 'wxpay',
+            'orderId' => $order->order_no,
             'payStatus' => $this->formatPayStatus((int)$order->pay_status),
             'payStatusCode' => (int)$order->pay_status,
             'expireTime' => optional($order->expire_time)->format('Y-m-d H:i:s'),
-            'wechatAppPayParams' => $wechatAppPayParams,
+            'orderInfo' => $wechatAppPayParams,
         ];
     }
 

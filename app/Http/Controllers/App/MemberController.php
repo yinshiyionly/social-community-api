@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\App;
 
+use App\Constant\AppResponseCode;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\App\Member\AccountCancelRequest;
 use App\Http\Requests\App\Member\MemberUpdateRequest;
 use App\Http\Resources\App\AppApiResponse;
 use App\Http\Resources\App\Member\MemberCollectionListResource;
@@ -16,6 +18,14 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * App 端会员中心控制器。
+ *
+ * 职责：
+ * 1. 提供会员主页、个人资料、关注关系等查询接口；
+ * 2. 提供头像、昵称、资料更新及账号注销等写操作入口；
+ * 3. 统一捕获异常并输出 AppApiResponse，避免暴露内部异常细节。
+ */
 class MemberController extends Controller
 {
     /**
@@ -283,43 +293,27 @@ class MemberController extends Controller
      * @param Request $request
      * @return JsonResponse
      */
+    public function info(Request $request): JsonResponse
+    {
+        $memberId = $this->getMemberId($request);
 
-        /**
-         * 获取当前登录用户个人信息
-         *
-         * @param Request $request
-         * @return JsonResponse
-         */
+        try {
+            $member = $this->memberService->getMemberInfo($memberId);
 
-            /**
-             * 获取当前登录用户个人信息
-             *
-             * @param Request $request
-             * @return JsonResponse
-             */
-            public function info(Request $request): JsonResponse
-            {
-                $memberId = $this->getMemberId($request);
-
-                try {
-                    $member = $this->memberService->getMemberInfo($memberId);
-
-                    if (!$member) {
-                        return AppApiResponse::dataNotFound('用户不存在');
-                    }
-
-                    return AppApiResponse::resource($member, MemberInfoResource::class);
-                } catch (\Exception $e) {
-                    Log::error('获取个人信息失败', [
-                        'member_id' => $memberId,
-                        'error' => $e->getMessage(),
-                    ]);
-
-                    return AppApiResponse::serverError();
-                }
+            if (!$member) {
+                return AppApiResponse::dataNotFound('用户不存在');
             }
 
+            return AppApiResponse::resource($member, MemberInfoResource::class);
+        } catch (\Exception $e) {
+            Log::error('获取个人信息失败', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
 
+            return AppApiResponse::serverError();
+        }
+    }
 
     /**
      * 更新当前登录用户个人信息
@@ -343,6 +337,71 @@ class MemberController extends Controller
             ]);
 
             return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 注销当前登录账号。
+     *
+     * 接口用途：
+     * - App 端用户主动注销账号，成功后前端清理本地登录态。
+     *
+     * 关键输入：
+     * - confirmText 可选，传入时必须为“注销账号”；
+     * - reason 可选，仅用于日志审计，不落业务库字段。
+     *
+     * 关键输出：
+     * - 成功返回 AppApiResponse::success，msg 为“账号已注销”。
+     *
+     * 失败分支：
+     * - 参数错误返回 400；
+     * - 官方账号不允许注销返回 403；
+     * - 用户不存在返回 404；
+     * - 其他异常统一返回 500，避免泄露内部细节。
+     *
+     * @param AccountCancelRequest $request
+     * @return JsonResponse
+     */
+    public function cancel(AccountCancelRequest $request): JsonResponse
+    {
+        $memberId = (int)$this->getMemberId($request);
+        $reason = trim((string)$request->input('reason', ''));
+
+        try {
+            $result = $this->memberService->cancelAccount(
+                $memberId,
+                $reason,
+                $request->ip(),
+                (string)$request->userAgent()
+            );
+
+            if ($result['success']) {
+                return AppApiResponse::success([], '账号已注销');
+            }
+
+            $code = (int)($result['code'] ?? AppResponseCode::SERVER_ERROR);
+            $message = (string)($result['message'] ?? '注销失败，请稍后重试');
+
+            if ($code === AppResponseCode::DATA_NOT_FOUND) {
+                return AppApiResponse::dataNotFound($message);
+            }
+
+            if ($code === AppResponseCode::FORBIDDEN) {
+                return AppApiResponse::forbidden($message);
+            }
+
+            if ($code === AppResponseCode::INVALID_PARAMS) {
+                return AppApiResponse::error($message, AppResponseCode::INVALID_PARAMS);
+            }
+
+            return AppApiResponse::serverError($message);
+        } catch (\Exception $e) {
+            Log::error('注销账号失败', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError('注销失败，请稍后重试');
         }
     }
 }

@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
  *
  * 核心职责：
  * 1. 按 tab 聚合预告/回放列表与分页数据；
- * 2. 构建 latest 卡片（严格最近即将开播）；
+ * 2. 构建 latest 卡片（直播中优先，其次最近即将开播）；
  * 3. 统一输出直播卡片字段，收敛状态与 URL 处理口径。
  */
 class LiveHomeService
@@ -35,7 +35,7 @@ class LiveHomeService
      * 获取直播首页数据。
      *
      * 关键规则：
-     * 1. latest 永远按“最近即将开播”计算，不随 tab 变化；
+     * 1. latest 在“直播中 + 即将开播”中选 1 条，且直播中优先；
      * 2. upcoming 仅包含未开始直播；
      * 3. replay 从 app_live_playback 查询并按 room_id 去重。
      *
@@ -55,7 +55,7 @@ class LiveHomeService
      */
     public function getHomeData(string $tab, int $page, int $pageSize, int $memberId): array
     {
-        $latestRow = $this->getLatestUpcomingRow($memberId);
+        $latestRow = $this->getLatestLiveOrUpcomingRow($memberId);
         if ($tab === LiveHomeRequest::TAB_REPLAY) {
             $paginator = $this->buildReplayListQuery()->paginate($pageSize, ['*'], 'page', $page);
             $list = $this->formatReplayList($paginator->items());
@@ -65,7 +65,7 @@ class LiveHomeService
         }
 
         return [
-            'latest'   => $latestRow ? $this->formatUpcomingItem($latestRow) : null,
+            'latest'   => $latestRow ? $this->formatLatestItem($latestRow) : null,
             'tab'      => $tab,
             'list'     => $list,
             'total'    => (int)$paginator->total(),
@@ -76,23 +76,54 @@ class LiveHomeService
     }
 
     /**
-     * 获取 latest 卡片（最近即将开播）。
+     * 获取 latest 卡片（直播中优先 + 距当前最近）。
      *
      * 约束：
-     * - 仅取 live_status=未开始；
-     * - 仅取开播时间不早于当前时间；
+     * - 候选状态仅包含：直播中、未开始（且开播时间 >= 当前时间）；
+     * - 直播中优先于未开始；
+     * - 同优先级下按“开播时间与当前时间差”升序（越接近当前越优先）；
+     * - 再按 room_id 倒序兜底，确保结果稳定。
      * - 无数据时返回 null，不做回放兜底。
      *
      * @param int $memberId
      * @return object|null
      */
-    protected function getLatestUpcomingRow(int $memberId)
+    protected function getLatestLiveOrUpcomingRow(int $memberId)
     {
-        return $this->buildUpcomingBaseQuery($memberId)
-            ->whereRaw('COALESCE(r.actual_start_time, r.scheduled_start_time) >= ?', [now()])
-            ->orderBy('start_time', 'asc')
-            ->orderByDesc('r.room_id')
-            ->first();
+        $now = now();
+        $rows = $this->buildLatestBaseQuery($memberId)
+            ->where(function ($query) use ($now) {
+                $query->where('r.live_status', AppLiveRoom::LIVE_STATUS_LIVING)
+                    ->orWhere(function ($upcomingQuery) use ($now) {
+                        $upcomingQuery->where('r.live_status', AppLiveRoom::LIVE_STATUS_NOT_STARTED)
+                            ->whereRaw('COALESCE(r.actual_start_time, r.scheduled_start_time) >= ?', [$now]);
+                    });
+            })
+            ->get();
+
+        if ($rows->isEmpty()) {
+            return null;
+        }
+
+        $nowTimestamp = $now->timestamp;
+
+        return $rows->sort(function ($left, $right) use ($nowTimestamp) {
+            $leftPriority = (int)$left->live_status === AppLiveRoom::LIVE_STATUS_LIVING ? 0 : 1;
+            $rightPriority = (int)$right->live_status === AppLiveRoom::LIVE_STATUS_LIVING ? 0 : 1;
+
+            if ($leftPriority !== $rightPriority) {
+                return $leftPriority <=> $rightPriority;
+            }
+
+            $leftDistance = $this->distanceToNowSeconds($left->start_time ?? null, $nowTimestamp);
+            $rightDistance = $this->distanceToNowSeconds($right->start_time ?? null, $nowTimestamp);
+
+            if ($leftDistance !== $rightDistance) {
+                return $leftDistance <=> $rightDistance;
+            }
+
+            return (int)$right->room_id <=> (int)$left->room_id;
+        })->first();
     }
 
     /**
@@ -133,6 +164,46 @@ class LiveHomeService
             'r.room_cover',
             'r.scheduled_start_time',
             'r.actual_start_time',
+            DB::raw('COALESCE(rs.reserve_count, 0) as reserve_count'),
+            DB::raw('COALESCE(r.actual_start_time, r.scheduled_start_time) as start_time'),
+        ];
+
+        if ($memberId > 0) {
+            $query->leftJoin('app_live_room_reserve as rr', function ($join) use ($memberId) {
+                $join->on('rr.room_id', '=', 'r.room_id')
+                    ->where('rr.member_id', '=', $memberId)
+                    ->where('rr.status', '=', AppLiveRoomReserve::STATUS_RESERVED);
+            });
+            $selectFields[] = DB::raw('CASE WHEN rr.reserve_id IS NULL THEN 0 ELSE 1 END as is_reserved');
+        } else {
+            $selectFields[] = DB::raw('0 as is_reserved');
+        }
+
+        return $query->select($selectFields);
+    }
+
+    /**
+     * latest 基础查询。
+     *
+     * 与 upcoming 的差异：
+     * - 不在基础查询阶段限制 live_status，交由上层组合条件；
+     * - 额外返回 live_status 字段，用于 latest 状态映射。
+     *
+     * @param int $memberId
+     * @return Builder
+     */
+    protected function buildLatestBaseQuery(int $memberId): Builder
+    {
+        $query = DB::table('app_live_room as r')
+            ->leftJoin('app_live_room_stat as rs', 'rs.room_id', '=', 'r.room_id')
+            ->whereNull('r.deleted_at')
+            ->where('r.status', AppLiveRoom::STATUS_ENABLED);
+
+        $selectFields = [
+            'r.room_id',
+            'r.room_title',
+            'r.room_cover',
+            'r.live_status',
             DB::raw('COALESCE(rs.reserve_count, 0) as reserve_count'),
             DB::raw('COALESCE(r.actual_start_time, r.scheduled_start_time) as start_time'),
         ];
@@ -275,6 +346,33 @@ class LiveHomeService
     }
 
     /**
+     * 格式化 latest 卡片。
+     *
+     * latest 仅可能输出两种状态：
+     * - live：按钮文案固定“直播中”；
+     * - upcoming：按钮文案按预约态返回“预约/已预约”。
+     *
+     * @param object $row
+     * @return array<string, mixed>
+     */
+    protected function formatLatestItem($row): array
+    {
+        $isReserved = (int)($row->is_reserved ?? 0) === 1;
+        $isLiving = (int)($row->live_status ?? AppLiveRoom::LIVE_STATUS_NOT_STARTED) === AppLiveRoom::LIVE_STATUS_LIVING;
+
+        return [
+            'id' => (int)($row->room_id ?? 0),
+            'title' => (string)($row->room_title ?? ''),
+            'cover' => $this->buildCoverUrl((string)($row->room_cover ?? '')),
+            'startTime' => $this->formatDateTime($row->start_time ?? null),
+            'status' => $isLiving ? 'live' : LiveHomeRequest::TAB_UPCOMING,
+            'reserveCount' => (int)($row->reserve_count ?? 0),
+            'isReserved' => $isReserved,
+            'actionText' => $isLiving ? '直播中' : ($isReserved ? '已预约' : '预约'),
+        ];
+    }
+
+    /**
      * 格式化 replay 卡片。
      *
      * @param object $row
@@ -381,6 +479,26 @@ class LiveHomeService
             return Carbon::parse($value)->format('Y-m-d H:i:s');
         } catch (\Exception $e) {
             return '';
+        }
+    }
+
+    /**
+     * 计算开播时间与当前时间的绝对秒差。
+     *
+     * @param mixed $startTime
+     * @param int $nowTimestamp
+     * @return int
+     */
+    protected function distanceToNowSeconds($startTime, int $nowTimestamp): int
+    {
+        if (!$startTime) {
+            return PHP_INT_MAX;
+        }
+
+        try {
+            return abs(Carbon::parse($startTime)->timestamp - $nowTimestamp);
+        } catch (\Exception $e) {
+            return PHP_INT_MAX;
         }
     }
 }

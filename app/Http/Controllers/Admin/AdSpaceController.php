@@ -86,7 +86,8 @@ class AdSpaceController extends Controller
                 'platform' => $request->input('platform', 0),
                 'width' => $request->input('width', 0),
                 'height' => $request->input('height', 0),
-                'maxAds' => $request->input('maxAds', 0),
+                // 默认值与数据库 max_ads > 0 约束保持一致，避免落库失败。
+                'maxAds' => $request->input('maxAds', 1),
                 'status' => $request->input('status', 1),
             ];
 

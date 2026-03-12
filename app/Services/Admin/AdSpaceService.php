@@ -70,7 +70,7 @@ class AdSpaceService
             'platform' => $data['platform'] ?? AppAdSpace::PLATFORM_ALL,
             'width' => $data['width'] ?? 0,
             'height' => $data['height'] ?? 0,
-            'max_ads' => $data['maxAds'] ?? 0,
+            'max_ads' => $data['maxAds'] ?? 1,
             'status' => $data['status'] ?? AppAdSpace::STATUS_ENABLED,
         ]);
     }

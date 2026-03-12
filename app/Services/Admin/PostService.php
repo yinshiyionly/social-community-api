@@ -2,16 +2,20 @@
 
 namespace App\Services\Admin;
 
+use App\Models\App\AppMemberBase;
 use App\Models\App\AppPostBase;
+use App\Services\App\PostService as AppPostService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
- * 后台帖子查询服务。
+ * 后台帖子管理服务。
  *
  * 职责：
  * 1. 提供帖子列表分页查询；
  * 2. 提供帖子详情查询；
- * 3. 统一封装帖子与作者、统计信息的关联加载。
+ * 3. 提供后台发帖能力（委托 App 发帖逻辑）；
+ * 4. 提供后台发帖人官方账号下拉数据。
  */
 class PostService
 {
@@ -96,6 +100,25 @@ class PostService
     private const MEMBER_RELATION = 'member:member_id,nickname,avatar';
 
     /**
+     * 后台发帖默认审核状态：已通过。
+     *
+     * 说明：
+     * - 后台人工发帖由运营侧控制，按需求创建后直接可发布；
+     * - 该常量独立于模型常量，避免模型状态常量变更影响后台发布策略。
+     */
+    private const ADMIN_PUBLISH_STATUS_APPROVED = 1;
+
+    /**
+     * 官方账号下拉查询字段。
+     */
+    private const OFFICIAL_MEMBER_OPTION_COLUMNS = [
+        'member_id',
+        'nickname',
+        'avatar',
+        'official_label',
+    ];
+
+    /**
      * 获取帖子列表（分页）。
      *
      * 关键规则：
@@ -175,6 +198,57 @@ class PostService
             ->with([self::STAT_RELATION, self::MEMBER_RELATION])
             ->where('post_id', $postId)
             ->first();
+    }
+
+    /**
+     * 后台发帖（复用 App 发帖核心逻辑）。
+     *
+     * 关键规则：
+     * 1. 统一委托 App\PostService::createPost 处理入库、话题关联和媒体任务派发；
+     * 2. 后台创建后强制置为已通过状态，满足“后台发帖直接发布”要求；
+     * 3. 若帖子创建成功但状态写回失败，抛出异常让调用方感知失败并记录日志。
+     *
+     * @param int $memberId 发帖会员ID（仅官方账号）
+     * @param array<string, mixed> $data 发帖数据（与 App 侧字段语义一致）
+     * @return int 帖子ID
+     * @throws \Exception
+     */
+    public function createByAdmin(int $memberId, array $data): int
+    {
+        /** @var AppPostService $appPostService */
+        $appPostService = app(AppPostService::class);
+        $postId = $appPostService->createPost($memberId, $data);
+
+        // 后台发帖直接发布，统一将状态写成“已通过”。
+        $updated = AppPostBase::query()
+            ->where('post_id', $postId)
+            ->update(['status' => self::ADMIN_PUBLISH_STATUS_APPROVED]);
+
+        if ($updated <= 0) {
+            throw new \Exception('后台发帖成功但状态更新失败');
+        }
+
+        return $postId;
+    }
+
+    /**
+     * 获取后台发帖官方账号下拉选项。
+     *
+     * 查询约束：
+     * 1. 仅返回官方账号（is_official=1）；
+     * 2. 仅返回正常状态账号（status=1）；
+     * 3. 软删账号自动排除（依赖 SoftDeletes 全局作用域）。
+     *
+     * @return Collection<int, AppMemberBase>
+     */
+    public function getOfficialMemberOptions(): Collection
+    {
+        return AppMemberBase::query()
+            ->select(self::OFFICIAL_MEMBER_OPTION_COLUMNS)
+            ->where('is_official', AppMemberBase::OFFICIAL_YES)
+            ->where('status', AppMemberBase::STATUS_NORMAL)
+            ->orderByDesc('member_id')
+            ->get();
     }
 
     /**

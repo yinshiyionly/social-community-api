@@ -142,26 +142,26 @@ class AdSpaceController extends Controller
     }
 
     /**
-     * 删除广告位（支持批量）
+     * 删除广告位（仅支持单个）
      *
-     * @param string $spaceIds 逗号分隔的广告位ID
+     * 规则：
+     * 1. 路由参数仅接收单个 space_id；
+     * 2. 若广告位下存在广告内容，直接拒绝删除；
+     * 3. 返回成功仅表示软删除成功，不代表物理删除。
+     *
+     * @param int $spaceId 广告位ID
      * @return \Illuminate\Http\JsonResponse
      */
-    public function destroy($spaceIds)
+    public function destroy(int $spaceId)
     {
         try {
-            $ids = array_map('intval', explode(',', $spaceIds));
-
-            // 检查广告位下是否有广告内容
-            foreach ($ids as $id) {
-                if ($this->adSpaceService->hasAdItems($id)) {
-                    return ApiResponse::error('广告位下存在广告内容，无法删除');
-                }
+            if ($this->adSpaceService->hasAdItems($spaceId)) {
+                return ApiResponse::error('广告位下存在广告内容，无法删除');
             }
 
-            $deletedCount = $this->adSpaceService->delete($ids);
+            $deleted = $this->adSpaceService->delete($spaceId);
 
-            if ($deletedCount > 0) {
+            if ($deleted) {
                 return ApiResponse::success([], '删除成功');
             } else {
                 return ApiResponse::error('删除失败，广告位不存在');
@@ -169,7 +169,7 @@ class AdSpaceController extends Controller
         } catch (\Exception $e) {
             Log::error('删除广告位失败', [
                 'action' => 'destroy',
-                'space_ids' => $spaceIds,
+                'space_id' => $spaceId,
                 'error' => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');

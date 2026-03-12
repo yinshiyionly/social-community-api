@@ -118,16 +118,16 @@ class AdSpaceService
     }
 
     /**
-     * 删除广告位（支持批量，软删除）
+     * 删除广告位（软删除）
      *
-     * @param array $spaceIds
-     * @return int 删除数量
+     * @param int $spaceId 广告位ID
+     * @return bool 删除是否成功
      */
-    public function delete(array $spaceIds): int
+    public function delete(int $spaceId): bool
     {
         return AppAdSpace::query()
-            ->whereIn('space_id', $spaceIds)
-            ->delete();
+            ->where('space_id', $spaceId)
+            ->delete() > 0;
     }
 
     /**

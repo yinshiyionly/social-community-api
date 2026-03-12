@@ -392,9 +392,6 @@
         "status": 1,
         "startTime": "2026-03-01 00:00:00",
         "endTime": "2026-03-31 23:59:59",
-        "extJson": {
-            "trackCode": "spring-2026"
-        },
         "createdAt": "2026-03-10 14:20:00",
         "updatedAt": "2026-03-10 16:00:00"
     }
@@ -420,7 +417,6 @@
 | status | number | 否 | 状态：`1` 上线、`2` 下线，默认 `1` |
 | startTime | string | 否 | 生效时间（`Y-m-d H:i:s`） |
 | endTime | string | 否 | 失效时间（`>= startTime`） |
-| extJson | object/array | 否 | 扩展字段 |
 
 #### 请求示例 JSON
 
@@ -435,10 +431,7 @@
     "sortNum": 100,
     "status": 1,
     "startTime": "2026-03-01 00:00:00",
-    "endTime": "2026-03-31 23:59:59",
-    "extJson": {
-        "trackCode": "spring-2026"
-    }
+    "endTime": "2026-03-31 23:59:59"
 }
 ```
 
@@ -472,7 +465,6 @@
 | status | number | 否 | 状态：`1` 上线、`2` 下线 |
 | startTime | string | 否 | 生效时间 |
 | endTime | string | 否 | 失效时间（`>= startTime`） |
-| extJson | object/array | 否 | 扩展字段 |
 
 #### 响应示例 JSON（成功）
 

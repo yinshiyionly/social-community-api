@@ -83,11 +83,11 @@ class AdController extends Controller
     public function constants()
     {
         $data = [
-            'platformOptions' => [
+            /*'platformOptions' => [
                 ['label' => '全平台', 'value' => AppAdSpace::PLATFORM_ALL],
                 ['label' => 'iOS', 'value' => AppAdSpace::PLATFORM_IOS],
                 ['label' => 'Android', 'value' => AppAdSpace::PLATFORM_ANDROID],
-            ],
+            ],*/
             'spaceStatusOptions' => [
                 ['label' => '启用', 'value' => AppAdSpace::STATUS_ENABLED],
                 ['label' => '禁用', 'value' => AppAdSpace::STATUS_DISABLED],

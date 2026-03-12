@@ -187,19 +187,21 @@ class AdItemController extends Controller
     }
 
     /**
-     * 删除广告内容（支持批量）
+     * 删除广告内容（仅支持单个）
      *
-     * @param string $adIds 逗号分隔的广告ID
+     * 规则：
+     * 1. 路由参数仅接收单个 ad_id；
+     * 2. 返回成功仅表示软删除成功，不代表物理删除。
+     *
+     * @param int $adId 广告ID
      * @return \Illuminate\Http\JsonResponse
      */
-    public function destroy($adIds)
+    public function destroy(int $adId)
     {
         try {
-            $ids = array_map('intval', explode(',', $adIds));
+            $deleted = $this->adItemService->delete($adId);
 
-            $deletedCount = $this->adItemService->delete($ids);
-
-            if ($deletedCount > 0) {
+            if ($deleted) {
                 return ApiResponse::success([], '删除成功');
             } else {
                 return ApiResponse::error('删除失败，广告内容不存在');
@@ -207,7 +209,7 @@ class AdItemController extends Controller
         } catch (\Exception $e) {
             Log::error('删除广告内容失败', [
                 'action' => 'destroy',
-                'ad_ids' => $adIds,
+                'ad_id' => $adId,
                 'error' => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');

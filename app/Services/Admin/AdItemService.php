@@ -154,16 +154,16 @@ class AdItemService
     }
 
     /**
-     * 删除广告内容（支持批量，软删除）
+     * 删除广告内容（软删除）
      *
-     * @param array $adIds
-     * @return int 删除数量
+     * @param int $adId 广告ID
+     * @return bool 删除是否成功
      */
-    public function delete(array $adIds): int
+    public function delete(int $adId): bool
     {
         return AppAdItem::query()
-            ->whereIn('ad_id', $adIds)
-            ->delete();
+            ->where('ad_id', $adId)
+            ->delete() > 0;
     }
 
     /**

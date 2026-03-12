@@ -94,14 +94,14 @@ class AdController extends Controller
             ],
             'adTypeOptions' => [
                 ['label' => '图片', 'value' => AppAdItem::AD_TYPE_IMAGE],
-                ['label' => '视频', 'value' => AppAdItem::AD_TYPE_VIDEO],
+                /*['label' => '视频', 'value' => AppAdItem::AD_TYPE_VIDEO],
                 ['label' => '文本', 'value' => AppAdItem::AD_TYPE_TEXT],
-                ['label' => 'HTML', 'value' => AppAdItem::AD_TYPE_HTML],
+                ['label' => 'HTML', 'value' => AppAdItem::AD_TYPE_HTML],*/
             ],
             'targetTypeOptions' => [
-                ['label' => '外部链接', 'value' => AppAdItem::TARGET_TYPE_EXTERNAL],
+                /*['label' => '外部链接', 'value' => AppAdItem::TARGET_TYPE_EXTERNAL],*/
                 ['label' => '内部页面', 'value' => AppAdItem::TARGET_TYPE_INTERNAL],
-                ['label' => '不跳转', 'value' => AppAdItem::TARGET_TYPE_NONE],
+                /*['label' => '不跳转', 'value' => AppAdItem::TARGET_TYPE_NONE],*/
             ],
             'adStatusOptions' => [
                 ['label' => '上线', 'value' => AppAdItem::STATUS_ONLINE],

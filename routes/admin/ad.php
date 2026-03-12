@@ -38,7 +38,7 @@ Route::middleware('system.auth')->group(function () {
             // 更新状态
             Route::put('/changeStatus', [AdSpaceController::class, 'changeStatus']);
             // 删除
-            Route::delete('/{spaceIds}', [AdSpaceController::class, 'destroy'])->where('spaceIds', '[0-9,]+');
+            Route::delete('/{spaceId}', [AdSpaceController::class, 'destroy'])->where('spaceId', '[0-9]+');
         });
 
         // 广告内容管理
@@ -56,7 +56,7 @@ Route::middleware('system.auth')->group(function () {
             // 更新
             Route::put('/', [AdItemController::class, 'update']);
             // 删除
-            Route::delete('/{adIds}', [AdItemController::class, 'destroy'])->where('adIds', '[0-9,]+');
+            Route::delete('/{adId}', [AdItemController::class, 'destroy'])->where('adId', '[0-9]+');
         });
     });
 });

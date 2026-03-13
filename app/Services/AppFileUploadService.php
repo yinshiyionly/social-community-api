@@ -554,7 +554,7 @@ class AppFileUploadService
      */
     protected function buildFileResponse(AppFileRecord $record, UploadedFile $file, bool $reused = false): array
     {
-        return [
+        $data = [
             'file_id' => $record->file_id,
             'url' => $this->generateFileUrl($record->file_path),
             'path' => $record->file_path,
@@ -570,6 +570,11 @@ class AppFileUploadService
             'reused' => $reused,
             'created_at' => $record->created_at->toIso8601String(),
         ];
+        // 如果存在 extra 信息并且存在 extra.cover 将数据赋值给 cover_image 字段
+        if (!empty($record->extra) && !empty($record->extra['cover'])) {
+            $data['cover_image'] = $this->generateFileUrl($record->extra['cover']);
+        }
+        return $data;
     }
 
     /**

@@ -104,6 +104,7 @@ class CommonController extends Controller
                     'reused' => $result['reused'] ?? false,
                     'size' => $result['file_size'],
                     'url' => $result['url'],
+                    'cover_image' => $result['cover_image'] ?? null
                 ]
             ]);
         } catch (FileValidationException $e) {

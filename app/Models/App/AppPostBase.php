@@ -160,6 +160,25 @@ class AppPostBase extends Model
     }
 
     /**
+     * 关联话题（多对多）。
+     *
+     * 说明：
+     * - 文章详情接口需要输出 topics 标签；
+     * - 通过关联表 app_topic_post_relation 读取当前帖子绑定的话题。
+     */
+    public function topics()
+    {
+        return $this->belongsToMany(
+            AppTopicBase::class,
+            'app_topic_post_relation',
+            'post_id',
+            'topic_id',
+            'post_id',
+            'topic_id'
+        )->withPivot('is_featured', 'created_at');
+    }
+
+    /**
      * 设置 media_data - 将绝对路径转为相对路径存储
      *
      * @param array|string|null $value
@@ -176,8 +195,23 @@ class AppPostBase extends Model
         }
 
         foreach ($value as &$item) {
-            if (isset($item['url'])) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            // blocks 中 image/video 的 url 统一按 TOS 规则归一化，避免存储绝对域名。
+            if (isset($item['url']) && is_string($item['url'])) {
                 $item['url'] = $this->extractTosPath($item['url']);
+            }
+
+            // 文章视频块使用 poster 字段，和 url 一样需要入库前转相对路径。
+            if (isset($item['poster']) && is_string($item['poster'])) {
+                $item['poster'] = $this->extractTosPath($item['poster']);
+            }
+
+            // 兼容历史视频结构（cover），保持老数据读写行为一致。
+            if (isset($item['cover']) && is_string($item['cover'])) {
+                $item['cover'] = $this->extractTosPath($item['cover']);
             }
         }
 
@@ -202,8 +236,22 @@ class AppPostBase extends Model
         }
 
         foreach ($data as &$item) {
-            if (isset($item['url'])) {
-                $item['url'] = $this->getTosUrl($item['url']);
+            if (!is_array($item)) {
+                continue;
+            }
+
+            if (isset($item['url']) && is_string($item['url'])) {
+                $item['url'] = $this->getTosUrl($item['url']) ?? $item['url'];
+            }
+
+            // 文章视频块返回时补全 poster 绝对地址，前端可直接渲染。
+            if (isset($item['poster']) && is_string($item['poster'])) {
+                $item['poster'] = $this->getTosUrl($item['poster']) ?? $item['poster'];
+            }
+
+            // 兼容历史视频结构（cover）输出绝对地址。
+            if (isset($item['cover']) && is_string($item['cover'])) {
+                $item['cover'] = $this->getTosUrl($item['cover']) ?? $item['cover'];
             }
         }
 

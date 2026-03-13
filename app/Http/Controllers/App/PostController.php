@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\App\ArticlePostStoreRequest;
+use App\Http\Requests\App\ArticlePostBlocksStoreRequest;
 use App\Http\Requests\App\ImageTextPostStoreRequest;
 use App\Http\Requests\App\PostDetailRequest;
 use App\Http\Requests\App\PostListRequest;
@@ -141,10 +141,10 @@ class PostController extends Controller
     /**
      * 发表文章动态
      *
-     * @param ArticlePostStoreRequest $request
+     * @param ArticlePostBlocksStoreRequest $request
      * @return JsonResponse
      */
-    public function storeArticle(ArticlePostStoreRequest $request): JsonResponse
+    public function storeArticle(ArticlePostBlocksStoreRequest $request): JsonResponse
     {
         $memberId = $this->getMemberId($request);
         $data = $request->validatedWithDefaults();
@@ -511,6 +511,9 @@ class PostController extends Controller
                 return AppApiResponse::dataNotFound('内容不存在');
             }
 
+            // 文章详情需要直接返回话题标签，提前加载避免资源层出现隐式查询。
+            $post->load('topics');
+
             $this->postService->incrementViewCount($post);
 
             $isFavorited = false;
@@ -527,8 +530,6 @@ class PostController extends Controller
                 [
                     'isLiked' => $isLiked,
                     'isFavorited' => $isFavorited,
-                    // 兼容旧字段，避免历史客户端只读取 isCollected 时行为异常。
-                    'isCollected' => $isFavorited,
                 ]
             );
         } catch (\Exception $e) {

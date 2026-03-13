@@ -11,7 +11,38 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class MemberCollectionListResource extends JsonResource
 {
     /**
+     * 当前登录用户已点赞的帖子ID列表（由控制器批量注入）。
+     *
+     * @var array
+     */
+    protected static $likedPostIds = [];
+
+    /**
+     * 当前登录用户已收藏的帖子ID列表（由控制器批量注入）。
+     *
+     * @var array
+     */
+    protected static $favoritedPostIds = [];
+
+    /**
+     * 设置帖子互动状态映射数据。
+     *
+     * @param array $likedPostIds
+     * @param array $favoritedPostIds
+     * @return void
+     */
+    public static function setInteractionData(array $likedPostIds, array $favoritedPostIds): void
+    {
+        self::$likedPostIds = $likedPostIds;
+        self::$favoritedPostIds = $favoritedPostIds;
+    }
+
+    /**
      * 转换资源为数组
+     *
+     * 字段约定：
+     * - isLiked/isFavorited 表示“当前登录用户”视角下的互动状态；
+     * - 当收藏记录关联帖子被删除时返回 null，由上层按既有规则过滤。
      *
      * @param \Illuminate\Http\Request $request
      * @return array|null
@@ -27,6 +58,7 @@ class MemberCollectionListResource extends JsonResource
 
         $cover = $post->cover;
         $author = $post->member;
+        $isFavorited = in_array($post->post_id, self::$favoritedPostIds);
 
         return [
             'id' => $post->post_id,
@@ -39,6 +71,8 @@ class MemberCollectionListResource extends JsonResource
             'postType' => $post->post_type,
             'isVideo' => $post->post_type == AppPostBase::POST_TYPE_VIDEO,
             'aspectRatio' => $this->calculateAspectRatio($cover),
+            'isLiked' => in_array($post->post_id, self::$likedPostIds),
+            'isFavorited' => $isFavorited,
         ];
     }
 

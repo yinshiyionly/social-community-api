@@ -417,10 +417,10 @@ class PostController extends Controller
 
             $this->postService->incrementViewCount($post);
 
-            $isCollected = false;
+            $isFavorited = false;
             $isLiked = false;
             if ($memberId) {
-                $isCollected = $this->postService->isPostCollected($memberId, $id);
+                $isFavorited = $this->postService->isPostCollected($memberId, $id);
                 $isLiked = $this->postService->isPostLiked($memberId, $id);
             }
 
@@ -428,7 +428,12 @@ class PostController extends Controller
                 $post,
                 ImageTextPostResource::class,
                 'success',
-                ['isCollected' => $isCollected, 'isLiked' => $isLiked]
+                [
+                    'isLiked' => $isLiked,
+                    'isFavorited' => $isFavorited,
+                    // 兼容旧字段，避免历史客户端只读取 isCollected 时行为异常。
+                    'isCollected' => $isFavorited,
+                ]
             );
         } catch (\Exception $e) {
             Log::error('获取图文动态详情失败', [
@@ -460,10 +465,10 @@ class PostController extends Controller
 
             $this->postService->incrementViewCount($post);
 
-            $isCollected = false;
+            $isFavorited = false;
             $isLiked = false;
             if ($memberId) {
-                $isCollected = $this->postService->isPostCollected($memberId, $id);
+                $isFavorited = $this->postService->isPostCollected($memberId, $id);
                 $isLiked = $this->postService->isPostLiked($memberId, $id);
             }
 
@@ -471,7 +476,12 @@ class PostController extends Controller
                 $post,
                 VideoPostResource::class,
                 'success',
-                ['isCollected' => $isCollected, 'isLiked' => $isLiked]
+                [
+                    'isLiked' => $isLiked,
+                    'isFavorited' => $isFavorited,
+                    // 兼容旧字段，避免历史客户端只读取 isCollected 时行为异常。
+                    'isCollected' => $isFavorited,
+                ]
             );
         } catch (\Exception $e) {
             Log::error('获取视频动态详情失败', [
@@ -503,10 +513,10 @@ class PostController extends Controller
 
             $this->postService->incrementViewCount($post);
 
-            $isCollected = false;
+            $isFavorited = false;
             $isLiked = false;
             if ($memberId) {
-                $isCollected = $this->postService->isPostCollected($memberId, $id);
+                $isFavorited = $this->postService->isPostCollected($memberId, $id);
                 $isLiked = $this->postService->isPostLiked($memberId, $id);
             }
 
@@ -514,7 +524,12 @@ class PostController extends Controller
                 $post,
                 ArticlePostResource::class,
                 'success',
-                ['isCollected' => $isCollected, 'isLiked' => $isLiked]
+                [
+                    'isLiked' => $isLiked,
+                    'isFavorited' => $isFavorited,
+                    // 兼容旧字段，避免历史客户端只读取 isCollected 时行为异常。
+                    'isCollected' => $isFavorited,
+                ]
             );
         } catch (\Exception $e) {
             Log::error('获取文章动态详情失败', [

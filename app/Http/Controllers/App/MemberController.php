@@ -106,7 +106,8 @@ class MemberController extends Controller
      * 规则：
      * 1. memberId 为空时默认查询当前登录用户发布内容；
      * 2. isLiked/isFavorited 固定按“当前登录用户”视角计算；
-     * 3. 通过批量查询注入 Resource，避免列表序列化阶段产生 N+1。
+     * 3. isOwned 按“当前登录用户 member_id 是否等于帖子作者 member_id”计算；
+     * 4. 通过批量查询注入 Resource，避免列表序列化阶段产生 N+1。
      *
      * @param Request $request
      * @return JsonResponse
@@ -145,6 +146,7 @@ class MemberController extends Controller
                 // 未登录态兜底为 false，保证响应字段稳定。
                 MemberPostListResource::setInteractionData([], []);
             }
+            MemberPostListResource::setCurrentMemberId($currentMemberId);
 
             return AppApiResponse::memberPaginate($posts, MemberPostListResource::class);
         } catch (\Exception $e) {
@@ -165,7 +167,8 @@ class MemberController extends Controller
      * 规则：
      * 1. memberId 为空时默认查询当前登录用户收藏；
      * 2. isLiked/isFavorited 固定按“当前登录用户”视角计算；
-     * 3. 收藏关联帖子不存在时由 Resource 返回 null，保持历史兼容行为。
+     * 3. isOwned 按“当前登录用户 member_id 是否等于帖子作者 member_id”计算；
+     * 4. 收藏关联帖子不存在时由 Resource 返回 null，保持历史兼容行为。
      *
      * @param Request $request
      * @return JsonResponse
@@ -196,6 +199,7 @@ class MemberController extends Controller
                 // 未登录态兜底为 false，保证响应字段稳定。
                 MemberCollectionListResource::setInteractionData([], []);
             }
+            MemberCollectionListResource::setCurrentMemberId($currentMemberId);
 
             return AppApiResponse::memberPaginate($collections, MemberCollectionListResource::class);
         } catch (\Exception $e) {

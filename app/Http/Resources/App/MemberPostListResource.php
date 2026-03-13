@@ -25,6 +25,13 @@ class MemberPostListResource extends JsonResource
     protected static $favoritedPostIds = [];
 
     /**
+     * 当前登录用户ID（由控制器注入，0 表示游客态）。
+     *
+     * @var int
+     */
+    protected static $currentMemberId = 0;
+
+    /**
      * 设置帖子互动状态映射数据。
      *
      * @param array $likedPostIds
@@ -38,10 +45,22 @@ class MemberPostListResource extends JsonResource
     }
 
     /**
+     * 设置当前登录用户ID。
+     *
+     * @param int|null $memberId
+     * @return void
+     */
+    public static function setCurrentMemberId(?int $memberId): void
+    {
+        self::$currentMemberId = $memberId ? (int)$memberId : 0;
+    }
+
+    /**
      * 转换资源为数组
      *
      * 字段约定：
      * - isLiked/isFavorited 表示“当前登录用户”对该帖子的互动状态；
+     * - isOwned 表示该帖子是否由当前登录用户发布；
      * - 未命中注入列表时默认 false，避免资源层触发额外查询。
      *
      * @param \Illuminate\Http\Request $request
@@ -63,6 +82,7 @@ class MemberPostListResource extends JsonResource
             'postType' => $this->post_type,
             'isVideo' => $this->post_type == AppPostBase::POST_TYPE_VIDEO,
             'aspectRatio' => $this->calculateAspectRatio($cover),
+            'isOwned' => self::$currentMemberId > 0 && (int)$this->member_id === self::$currentMemberId,
             'isLiked' => in_array($this->post_id, self::$likedPostIds),
             'isFavorited' => $isFavorited,
         ];

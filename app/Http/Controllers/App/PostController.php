@@ -176,6 +176,7 @@ class PostController extends Controller
 
         try {
             $posts = $this->postService->getPostList($cursor, $pageSize);
+            PostListResource::setCurrentMemberId($memberId ? (int)$memberId : 0);
 
             // 如果用户已登录，获取收藏和点赞状态并注入到 Resource
             if ($memberId) {
@@ -215,6 +216,7 @@ class PostController extends Controller
 
         try {
             $posts = $this->postService->getPostListPaginate($page, $pageSize);
+            PostListResource::setCurrentMemberId($memberId ? (int)$memberId : 0);
 
             // 如果用户已登录，获取收藏和点赞状态并注入到 Resource
             if ($memberId) {
@@ -254,6 +256,7 @@ class PostController extends Controller
 
         try {
             $videos = $this->postService->getVideoFeed($cursor, $pageSize);
+            VideoFeedResource::setCurrentMemberId($memberId ? (int)$memberId : 0);
 
             // 如果用户已登录，获取交互状态
             if ($memberId) {
@@ -344,6 +347,10 @@ class PostController extends Controller
     /**
      * 组装帖子详情响应
      *
+     * 返回约定：
+     * - isOwned 按“当前登录用户 member_id 是否等于帖子作者 member_id”计算；
+     * - 可选鉴权下未登录时 isOwned 固定为 false。
+     *
      * @param Request $request
      * @param int $postId
      * @param int|null $postType
@@ -368,12 +375,14 @@ class PostController extends Controller
             $isFavorited = false;
             $isLiked = false;
             $isFollowed = false;
+            $isOwned = false;
             if ($memberId) {
                 $memberId = (int)$memberId;
                 $isFavorited = $this->postService->isPostCollected($memberId, $postId);
                 $isLiked = $this->postService->isPostLiked($memberId, $postId);
                 $followedMemberIds = $this->postService->getFollowedMemberIds($memberId, [(int)$post->member_id]);
                 $isFollowed = in_array((int)$post->member_id, $followedMemberIds, true);
+                $isOwned = (int)$post->member_id === $memberId;
             }
 
             return AppApiResponse::resource(
@@ -382,6 +391,7 @@ class PostController extends Controller
                 'success',
                 [
                     'isFollowed' => $isFollowed,
+                    'isOwned' => $isOwned,
                     'isLiked' => $isLiked,
                     'isFavorited' => $isFavorited,
                 ]
@@ -419,9 +429,12 @@ class PostController extends Controller
 
             $isFavorited = false;
             $isLiked = false;
+            $isOwned = false;
             if ($memberId) {
-                $isFavorited = $this->postService->isPostCollected($memberId, $id);
-                $isLiked = $this->postService->isPostLiked($memberId, $id);
+                $currentMemberId = (int)$memberId;
+                $isFavorited = $this->postService->isPostCollected($currentMemberId, $id);
+                $isLiked = $this->postService->isPostLiked($currentMemberId, $id);
+                $isOwned = (int)$post->member_id === $currentMemberId;
             }
 
             return AppApiResponse::resource(
@@ -429,6 +442,7 @@ class PostController extends Controller
                 ImageTextPostResource::class,
                 'success',
                 [
+                    'isOwned' => $isOwned,
                     'isLiked' => $isLiked,
                     'isFavorited' => $isFavorited,
                     // 兼容旧字段，避免历史客户端只读取 isCollected 时行为异常。
@@ -467,9 +481,12 @@ class PostController extends Controller
 
             $isFavorited = false;
             $isLiked = false;
+            $isOwned = false;
             if ($memberId) {
-                $isFavorited = $this->postService->isPostCollected($memberId, $id);
-                $isLiked = $this->postService->isPostLiked($memberId, $id);
+                $currentMemberId = (int)$memberId;
+                $isFavorited = $this->postService->isPostCollected($currentMemberId, $id);
+                $isLiked = $this->postService->isPostLiked($currentMemberId, $id);
+                $isOwned = (int)$post->member_id === $currentMemberId;
             }
 
             return AppApiResponse::resource(
@@ -477,6 +494,7 @@ class PostController extends Controller
                 VideoPostResource::class,
                 'success',
                 [
+                    'isOwned' => $isOwned,
                     'isLiked' => $isLiked,
                     'isFavorited' => $isFavorited,
                     // 兼容旧字段，避免历史客户端只读取 isCollected 时行为异常。
@@ -518,9 +536,12 @@ class PostController extends Controller
 
             $isFavorited = false;
             $isLiked = false;
+            $isOwned = false;
             if ($memberId) {
-                $isFavorited = $this->postService->isPostCollected($memberId, $id);
-                $isLiked = $this->postService->isPostLiked($memberId, $id);
+                $currentMemberId = (int)$memberId;
+                $isFavorited = $this->postService->isPostCollected($currentMemberId, $id);
+                $isLiked = $this->postService->isPostLiked($currentMemberId, $id);
+                $isOwned = (int)$post->member_id === $currentMemberId;
             }
 
             return AppApiResponse::resource(
@@ -528,6 +549,7 @@ class PostController extends Controller
                 ArticlePostResource::class,
                 'success',
                 [
+                    'isOwned' => $isOwned,
                     'isLiked' => $isLiked,
                     'isFavorited' => $isFavorited,
                 ]

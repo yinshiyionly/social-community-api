@@ -32,6 +32,13 @@ class PostListResource extends JsonResource
     public static $likedPostIds = [];
 
     /**
+     * 当前登录用户ID（由控制器注入，0 表示游客态）。
+     *
+     * @var int
+     */
+    protected static $currentMemberId = 0;
+
+    /**
      * 设置已收藏的帖子ID
      *
      * @param array $postIds
@@ -52,11 +59,23 @@ class PostListResource extends JsonResource
     }
 
     /**
+     * 设置当前登录用户ID。
+     *
+     * @param int|null $memberId
+     * @return void
+     */
+    public static function setCurrentMemberId(?int $memberId): void
+    {
+        self::$currentMemberId = $memberId ? (int)$memberId : 0;
+    }
+
+    /**
      * 转换资源为数组
      *
      * 字段约定：
      * - isFavorited 为收藏状态标准字段；
      * - isCollected 为历史兼容字段，与 isFavorited 保持一致；
+     * - isOwned 表示该帖子是否由当前登录用户发布；
      * - 未登录场景由控制器注入空 ID 列表，两个状态字段统一返回 false。
      *
      * @param \Illuminate\Http\Request $request
@@ -78,6 +97,7 @@ class PostListResource extends JsonResource
             'postType' => $this->post_type,
             'isVideo' => $this->post_type == AppPostBase::POST_TYPE_VIDEO,
             'aspectRatio' => $this->calculateAspectRatio($this->cover),
+            'isOwned' => self::$currentMemberId > 0 && (int)$this->member_id === self::$currentMemberId,
             'isLiked' => in_array($this->post_id, self::$likedPostIds),
             'isFavorited' => $isFavorited,
             // 保留 isCollected 兼容历史客户端，避免老版本字段读取失败。

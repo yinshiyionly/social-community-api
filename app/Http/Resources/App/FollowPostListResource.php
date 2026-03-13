@@ -32,6 +32,13 @@ class FollowPostListResource extends JsonResource
     protected static $followedIds = [];
 
     /**
+     * 当前登录用户ID（由控制器注入）。
+     *
+     * @var int
+     */
+    protected static $currentMemberId = 0;
+
+    /**
      * 设置交互状态数据
      *
      * @param array $likedIds
@@ -46,7 +53,22 @@ class FollowPostListResource extends JsonResource
     }
 
     /**
+     * 设置当前登录用户ID。
+     *
+     * @param int|null $memberId
+     * @return void
+     */
+    public static function setCurrentMemberId(?int $memberId): void
+    {
+        self::$currentMemberId = $memberId ? (int)$memberId : 0;
+    }
+
+    /**
      * 转换资源为数组
+     *
+     * 字段约定：
+     * - isOwned 表示该帖子是否由当前登录用户发布；
+     * - isLiked/isFavorited 维持现有交互状态语义。
      *
      * @param \Illuminate\Http\Request $request
      * @return array
@@ -75,6 +97,7 @@ class FollowPostListResource extends JsonResource
             'favoriteCount' => $this->stat ? $this->stat->collection_count : 0,
             'likeCount' => $this->stat ? $this->stat->like_count : 0,
             'isFollowed' => $member ? in_array($member->member_id, self::$followedIds) : false,
+            'isOwned' => self::$currentMemberId > 0 && (int)$this->member_id === self::$currentMemberId,
             'isLiked' => in_array($this->post_id, self::$likedIds),
             'isFavorited' => in_array($this->post_id, self::$collectedIds),
             'createTime' => $this->created_at ? $this->created_at->toISOString() : null,

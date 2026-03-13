@@ -185,6 +185,9 @@ class FollowController extends Controller
     /**
      * 关注的人的帖子列表
      *
+     * 返回约定：
+     * - isOwned 按“当前登录用户 member_id 是否等于帖子作者 member_id”计算。
+     *
      * @param FollowPostListRequest $request
      * @return JsonResponse
      */
@@ -203,6 +206,7 @@ class FollowController extends Controller
                 $result['collectedIds'],
                 $result['followedIds']
             );
+            FollowPostListResource::setCurrentMemberId((int)$memberId);
 
             return AppApiResponse::normalPaginate($result['posts'], FollowPostListResource::class);
         } catch (\Exception $e) {
@@ -219,6 +223,9 @@ class FollowController extends Controller
 
     /**
      * 获取推荐帖子列表（猜你喜欢）
+     *
+     * 返回约定：
+     * - isOwned 按“当前登录用户 member_id 是否等于帖子作者 member_id”计算。
      *
      * @param FollowPostListRequest $request
      * @return JsonResponse
@@ -238,6 +245,7 @@ class FollowController extends Controller
                 $result['collectedIds'],
                 $result['followedIds']
             );
+            RecommendPostListResource::setCurrentMemberId((int)$memberId);
 
             return AppApiResponse::normalPaginate($result['posts'], RecommendPostListResource::class);
         } catch (\Exception $e) {

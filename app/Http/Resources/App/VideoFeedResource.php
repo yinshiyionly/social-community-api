@@ -52,11 +52,19 @@ class VideoFeedResource extends JsonResource
     }
 
     /**
+     * 输出视频流卡片数据。
+     *
+     * 字段约定：
+     * - isFavorited 为收藏状态标准字段；
+     * - isCollected 为历史兼容字段，与 isFavorited 同值。
+     *
      * @param \Illuminate\Http\Request $request
      * @return array
      */
     public function toArray($request): array
     {
+        $isFavorited = in_array($this->post_id, self::$collectedPostIds);
+
         return [
             // 基础信息
             'postId' => $this->post_id,
@@ -76,7 +84,9 @@ class VideoFeedResource extends JsonResource
 
             // 交互状态
             'isLiked' => in_array($this->post_id, self::$likedPostIds),
-            'isCollected' => in_array($this->post_id, self::$collectedPostIds),
+            'isFavorited' => $isFavorited,
+            // 兼容旧客户端字段，值与 isFavorited 保持一致。
+            'isCollected' => $isFavorited,
 
             // 作者信息
             'author' => $this->formatAuthor(),

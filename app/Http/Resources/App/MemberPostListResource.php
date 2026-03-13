@@ -11,7 +11,38 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class MemberPostListResource extends JsonResource
 {
     /**
+     * 当前登录用户已点赞的帖子ID列表（由控制器批量注入）。
+     *
+     * @var array
+     */
+    protected static $likedPostIds = [];
+
+    /**
+     * 当前登录用户已收藏的帖子ID列表（由控制器批量注入）。
+     *
+     * @var array
+     */
+    protected static $favoritedPostIds = [];
+
+    /**
+     * 设置帖子互动状态映射数据。
+     *
+     * @param array $likedPostIds
+     * @param array $favoritedPostIds
+     * @return void
+     */
+    public static function setInteractionData(array $likedPostIds, array $favoritedPostIds): void
+    {
+        self::$likedPostIds = $likedPostIds;
+        self::$favoritedPostIds = $favoritedPostIds;
+    }
+
+    /**
      * 转换资源为数组
+     *
+     * 字段约定：
+     * - isLiked/isFavorited 表示“当前登录用户”对该帖子的互动状态；
+     * - 未命中注入列表时默认 false，避免资源层触发额外查询。
      *
      * @param \Illuminate\Http\Request $request
      * @return array
@@ -19,6 +50,8 @@ class MemberPostListResource extends JsonResource
     public function toArray($request): array
     {
         $cover = $this->cover;
+        $isFavorited = in_array($this->post_id, self::$favoritedPostIds);
+
         return [
             'id' => $this->post_id,
             'cover' => isset($cover['url']) ? $cover['url'] : '',
@@ -30,6 +63,8 @@ class MemberPostListResource extends JsonResource
             'postType' => $this->post_type,
             'isVideo' => $this->post_type == AppPostBase::POST_TYPE_VIDEO,
             'aspectRatio' => $this->calculateAspectRatio($cover),
+            'isLiked' => in_array($this->post_id, self::$likedPostIds),
+            'isFavorited' => $isFavorited,
         ];
     }
 

@@ -40,6 +40,11 @@ class RouteServiceProvider extends ServiceProvider
             Route::prefix('api/admin')
                 ->group(base_path('routes/admin.php'));
 
+            // 协议与政策路由
+            Route::prefix('policy')
+                ->middleware('web')
+                ->group(base_path('routes/policy.php'));
+
             // 文件上传模块路由
 //            Route::prefix('api')
 //                ->group(base_path('routes/file.php'));

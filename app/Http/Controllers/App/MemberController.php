@@ -14,6 +14,7 @@ use App\Http\Resources\App\Member\MemberInfoResource;
 use App\Http\Resources\App\MemberPostListResource;
 use App\Http\Resources\App\MemberProfileResource;
 use App\Services\App\MemberService;
+use App\Services\App\PostService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -33,9 +34,15 @@ class MemberController extends Controller
      */
     protected $memberService;
 
-    public function __construct(MemberService $memberService)
+    /**
+     * @var PostService
+     */
+    protected $postService;
+
+    public function __construct(MemberService $memberService, PostService $postService)
     {
         $this->memberService = $memberService;
+        $this->postService = $postService;
     }
 
     /**
@@ -96,16 +103,22 @@ class MemberController extends Controller
     /**
      * 获取用户帖子列表
      *
+     * 规则：
+     * 1. memberId 为空时默认查询当前登录用户发布内容；
+     * 2. isLiked/isFavorited 固定按“当前登录用户”视角计算；
+     * 3. 通过批量查询注入 Resource，避免列表序列化阶段产生 N+1。
+     *
      * @param Request $request
      * @return JsonResponse
      */
     public function posts(Request $request): JsonResponse
     {
+        $currentMemberId = (int)$this->getMemberId($request);
         $page = (int)$request->input('page', 1);
         $pageSize = (int)$request->input('pageSize', 10);
         $id = (int)$request->get('memberId', 0);
         if (empty($id)) {
-            $id = $request->attributes->get('member_id');
+            $id = $currentMemberId;
         }
 
         try {
@@ -118,10 +131,25 @@ class MemberController extends Controller
 
             // 获取帖子列表
             $posts = $this->memberService->getMemberPosts($id, $page, $pageSize);
+            $postIds = collect($posts->items())
+                ->pluck('post_id')
+                ->filter()
+                ->values()
+                ->toArray();
+
+            if ($currentMemberId > 0) {
+                $likedPostIds = $this->postService->getLikedPostIds($currentMemberId, $postIds);
+                $favoritedPostIds = $this->postService->getCollectedPostIds($currentMemberId, $postIds);
+                MemberPostListResource::setInteractionData($likedPostIds, $favoritedPostIds);
+            } else {
+                // 未登录态兜底为 false，保证响应字段稳定。
+                MemberPostListResource::setInteractionData([], []);
+            }
 
             return AppApiResponse::memberPaginate($posts, MemberPostListResource::class);
         } catch (\Exception $e) {
             Log::error('获取用户帖子列表失败', [
+                'current_member_id' => $currentMemberId,
                 'target_member_id' => $id,
                 'page' => $page,
                 'error' => $e->getMessage(),
@@ -134,23 +162,46 @@ class MemberController extends Controller
     /**
      * 获取个人收藏帖子列表
      *
+     * 规则：
+     * 1. memberId 为空时默认查询当前登录用户收藏；
+     * 2. isLiked/isFavorited 固定按“当前登录用户”视角计算；
+     * 3. 收藏关联帖子不存在时由 Resource 返回 null，保持历史兼容行为。
+     *
      * @param Request $request
      * @return JsonResponse
      */
     public function collections(Request $request): JsonResponse
     {
-        $memberId = $this->getMemberId($request);
+        $currentMemberId = (int)$this->getMemberId($request);
         $page = (int)$request->input('page', 1);
         $pageSize = (int)$request->input('pageSize', 10);
-        $memberId = (int)$request->get('memberId', 0);
+        $targetMemberId = (int)$request->get('memberId', 0);
+        if ($targetMemberId <= 0) {
+            $targetMemberId = $currentMemberId;
+        }
 
         try {
-            $collections = $this->memberService->getMemberCollections($memberId, $page, $pageSize);
+            $collections = $this->memberService->getMemberCollections($targetMemberId, $page, $pageSize);
+            $postIds = collect($collections->items())
+                ->pluck('post.post_id')
+                ->filter()
+                ->values()
+                ->toArray();
+
+            if ($currentMemberId > 0) {
+                $likedPostIds = $this->postService->getLikedPostIds($currentMemberId, $postIds);
+                $favoritedPostIds = $this->postService->getCollectedPostIds($currentMemberId, $postIds);
+                MemberCollectionListResource::setInteractionData($likedPostIds, $favoritedPostIds);
+            } else {
+                // 未登录态兜底为 false，保证响应字段稳定。
+                MemberCollectionListResource::setInteractionData([], []);
+            }
 
             return AppApiResponse::memberPaginate($collections, MemberCollectionListResource::class);
         } catch (\Exception $e) {
             Log::error('获取收藏帖子列表失败', [
-                'member_id' => $memberId,
+                'current_member_id' => $currentMemberId,
+                'target_member_id' => $targetMemberId,
                 'page' => $page,
                 'error' => $e->getMessage(),
             ]);

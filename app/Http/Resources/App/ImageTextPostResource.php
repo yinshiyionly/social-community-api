@@ -34,7 +34,7 @@ class ImageTextPostResource extends JsonResource
             'likeCount' => $this->stat ? $this->stat->like_count : 0,
             'commentCount' => $this->stat ? $this->stat->comment_count : 0,
             'shareCount' => $this->stat ? $this->stat->share_count : 0,
-            'collectionCount' => $this->stat ? $this->stat->collection_count : 0,
+            'favoriteCount' => $this->stat ? $this->stat->collection_count : 0,
 
             // 状态
             'isTop' => $this->is_top ?? 0,
@@ -43,7 +43,7 @@ class ImageTextPostResource extends JsonResource
             'author' => $this->formatAuthor(),
 
             // 时间
-            'createdAt' => $this->created_at ? $this->created_at->toIso8601String() : null,
+            'createTime' => $this->created_at ? $this->created_at->toIso8601String() : null,
         ];
     }
 

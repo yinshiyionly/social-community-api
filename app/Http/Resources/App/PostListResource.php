@@ -54,11 +54,18 @@ class PostListResource extends JsonResource
     /**
      * 转换资源为数组
      *
+     * 字段约定：
+     * - isFavorited 为收藏状态标准字段；
+     * - isCollected 为历史兼容字段，与 isFavorited 保持一致；
+     * - 未登录场景由控制器注入空 ID 列表，两个状态字段统一返回 false。
+     *
      * @param \Illuminate\Http\Request $request
      * @return array
      */
     public function toArray($request): array
     {
+        $isFavorited = in_array($this->post_id, self::$collectedPostIds);
+
         return [
             'id' => $this->post_id,
             'cover' => $this->cover['url'] ?? null,
@@ -71,8 +78,10 @@ class PostListResource extends JsonResource
             'postType' => $this->post_type,
             'isVideo' => $this->post_type == AppPostBase::POST_TYPE_VIDEO,
             'aspectRatio' => $this->calculateAspectRatio($this->cover),
-            // 'isCollected' => in_array($this->post_id, self::$collectedPostIds),
-            // 'isLiked' => in_array($this->post_id, self::$likedPostIds),
+            'isLiked' => in_array($this->post_id, self::$likedPostIds),
+            'isFavorited' => $isFavorited,
+            // 保留 isCollected 兼容历史客户端，避免老版本字段读取失败。
+            'isCollected' => $isFavorited,
         ];
     }
 

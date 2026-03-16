@@ -427,7 +427,19 @@ class PostController extends Controller
         $postId = (int)$request->input('postId');
         $postType = $this->normalizePostType($request->input('postType'));
 
-        return $this->buildDetailResponse($request, $postId, $postType);
+        switch ($postType) {
+            case AppPostBase::POST_TYPE_IMAGE_TEXT:
+                return app(PostController::class)->detailImageText($request, $postId);
+            case AppPostBase::POST_TYPE_VIDEO:
+                return app(PostController::class)->detailVideo($request, $postId);
+            case AppPostBase::POST_TYPE_ARTICLE:
+                return app(PostController::class)->detailArticle($request, $postId);
+        }
+
+        /*$postId = (int)$request->input('postId');
+        $postType = $this->normalizePostType($request->input('postType'));
+
+        return $this->buildDetailResponse($request, $postId, $postType);*/
     }
 
     /**

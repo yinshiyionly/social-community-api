@@ -28,6 +28,13 @@ class VideoFeedResource extends JsonResource
     protected static $followedMemberIds = [];
 
     /**
+     * 当前登录用户ID（由控制器注入，0 表示游客态）。
+     *
+     * @var int
+     */
+    protected static $currentMemberId = 0;
+
+    /**
      * 设置已收藏的帖子ID
      */
     public static function setCollectedPostIds(array $ids): void
@@ -52,11 +59,23 @@ class VideoFeedResource extends JsonResource
     }
 
     /**
+     * 设置当前登录用户ID。
+     *
+     * @param int|null $memberId
+     * @return void
+     */
+    public static function setCurrentMemberId(?int $memberId): void
+    {
+        self::$currentMemberId = $memberId ? (int)$memberId : 0;
+    }
+
+    /**
      * 输出视频流卡片数据。
      *
      * 字段约定：
      * - isFavorited 为收藏状态标准字段；
      * - isCollected 为历史兼容字段，与 isFavorited 同值。
+     * - isOwned 表示该帖子是否由当前登录用户发布。
      *
      * @param \Illuminate\Http\Request $request
      * @return array
@@ -83,6 +102,7 @@ class VideoFeedResource extends JsonResource
             'collectionCount' => $this->stat ? $this->stat->collection_count : 0,
 
             // 交互状态
+            'isOwned' => self::$currentMemberId > 0 && (int)$this->member_id === self::$currentMemberId,
             'isLiked' => in_array($this->post_id, self::$likedPostIds),
             'isFavorited' => $isFavorited,
             // 兼容旧客户端字段，值与 isFavorited 保持一致。

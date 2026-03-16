@@ -3,13 +3,16 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\App\ArticlePostBlocksUpdateRequest;
 use App\Http\Requests\App\ArticlePostBlocksStoreRequest;
+use App\Http\Requests\App\ImageTextPostUpdateRequest;
 use App\Http\Requests\App\ImageTextPostStoreRequest;
 use App\Http\Requests\App\PostDeleteRequest;
 use App\Http\Requests\App\PostDetailRequest;
 use App\Http\Requests\App\PostListRequest;
 use App\Http\Requests\App\PostPageRequest;
 use App\Http\Requests\App\PostStoreRequest;
+use App\Http\Requests\App\VideoPostUpdateRequest;
 use App\Http\Requests\App\VideoPostStoreRequest;
 use App\Http\Resources\App\AppApiResponse;
 use App\Http\Resources\App\ArticlePostResource;
@@ -167,6 +170,120 @@ class PostController extends Controller
         } catch (\Exception $e) {
             Log::error('发表文章动态失败', [
                 'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 更新图文动态（仅作者可更新）。
+     *
+     * 接口用途：
+     * - 图文详情页作者编辑并全量覆盖提交图文帖子内容。
+     *
+     * @param ImageTextPostUpdateRequest $request
+     * @return JsonResponse
+     */
+    public function updateImageText(ImageTextPostUpdateRequest $request): JsonResponse
+    {
+        $data = $request->validatedWithDefaults();
+
+        return $this->handleUpdatePost(
+            $request,
+            $data,
+            AppPostBase::POST_TYPE_IMAGE_TEXT,
+            '更新图文动态失败'
+        );
+    }
+
+    /**
+     * 更新视频动态（仅作者可更新）。
+     *
+     * 接口用途：
+     * - 视频详情页作者编辑并全量覆盖提交视频帖子内容。
+     *
+     * @param VideoPostUpdateRequest $request
+     * @return JsonResponse
+     */
+    public function updateVideo(VideoPostUpdateRequest $request): JsonResponse
+    {
+        $data = $request->validatedWithDefaults();
+
+        return $this->handleUpdatePost(
+            $request,
+            $data,
+            AppPostBase::POST_TYPE_VIDEO,
+            '更新视频动态失败'
+        );
+    }
+
+    /**
+     * 更新文章动态（仅作者可更新）。
+     *
+     * 接口用途：
+     * - 文章详情页作者编辑并全量覆盖提交文章帖子内容。
+     *
+     * @param ArticlePostBlocksUpdateRequest $request
+     * @return JsonResponse
+     */
+    public function updateArticle(ArticlePostBlocksUpdateRequest $request): JsonResponse
+    {
+        $data = $request->validatedWithDefaults();
+
+        return $this->handleUpdatePost(
+            $request,
+            $data,
+            AppPostBase::POST_TYPE_ARTICLE,
+            '更新文章动态失败'
+        );
+    }
+
+    /**
+     * 统一处理“按类型更新帖子”响应。
+     *
+     * 关键规则：
+     * 1. 仅允许作者更新，非作者返回 403；
+     * 2. 帖子不存在或类型不匹配返回 404；
+     * 3. 其余异常统一记录日志并返回通用错误，避免暴露内部实现细节。
+     *
+     * @param Request $request
+     * @param array<string, mixed> $data
+     * @param int $postType 帖子类型
+     * @param string $errorLogMessage 异常日志文案
+     * @return JsonResponse
+     */
+    protected function handleUpdatePost(
+        Request $request,
+        array $data,
+        int $postType,
+        string $errorLogMessage
+    ): JsonResponse {
+        $memberId = (int)$this->getMemberId($request);
+        $postId = (int)($data['postId'] ?? 0);
+
+        try {
+            $result = $this->postService->updatePostByOwner($memberId, $postId, $postType, $data);
+
+            if (!$result['success'] && $result['message'] === 'not_found') {
+                return AppApiResponse::dataNotFound('内容不存在');
+            }
+
+            if (!$result['success'] && $result['message'] === 'forbidden') {
+                return AppApiResponse::forbidden('无权更新该帖子');
+            }
+
+            return AppApiResponse::success([
+                'data' => [
+                    'postId' => $postId,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error($errorLogMessage, [
+                'member_id' => $memberId,
+                'post_id' => $postId,
+                'post_type' => $postType,
                 'error' => $e->getMessage(),
             ]);
 

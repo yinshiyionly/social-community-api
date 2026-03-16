@@ -55,6 +55,12 @@ Route::prefix('v1/post')->group(function () {
         Route::post('store/video', [PostController::class, 'storeVideo']);
         // 发表文章动态
         Route::post('store/article', [PostController::class, 'storeArticle']);
+        // 更新图文动态（仅作者可更新）
+        Route::put('update/imageText', [PostController::class, 'updateImageText']);
+        // 更新视频动态（仅作者可更新）
+        Route::put('update/video', [PostController::class, 'updateVideo']);
+        // 更新文章动态（仅作者可更新）
+        Route::put('update/article', [PostController::class, 'updateArticle']);
         // 删除帖子（仅作者可删除）
         Route::post('delete', [PostController::class, 'delete']);
         // 发表帖子（已废弃，建议使用新接口）

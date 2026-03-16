@@ -73,6 +73,112 @@ class PostService
     }
 
     /**
+     * 更新帖子（仅作者可更新，按类型全量覆盖）。
+     *
+     * 关键规则：
+     * 1. 使用 post_id + post_type 精确定位，避免跨类型误更新；
+     * 2. 仅作者允许更新，非作者返回 forbidden；
+     * 3. 在事务内加行锁更新正文、媒体、可见性等字段，不修改 status/member_id/post_type；
+     * 4. 话题关系按“全量替换”同步，并回收被移除话题的 post_count；
+     * 5. 提交后派发媒体补全任务，保持与发布链路一致。
+     *
+     * @param int $memberId 当前登录用户ID
+     * @param int $postId 帖子ID
+     * @param int $postType 帖子类型
+     * @param array<string, mixed> $data 更新数据（全量）
+     * @return array{success:bool,message:string,updated:bool}
+     */
+    public function updatePostByOwner(int $memberId, int $postId, int $postType, array $data): array
+    {
+        $post = AppPostBase::query()
+            ->select(['post_id', 'member_id'])
+            ->where('post_id', $postId)
+            ->where('post_type', $postType)
+            ->first();
+
+        if (!$post) {
+            return [
+                'success' => false,
+                'message' => 'not_found',
+                'updated' => false,
+            ];
+        }
+
+        if ((int)$post->member_id !== $memberId) {
+            return [
+                'success' => false,
+                'message' => 'forbidden',
+                'updated' => false,
+            ];
+        }
+
+        $result = [
+            'success' => true,
+            'message' => 'updated',
+            'updated' => true,
+        ];
+
+        DB::transaction(function () use ($memberId, $postId, $postType, $data, &$result): void {
+            $lockedPost = AppPostBase::query()
+                ->select([
+                    'post_id',
+                    'member_id',
+                    'title',
+                    'content',
+                    'media_data',
+                    'cover',
+                    'image_show_style',
+                    'article_cover_style',
+                    'visible',
+                ])
+                ->where('post_id', $postId)
+                ->where('post_type', $postType)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$lockedPost) {
+                $result = [
+                    'success' => false,
+                    'message' => 'not_found',
+                    'updated' => false,
+                ];
+                return;
+            }
+
+            // 二次校验作者身份，避免并发场景下误更新非本人帖子。
+            if ((int)$lockedPost->member_id !== $memberId) {
+                $result = [
+                    'success' => false,
+                    'message' => 'forbidden',
+                    'updated' => false,
+                ];
+                return;
+            }
+
+            $lockedPost->title = (string)($data['title'] ?? '');
+            $lockedPost->content = (string)($data['content'] ?? '');
+            $lockedPost->media_data = is_array($data['media_data'] ?? null) ? $data['media_data'] : [];
+            $lockedPost->cover = is_array($data['cover'] ?? null) ? $data['cover'] : [];
+            $lockedPost->image_show_style = (int)($data['image_show_style'] ?? AppPostBase::IMAGE_SHOW_STYLE_LARGE);
+            $lockedPost->article_cover_style = (int)($data['article_cover_style'] ?? AppPostBase::ARTICLE_COVER_STYLE_SINGLE);
+            $lockedPost->visible = (int)($data['visible'] ?? AppPostBase::VISIBLE_PUBLIC);
+            $lockedPost->save();
+
+            $topics = $data['topics'] ?? [];
+            $this->syncPostTopics($postId, $memberId, is_array($topics) ? $topics : []);
+        });
+
+        if (!$result['success']) {
+            return $result;
+        }
+
+        // 与发布链路保持一致：更新后重新补齐媒体元信息（时长、尺寸等衍生字段）。
+        FillPostMediaInfoJob::dispatch($postId, $postType);
+
+        return $result;
+    }
+
+    /**
      * 关联帖子与话题
      *
      * @param int $postId 帖子ID
@@ -100,6 +206,92 @@ class PostService
             AppTopicStat::query()
                 ->where('topic_id', $topicId)
                 ->increment('post_count');
+        }
+    }
+
+    /**
+     * 同步帖子话题关系（全量替换）。
+     *
+     * 同步顺序：
+     * 1. 先删除被移除话题并回收统计；
+     * 2. 再新增缺失话题并补增统计；
+     * 3. 保留未变化话题，避免无意义写库。
+     *
+     * @param int $postId 帖子ID
+     * @param int $memberId 发帖人ID
+     * @param array<int, array<string, mixed>> $topics 目标话题列表
+     * @return void
+     */
+    protected function syncPostTopics(int $postId, int $memberId, array $topics): void
+    {
+        $targetTopicIds = $this->extractTopicIds($topics);
+        $currentTopicIds = AppTopicPostRelation::query()
+            ->where('post_id', $postId)
+            ->pluck('topic_id')
+            ->map(static function ($topicId): int {
+                return (int)$topicId;
+            })
+            ->toArray();
+
+        $toRemoveTopicIds = array_values(array_diff($currentTopicIds, $targetTopicIds));
+        $toAddTopicIds = array_values(array_diff($targetTopicIds, $currentTopicIds));
+
+        if (!empty($toRemoveTopicIds)) {
+            AppTopicPostRelation::query()
+                ->where('post_id', $postId)
+                ->whereIn('topic_id', $toRemoveTopicIds)
+                ->delete();
+
+            $this->decrementTopicPostCount($toRemoveTopicIds);
+        }
+
+        if (!empty($toAddTopicIds)) {
+            $topicRows = array_map(static function (int $topicId): array {
+                return ['id' => $topicId];
+            }, $toAddTopicIds);
+
+            $this->attachTopics($postId, $memberId, $topicRows);
+        }
+    }
+
+    /**
+     * 从话题请求数据提取唯一 topic_id 列表。
+     *
+     * @param array<int, array<string, mixed>> $topics
+     * @return array<int, int>
+     */
+    protected function extractTopicIds(array $topics): array
+    {
+        $topicIdMap = [];
+        foreach ($topics as $topic) {
+            $topicId = isset($topic['id']) ? (int)$topic['id'] : 0;
+            if ($topicId <= 0) {
+                continue;
+            }
+
+            $topicIdMap[$topicId] = true;
+        }
+
+        return array_map(static function ($topicId): int {
+            return (int)$topicId;
+        }, array_keys($topicIdMap));
+    }
+
+    /**
+     * 扣减话题帖子数（防止出现负数）。
+     *
+     * @param array<int, int> $topicIds
+     * @return void
+     */
+    protected function decrementTopicPostCount(array $topicIds): void
+    {
+        foreach ($topicIds as $topicId) {
+            DB::table('app_topic_stat')
+                ->where('topic_id', (int)$topicId)
+                ->update([
+                    // 使用 GREATEST 防止并发扣减导致 post_count 为负数。
+                    'post_count' => DB::raw('GREATEST(post_count - 1, 0)'),
+                ]);
         }
     }
 

@@ -5,12 +5,14 @@ namespace App\Http\Controllers\App;
 use App\Constant\AppResponseCode;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\App\CourseEnrollRequest;
+use App\Http\Requests\App\CourseOrderListRequest;
 use App\Http\Requests\App\CourseOrderRefundRequest;
 use App\Http\Requests\App\CourseOrderStatusRequest;
 use App\Http\Resources\App\AppApiResponse;
 use App\Http\Resources\App\CourseCategoryResource;
 use App\Http\Resources\App\CourseDetailResource;
 use App\Http\Resources\App\CourseListResource;
+use App\Http\Resources\App\CourseOrderListResource;
 use App\Http\Resources\App\LiveCourseListResource;
 use App\Http\Resources\App\NewCourseListResource;
 use App\Services\App\CourseOrderService;
@@ -18,6 +20,14 @@ use App\Services\App\CourseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * App 端课程与课程订单控制器。
+ *
+ * 职责：
+ * 1. 提供课程分类、详情、上新、推荐及直播列表等课程查询接口；
+ * 2. 提供课程领取、下单、订单列表、状态查询与退款等订单能力；
+ * 3. 统一在控制器层处理异常日志与响应结构，避免暴露内部实现细节。
+ */
 class CourseController extends Controller
 {
     /**
@@ -219,6 +229,56 @@ class CourseController extends Controller
             ]);
 
             return AppApiResponse::error($e->getMessage());
+        }
+    }
+
+    /**
+     * 获取当前登录用户课程订单列表。
+     *
+     * 接口约束：
+     * 1. 仅返回当前登录用户订单，避免跨用户数据泄露；
+     * 2. status 支持 unpaid/paid/closed/refunded 四种筛选值；
+     * 3. 响应结构固定为 data.list/total/page/pageSize，供“我的订单”页直接渲染。
+     *
+     * 失败策略：
+     * - 记录上下文日志后返回通用错误，避免暴露内部异常细节。
+     *
+     * @param CourseOrderListRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function orderList(CourseOrderListRequest $request)
+    {
+        $memberId = (int)$request->attributes->get('member_id', 0);
+        if ($memberId <= 0) {
+            return AppApiResponse::unauthorized();
+        }
+
+        $page = $request->getPage();
+        $pageSize = $request->getPageSize();
+        $status = $request->getStatus();
+
+        try {
+            $paginator = $this->courseOrderService->getMemberOrderList($memberId, $page, $pageSize, $status);
+            $list = CourseOrderListResource::collection(collect($paginator->items()))->resolve();
+
+            return AppApiResponse::success([
+                'data' => [
+                    'list' => $list,
+                    'total' => $paginator->total(),
+                    'page' => $paginator->currentPage(),
+                    'pageSize' => $paginator->perPage(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('查询我的课程订单列表失败', [
+                'member_id' => $memberId,
+                'page' => $page,
+                'page_size' => $pageSize,
+                'status' => $status,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
         }
     }
 

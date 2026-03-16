@@ -8,10 +8,19 @@ use App\Models\App\AppCourseOrderPayLog;
 use App\Models\App\AppMemberBase;
 use App\Models\App\AppMemberCourse;
 use App\Models\App\AppMemberSchedule;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * App 端课程订单服务。
+ *
+ * 职责：
+ * 1. 处理课程订单创建、支付状态查询、退款与支付回调；
+ * 2. 处理我的订单列表查询与订单状态映射；
+ * 3. 处理支付成功后的课程发放、退款后的课程回收等副作用。
+ */
 class CourseOrderService
 {
     const ORDER_EXPIRE_MINUTES = 30;
@@ -24,6 +33,92 @@ class CourseOrderService
     public function __construct(LearningCenterService $learningCenterService)
     {
         $this->learningCenterService = $learningCenterService;
+    }
+
+    /**
+     * 获取当前登录用户的课程订单列表。
+     *
+     * 关键规则：
+     * 1. 查询前先自动关闭已过期且未支付订单，保证列表状态口径一致；
+     * 2. status 仅支持 unpaid/paid/closed/refunded 四种枚举，未传则不过滤；
+     * 3. 仅返回当前用户订单，按 order_id 倒序输出，确保最新订单优先展示。
+     *
+     * @param int $memberId
+     * @param int $page
+     * @param int $pageSize
+     * @param string|null $status
+     * @return LengthAwarePaginator
+     */
+    public function getMemberOrderList(int $memberId, int $page, int $pageSize, ?string $status = null): LengthAwarePaginator
+    {
+        $this->closeExpiredPendingOrders($memberId);
+
+        $query = AppCourseOrder::query()
+            ->select([
+                'order_id',
+                'order_no',
+                'course_id',
+                'course_title',
+                'paid_amount',
+                'pay_status',
+                'created_at',
+            ])
+            ->where('member_id', $memberId);
+
+        $payStatus = $this->mapOrderListStatusToPayStatus($status);
+        if ($payStatus !== null) {
+            $query->where('pay_status', $payStatus);
+        }
+
+        $query->orderByDesc('order_id');
+
+        return $query->paginate($pageSize, ['*'], 'page', $page);
+    }
+
+    /**
+     * 自动关闭当前用户已过期的待支付订单。
+     *
+     * 说明：
+     * - 仅处理 pay_status=待支付 且 expire_time 小于当前时间的记录；
+     * - 使用批量更新避免逐条 close 带来的额外写入成本；
+     * - 该步骤不影响已支付/已退款订单，避免误改历史交易状态。
+     *
+     * @param int $memberId
+     * @return void
+     */
+    protected function closeExpiredPendingOrders(int $memberId): void
+    {
+        AppCourseOrder::query()
+            ->where('member_id', $memberId)
+            ->where('pay_status', AppCourseOrder::PAY_STATUS_PENDING)
+            ->whereNotNull('expire_time')
+            ->where('expire_time', '<', now())
+            ->update([
+                'pay_status' => AppCourseOrder::PAY_STATUS_CLOSED,
+                'updated_at' => now(),
+            ]);
+    }
+
+    /**
+     * 将订单列表状态筛选值映射为数据库支付状态。
+     *
+     * @param string|null $status
+     * @return int|null
+     */
+    protected function mapOrderListStatusToPayStatus(?string $status): ?int
+    {
+        if (!is_string($status) || trim($status) === '') {
+            return null;
+        }
+
+        $map = [
+            'unpaid' => AppCourseOrder::PAY_STATUS_PENDING,
+            'paid' => AppCourseOrder::PAY_STATUS_PAID,
+            'refunded' => AppCourseOrder::PAY_STATUS_REFUNDED,
+            'closed' => AppCourseOrder::PAY_STATUS_CLOSED,
+        ];
+
+        return $map[strtolower(trim($status))] ?? null;
     }
 
     /**

@@ -55,6 +55,8 @@ Route::prefix('v1/post')->group(function () {
         Route::post('store/video', [PostController::class, 'storeVideo']);
         // 发表文章动态
         Route::post('store/article', [PostController::class, 'storeArticle']);
+        // 删除帖子（仅作者可删除）
+        Route::post('delete', [PostController::class, 'delete']);
         // 发表帖子（已废弃，建议使用新接口）
         // Route::post('store', [PostController::class, 'store']);
         // 收藏帖子

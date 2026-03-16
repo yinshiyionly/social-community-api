@@ -5,6 +5,7 @@ namespace App\Http\Controllers\App;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\App\ArticlePostBlocksStoreRequest;
 use App\Http\Requests\App\ImageTextPostStoreRequest;
+use App\Http\Requests\App\PostDeleteRequest;
 use App\Http\Requests\App\PostDetailRequest;
 use App\Http\Requests\App\PostListRequest;
 use App\Http\Requests\App\PostPageRequest;
@@ -23,6 +24,14 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * App 端帖子控制器。
+ *
+ * 职责：
+ * 1. 提供帖子列表、详情、发布、删除等入口；
+ * 2. 提供帖子点赞/收藏交互入口；
+ * 3. 统一捕获异常并返回 AppApiResponse，避免暴露内部异常细节。
+ */
 class PostController extends Controller
 {
     /**
@@ -558,6 +567,63 @@ class PostController extends Controller
             Log::error('获取文章动态详情失败', [
                 'post_id' => $id,
                 'error' => $e->getMessage()
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 删除帖子（仅作者可删除）。
+     *
+     * 接口用途：
+     * - 图文/视频/文章详情页作者删除入口。
+     *
+     * 关键输入：
+     * - postId：帖子 ID；
+     * - postType：可选，传入时参与精确匹配，防止误删同 ID 异类型数据。
+     *
+     * 关键输出：
+     * - 成功统一返回 data.postId + data.deleted=true；
+     * - 重复删除按幂等成功处理，保证前端重复点击不报错。
+     *
+     * 失败分支：
+     * - 帖子不存在返回 404；
+     * - 非作者删除返回 403；
+     * - 其他异常记录日志后返回通用错误，避免泄露内部实现细节。
+     *
+     * @param PostDeleteRequest $request
+     * @return JsonResponse
+     */
+    public function delete(PostDeleteRequest $request): JsonResponse
+    {
+        $memberId = (int)$this->getMemberId($request);
+        $postId = (int)$request->input('postId');
+        $postType = $request->filled('postType') ? (int)$request->input('postType') : null;
+
+        try {
+            $result = $this->postService->deletePostByOwner($memberId, $postId, $postType);
+
+            if (!$result['success'] && $result['message'] === 'not_found') {
+                return AppApiResponse::dataNotFound('内容不存在');
+            }
+
+            if (!$result['success'] && $result['message'] === 'forbidden') {
+                return AppApiResponse::forbidden('无权删除该帖子');
+            }
+
+            return AppApiResponse::success([
+                'data' => [
+                    'postId' => $postId,
+                    'deleted' => true,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('删除帖子失败', [
+                'member_id' => $memberId,
+                'post_id' => $postId,
+                'post_type' => $postType,
+                'error' => $e->getMessage(),
             ]);
 
             return AppApiResponse::serverError();

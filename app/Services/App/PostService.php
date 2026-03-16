@@ -3,6 +3,7 @@
 namespace App\Services\App;
 
 use App\Constant\MessageType;
+use App\Jobs\App\CleanupDeletedPostRelationsJob;
 use App\Jobs\App\FillPostMediaInfoJob;
 use App\Models\App\AppMemberBase;
 use App\Models\App\AppPostBase;
@@ -12,7 +13,16 @@ use App\Models\App\AppTopicPostRelation;
 use App\Models\App\AppTopicStat;
 use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
+/**
+ * App 端帖子服务。
+ *
+ * 职责：
+ * 1. 提供帖子发布、查询、删除能力；
+ * 2. 提供帖子点赞/收藏交互能力；
+ * 3. 处理帖子与话题、统计、异步任务等副作用。
+ */
 class PostService
 {
     /**
@@ -223,6 +233,127 @@ class PostService
     public function incrementViewCount(AppPostBase $post): bool
     {
         return $post->getOrCreateStat()->incrementViewCount();
+    }
+
+    /**
+     * 删除帖子（仅作者可删除）。
+     *
+     * 关键规则：
+     * 1. 使用 withTrashed 支持“已删除帖子”的幂等处理；
+     * 2. 仅作者允许删除，非作者返回 forbidden；
+     * 3. 未删除帖子在事务内执行软删 + 创作数安全回收（不低于 0）；
+     * 4. 无论“刚删除”还是“已删除”，都尝试投递异步清理任务做补偿。
+     *
+     * 失败策略：
+     * - 主链路删除失败抛异常，由上层统一返回通用错误；
+     * - 队列投递失败仅记录日志，不影响删除接口成功返回。
+     *
+     * @param int $memberId 当前登录用户ID
+     * @param int $postId 帖子ID
+     * @param int|null $postType 帖子类型（可选，传入时参与精确匹配）
+     * @return array{success:bool,message:string,deleted:bool}
+     */
+    public function deletePostByOwner(int $memberId, int $postId, ?int $postType = null): array
+    {
+        $postQuery = AppPostBase::query()
+            ->withTrashed()
+            ->select(['post_id', 'member_id', 'post_type', 'deleted_at'])
+            ->where('post_id', $postId);
+
+        if (!is_null($postType)) {
+            $postQuery->where('post_type', $postType);
+        }
+
+        $post = $postQuery->first();
+        if (!$post) {
+            return [
+                'success' => false,
+                'message' => 'not_found',
+                'deleted' => false,
+            ];
+        }
+
+        if ((int)$post->member_id !== $memberId) {
+            return [
+                'success' => false,
+                'message' => 'forbidden',
+                'deleted' => false,
+            ];
+        }
+
+        $resolvedPostType = (int)$post->post_type;
+        $justDeleted = false;
+
+        DB::transaction(function () use ($memberId, $postId, $postType, &$justDeleted): void {
+            $lockQuery = AppPostBase::query()
+                ->withTrashed()
+                ->select(['post_id', 'member_id', 'deleted_at'])
+                ->where('post_id', $postId)
+                ->lockForUpdate();
+
+            if (!is_null($postType)) {
+                $lockQuery->where('post_type', $postType);
+            }
+
+            $lockedPost = $lockQuery->first();
+            if (!$lockedPost) {
+                return;
+            }
+
+            // 二次校验作者身份，避免并发场景下误删非本人帖子。
+            if ((int)$lockedPost->member_id !== $memberId) {
+                return;
+            }
+
+            // 已软删场景保持幂等，避免重复扣减创作数。
+            if ($lockedPost->trashed()) {
+                return;
+            }
+
+            $lockedPost->delete();
+            AppMemberBase::query()
+                ->where('member_id', $memberId)
+                ->update([
+                    // 使用数据库表达式防止并发场景出现负数。
+                    'creation_count' => DB::raw('GREATEST(creation_count - 1, 0)'),
+                ]);
+
+            $justDeleted = true;
+        });
+
+        $this->dispatchCleanupDeletedPostRelationsJob($postId, $resolvedPostType, $memberId);
+
+        return [
+            'success' => true,
+            'message' => $justDeleted ? 'deleted' : 'already_deleted',
+            'deleted' => true,
+        ];
+    }
+
+    /**
+     * 投递“帖子关联清理”异步任务。
+     *
+     * 说明：
+     * - 清理任务属于补偿逻辑，投递失败不应阻塞主删除链路；
+     * - 失败只记录 job 日志，便于后续排障或人工补偿。
+     *
+     * @param int $postId
+     * @param int $postType
+     * @param int $memberId
+     * @return void
+     */
+    protected function dispatchCleanupDeletedPostRelationsJob(int $postId, int $postType, int $memberId): void
+    {
+        try {
+            CleanupDeletedPostRelationsJob::dispatch($postId, $postType, $memberId);
+        } catch (\Throwable $e) {
+            Log::channel('job')->error('投递帖子关联清理任务失败', [
+                'post_id' => $postId,
+                'post_type' => $postType,
+                'operator_member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

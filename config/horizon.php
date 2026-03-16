@@ -203,6 +203,15 @@ return [
                 'tries' => 3,
                 'timeout' => 120
             ],
+            // App模块-帖子删除后关联清理
+            'post-cleanup' => [
+                'connection' => 'redis',
+                'queue' => ['post-cleanup'],
+                'maxProcesses' => 2,
+                'memory' => 64,
+                'tries' => 3,
+                'timeout' => 120
+            ],
             // App模块-用户互动消息
             'user-message' => [
                 'connection' => 'redis',
@@ -242,6 +251,15 @@ return [
                 'tries' => 3,
                 'timeout' => 120
             ],
+            // App模块-帖子删除后关联清理
+            'post-cleanup' => [
+                'connection' => 'redis',
+                'queue' => ['post-cleanup'],
+                'maxProcesses' => 4,
+                'memory' => 64,
+                'tries' => 3,
+                'timeout' => 120
+            ],
             // App模块-用户互动消息
             'user-message' => [
                 'connection' => 'redis',
@@ -276,6 +294,15 @@ return [
             'post-media' => [
                 'connection' => 'redis',
                 'queue' => ['post-media'],
+                'maxProcesses' => 2,
+                'memory' => 64,
+                'tries' => 3,
+                'timeout' => 120
+            ],
+            // App模块-帖子删除后关联清理
+            'post-cleanup' => [
+                'connection' => 'redis',
+                'queue' => ['post-cleanup'],
                 'maxProcesses' => 2,
                 'memory' => 64,
                 'tries' => 3,

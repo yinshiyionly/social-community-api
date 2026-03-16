@@ -320,4 +320,20 @@ class AppLiveRoom extends Model
     {
         return $this->getTosUrl($value);
     }
+
+    /**
+     * 获取带货模版状态文本
+     *
+     * @return string
+     */
+    public function getEnableLiveSellTextAttribute()
+    {
+        $map = [
+            self::ENABLE_LIVE_SELL_OFF   => '禁用带货模版',
+            self::ENABLE_LIVE_SELL_VIDEO => '视频带货模版',
+            self::ENABLE_LIVE_SELL_PPT   => 'PPT带货模版'
+        ];
+
+        return isset($map[$this->enable_live_sell]) ? $map[$this->enable_live_sell] : '未知';
+    }
 }

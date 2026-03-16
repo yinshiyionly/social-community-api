@@ -26,6 +26,7 @@ class LiveRoomListResource extends JsonResource
             'scheduledStartTime' => $this->scheduled_start_time ? $this->scheduled_start_time->format('Y-m-d H:i:s') : null,
             'scheduledEndTime'   => $this->scheduled_end_time ? $this->scheduled_end_time->format('Y-m-d H:i:s') : null,
             'enableLiveSell'     => $this->enable_live_sell ?? null,
+            'enableLiveSellText'     => $this->enable_live_sell_text ?? null,
             'appTemplate'        => $this->app_template ?? null,
             'mockVideoSource'    => $this->mock_video_course ?? null,
             'mockVideoId'        => $this->mock_video_id ?? null,

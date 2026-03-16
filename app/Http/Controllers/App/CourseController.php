@@ -4,6 +4,7 @@ namespace App\Http\Controllers\App;
 
 use App\Constant\AppResponseCode;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\App\CourseDetailRequest;
 use App\Http\Requests\App\CourseEnrollRequest;
 use App\Http\Requests\App\CourseOrderListRequest;
 use App\Http\Requests\App\CourseOrderRefundRequest;
@@ -77,6 +78,104 @@ class CourseController extends Controller
         } catch (\Exception $e) {
             Log::error('获取课程详情失败', [
                 'course_id' => $courseId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 判断课程是否存在在线章节。
+     *
+     * 规则：
+     * 1. 仅统计 status=online 且未软删的章节；
+     * 2. 课程不存在时返回数据不存在响应；
+     * 3. 响应 data 直接返回 boolean，便于前端直接分流详情接口。
+     *
+     * @param CourseDetailRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function hasChapters(CourseDetailRequest $request)
+    {
+        $courseId = $request->getCourseId();
+
+        try {
+            $hasChapters = $this->courseService->hasOnlineChapters($courseId);
+            if (is_null($hasChapters)) {
+                return AppApiResponse::dataNotFound('课程不存在');
+            }
+
+            return AppApiResponse::success(['data' => $hasChapters]);
+        } catch (\Exception $e) {
+            Log::error('判断课程是否有章节失败', [
+                'course_id' => $courseId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 获取无章节课程详情（旧版长图详情）。
+     *
+     * 约束：
+     * 1. contentImage 通过 item_image -> banner_images[0] 兜底；
+     * 2. 详情访问会累计课程浏览量；
+     * 3. 课程不存在时返回数据不存在响应。
+     *
+     * @param CourseDetailRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function detailLegacy(CourseDetailRequest $request)
+    {
+        $courseId = $request->getCourseId();
+
+        try {
+            $data = $this->courseService->getLegacyDetailData($courseId);
+            if (is_null($data)) {
+                return AppApiResponse::dataNotFound('课程不存在');
+            }
+
+            return AppApiResponse::success(['data' => $data]);
+        } catch (\Exception $e) {
+            Log::error('获取无章节课程详情失败', [
+                'course_id' => $courseId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 获取有章节课程详情（章节版）。
+     *
+     * 约束：
+     * 1. 章节版详情允许游客访问，登录态会返回真实 isUnlocked；
+     * 2. 详情访问会累计课程浏览量；
+     * 3. 课程不存在时返回数据不存在响应。
+     *
+     * @param CourseDetailRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function detailChapters(CourseDetailRequest $request)
+    {
+        $courseId = $request->getCourseId();
+        $memberId = (int)$request->attributes->get('member_id', 0);
+
+        try {
+            $data = $this->courseService->getChapterDetailData($courseId, $memberId);
+            if (is_null($data)) {
+                return AppApiResponse::dataNotFound('课程不存在');
+            }
+
+            return AppApiResponse::success(['data' => $data]);
+        } catch (\Exception $e) {
+            Log::error('获取有章节课程详情失败', [
+                'course_id' => $courseId,
+                'member_id' => $memberId,
                 'error' => $e->getMessage(),
             ]);
 

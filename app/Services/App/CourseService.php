@@ -4,6 +4,7 @@ namespace App\Services\App;
 
 use App\Models\App\AppCourseBase;
 use App\Models\App\AppCourseCategory;
+use App\Models\App\AppCourseChapter;
 use App\Models\App\AppLivePlayback;
 use App\Models\App\AppLiveRoom;
 use App\Models\App\AppLiveRoomReserve;
@@ -168,6 +169,165 @@ class CourseService
         }
 
         return $course;
+    }
+
+    /**
+     * 判断课程是否存在在线章节。
+     *
+     * 判定规则：
+     * 1. 课程必须存在且处于上架状态；
+     * 2. 章节必须满足 status=online 且未软删；
+     * 3. 课程不存在时返回 null，供控制器统一返回 dataNotFound。
+     *
+     * @param int $courseId
+     * @return bool|null
+     */
+    public function hasOnlineChapters(int $courseId): ?bool
+    {
+        $courseExists = AppCourseBase::query()
+            ->online()
+            ->where('course_id', $courseId)
+            ->exists();
+
+        if (!$courseExists) {
+            return null;
+        }
+
+        return AppCourseChapter::query()
+            ->online()
+            ->where('course_id', $courseId)
+            ->exists();
+    }
+
+    /**
+     * 获取无章节课程详情（旧版长图详情）。
+     *
+     * 关键规则：
+     * 1. contentImage 兜底顺序：item_image -> banner_images[0] -> cover_image；
+     * 2. 金额与按钮字段口径与课程详情旧版保持一致；
+     * 3. 每次查询成功后累加 view_count。
+     *
+     * @param int $courseId
+     * @return array<string, mixed>|null
+     */
+    public function getLegacyDetailData(int $courseId): ?array
+    {
+        $course = AppCourseBase::query()
+            ->select([
+                'course_id',
+                'item_image',
+                'banner_images',
+                'cover_image',
+                'current_price',
+                'original_price',
+                'is_free',
+            ])
+            ->online()
+            ->where('course_id', $courseId)
+            ->first();
+
+        if (!$course) {
+            return null;
+        }
+
+        // 详情接口访问成功后再累计浏览次数，避免无效 ID 干扰统计。
+        AppCourseBase::where('course_id', $courseId)->increment('view_count');
+
+        $bannerImages = is_array($course->banner_images) ? $course->banner_images : [];
+        $contentImage = $course->item_image ?: ($bannerImages[0] ?? $course->cover_image ?? '');
+
+        return array_merge([
+            'contentImage' => (string)($contentImage ?? ''),
+        ], $this->buildBottomActionData($course, false));
+    }
+
+    /**
+     * 获取有章节课程详情（章节版）。
+     *
+     * 关键规则：
+     * 1. 章节仅返回在线且未软删数据，并按 sort_order/chapter_no/chapter_id 升序；
+     * 2. isUnlocked 仅由“是否拥有课程”决定；
+     * 3. 已解锁课程按钮固定返回去学习（learn）；
+     * 4. 查询成功后累加 view_count。
+     *
+     * @param int $courseId
+     * @param int $memberId
+     * @return array<string, mixed>|null
+     */
+    public function getChapterDetailData(int $courseId, int $memberId = 0): ?array
+    {
+        $course = AppCourseBase::query()
+            ->select([
+                'course_id',
+                'course_title',
+                'cover_image',
+                'teacher_id',
+                'brief',
+                'description',
+                'enroll_count',
+                'current_price',
+                'original_price',
+                'is_free',
+            ])
+            ->with([
+                'teacher:teacher_id,teacher_name',
+            ])
+            ->online()
+            ->where('course_id', $courseId)
+            ->first();
+
+        if (!$course) {
+            return null;
+        }
+
+        // 详情接口访问成功后再累计浏览次数，避免无效 ID 干扰统计。
+        AppCourseBase::where('course_id', $courseId)->increment('view_count');
+
+        $chapters = AppCourseChapter::query()
+            ->select([
+                'chapter_id',
+                'course_id',
+                'chapter_no',
+                'chapter_title',
+                'is_free',
+                'is_preview',
+                'unlock_date',
+                'chapter_start_time',
+                'duration',
+                'sort_order',
+            ])
+            ->online()
+            ->where('course_id', $courseId)
+            ->orderBy('sort_order')
+            ->orderBy('chapter_no')
+            ->orderBy('chapter_id')
+            ->get();
+
+        $isUnlocked = $memberId > 0 && AppMemberCourse::hasCourse($memberId, $courseId);
+
+        $chapterList = [];
+        foreach ($chapters as $chapter) {
+            $chapterList[] = [
+                'id' => (int)$chapter->chapter_id,
+                'title' => (string)$chapter->chapter_title,
+                'dateText' => $this->formatChapterDateText($chapter),
+                'durationText' => $this->formatChapterDurationText((int)$chapter->duration),
+                // 先导课同样允许未解锁用户播放，按免费章节口径返回 true。
+                'isFree' => (int)$chapter->is_free === 1 || (int)$chapter->is_preview === 1,
+            ];
+        }
+
+        $data = [
+            'title' => (string)$course->course_title,
+            'coverImage' => (string)($course->cover_image ?? ''),
+            'teacherName' => (string)($course->teacher->teacher_name ?? ''),
+            'studyCountText' => $this->buildStudyCountText((int)$course->enroll_count),
+            'intro' => $this->buildCourseIntroText($course),
+            'isUnlocked' => $isUnlocked,
+            'chapters' => $chapterList,
+        ];
+
+        return array_merge($data, $this->buildBottomActionData($course, $isUnlocked));
     }
 
     /**
@@ -621,6 +781,170 @@ class CourseService
         } catch (\Exception $e) {
             return '';
         }
+    }
+
+    /**
+     * 组装课程底部购买/学习动作字段。
+     *
+     * @param AppCourseBase $course
+     * @param bool $isUnlocked
+     * @return array{limitPrice:?string, originalPrice:?string, discountPoints:?string, buttonText:string, buttonActionType:string}
+     */
+    protected function buildBottomActionData(AppCourseBase $course, bool $isUnlocked): array
+    {
+        if ($isUnlocked) {
+            return [
+                'limitPrice' => null,
+                'originalPrice' => null,
+                'discountPoints' => null,
+                'buttonText' => '去学习',
+                'buttonActionType' => 'learn',
+            ];
+        }
+
+        $isFree = $this->isCourseFreeForDisplay($course);
+
+        return [
+            'limitPrice' => $this->normalizePriceValue($course->current_price),
+            'originalPrice' => $this->normalizePriceValue($course->original_price),
+            'discountPoints' => $isFree ? (string)intval(floatval($course->original_price) * 100) : null,
+            'buttonText' => $isFree ? '免费领取课程' : '立即购买',
+            'buttonActionType' => $isFree ? 'free_receive' : 'buy',
+        ];
+    }
+
+    /**
+     * 判断课程是否按免费课程展示购买行为。
+     *
+     * 规则与旧版详情资源保持一致：
+     * 1. is_free=1 直接视为免费；
+     * 2. is_free=0 且 original_price=0 时按免费兜底。
+     *
+     * @param AppCourseBase $course
+     * @return bool
+     */
+    protected function isCourseFreeForDisplay(AppCourseBase $course): bool
+    {
+        if ((int)$course->is_free === 1) {
+            return true;
+        }
+
+        $originalPrice = $course->original_price;
+        if (is_string($originalPrice)) {
+            $originalPrice = trim($originalPrice);
+        }
+
+        if ($originalPrice === '' || !is_numeric($originalPrice)) {
+            return false;
+        }
+
+        return (float)$originalPrice == 0.0;
+    }
+
+    /**
+     * 金额统一转为去尾零字符串。
+     *
+     * @param mixed $value
+     * @return string
+     */
+    protected function normalizePriceValue($value): string
+    {
+        if (is_string($value)) {
+            $value = trim($value);
+        }
+
+        if (!is_numeric($value)) {
+            return '0';
+        }
+
+        $formatted = number_format((float)$value, 2, '.', '');
+        $formatted = rtrim(rtrim($formatted, '0'), '.');
+
+        if ($formatted === '' || $formatted === '-0') {
+            return '0';
+        }
+
+        return $formatted;
+    }
+
+    /**
+     * 组装学习次数展示文案。
+     *
+     * @param int $enrollCount
+     * @return string
+     */
+    protected function buildStudyCountText(int $enrollCount): string
+    {
+        if ($enrollCount < 0) {
+            $enrollCount = 0;
+        }
+
+        return $enrollCount . '次';
+    }
+
+    /**
+     * 生成课程简介文本（纯文本）。
+     *
+     * @param AppCourseBase $course
+     * @return string
+     */
+    protected function buildCourseIntroText(AppCourseBase $course): string
+    {
+        $brief = trim((string)($course->brief ?? ''));
+        if ($brief !== '') {
+            return $brief;
+        }
+
+        $description = trim((string)($course->description ?? ''));
+        if ($description === '') {
+            return '';
+        }
+
+        return trim(strip_tags($description));
+    }
+
+    /**
+     * 格式化章节日期文案。
+     *
+     * 优先级：
+     * 1. chapter_start_time；
+     * 2. unlock_date；
+     * 3. 无可用日期返回空串。
+     *
+     * @param AppCourseChapter $chapter
+     * @return string
+     */
+    protected function formatChapterDateText(AppCourseChapter $chapter): string
+    {
+        if ($chapter->chapter_start_time) {
+            return $chapter->chapter_start_time->format('Y年m月d日');
+        }
+
+        if ($chapter->unlock_date) {
+            return $chapter->unlock_date->format('Y年m月d日');
+        }
+
+        return '';
+    }
+
+    /**
+     * 将秒级时长转换为分钟展示文案。
+     *
+     * @param int $duration
+     * @return string
+     */
+    protected function formatChapterDurationText(int $duration): string
+    {
+        if ($duration <= 0) {
+            return '';
+        }
+
+        $minutes = (int)ceil($duration / 60);
+        if ($minutes <= 0) {
+            $minutes = 1;
+        }
+
+        return $minutes . '分钟';
     }
 
 }

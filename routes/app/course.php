@@ -22,6 +22,15 @@ Route::prefix('v1/course')->group(function () {
     // Route::get('/detail', [CourseController::class, 'detail'])->middleware('app.jwt.optional');
     Route::get('/detail', [CourseController::class, 'detail'])->middleware('app.auth.optional');
 
+    // 判断课程是否存在在线章节（用于前端分流详情接口）
+    Route::get('/has-chapters', [CourseController::class, 'hasChapters']);
+
+    // 无章节课程详情（旧版长图详情）
+    Route::get('/detail-legacy', [CourseController::class, 'detailLegacy']);
+
+    // 有章节课程详情（可选登录，登录态可返回是否解锁）
+    Route::get('/detail-chapters', [CourseController::class, 'detailChapters'])->middleware('app.auth.optional');
+
     // 获取入学信息详情（需登录）
     Route::get('/enrollment-detail', [CourseController::class, 'enrollmentDetail'])->middleware('app.auth');
 

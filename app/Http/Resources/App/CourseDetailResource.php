@@ -24,7 +24,7 @@ class CourseDetailResource extends JsonResource
      */
     public function toArray($request)
     {
-        $isFree = $this->is_free == 1;
+        $isFree = $this->isCourseFree();
 
         return [
             'contentImage' => $this->item_image ?: (!empty($this->banner_images) ? $this->banner_images[0] : null),
@@ -34,5 +34,34 @@ class CourseDetailResource extends JsonResource
             'buttonText' => $isFree ? '免费领取课程' : '立即购买',
             'buttonActionType' => $isFree ? 'free_receive' : 'buy',
         ];
+    }
+
+    /**
+     * 判断课程是否按免费课程展示购买行为。
+     *
+     * 规则：
+     * 1. is_free=1 直接视为免费课程；
+     * 2. is_free=0 时，若 original_price=0（如 0.00）也按免费课程兜底。
+     *
+     * @return bool
+     */
+    protected function isCourseFree(): bool
+    {
+        if ((int) $this->is_free === 1) {
+            return true;
+        }
+
+        $originalPrice = $this->original_price;
+
+        if (is_string($originalPrice)) {
+            $originalPrice = trim($originalPrice);
+        }
+
+        if ($originalPrice === '' || !is_numeric($originalPrice)) {
+            return false;
+        }
+
+        // 历史数据可能存在 is_free 未同步的情况，原价为 0 时仍应展示为免费领取。
+        return (float) $originalPrice == 0.0;
     }
 }

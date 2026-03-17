@@ -379,6 +379,37 @@ class BaijiayunLiveService
     }
 
     /**
+     * 回放录制纯视频
+     * @see https://dev.baijiayun.com/wiki/detail/6#-h2-18
+     *
+     * @param $roomId
+     * @return array
+     */
+    public function playbackGeneratePureVideo($roomId)
+    {
+        $params = [
+            'room_id' => $roomId
+        ];
+
+        return $this->sendRequest('openapi/playback/generatePureVideo', $params);
+    }
+
+    /**
+     * 获取回放转纯视频下载地址
+     * @see https://dev.baijiayun.com/wiki/detail/6#-h2-22
+     *
+     * @param $roomId
+     * @return array
+     */
+    public function playbackGetRecordVideoUrl($roomId)
+    {
+        $params = [
+            'room_id' => $roomId
+        ];
+        return $this->sendRequest('openapi/playback/getRecordVideoUrl', $params);
+    }
+
+    /**
      * 生成用户令牌
      *
      * 根据角色类型为用户生成加入直播间的令牌，令牌中包含用户标识、角色和昵称信息。

@@ -51,7 +51,7 @@ class MessageFollowResource extends JsonResource
             'title'      => '关注了我',
             'content'    => '',
             'time'       => $this->created_at ? $this->formatRelativeTime($this->created_at) : '',
-            'actionText' => $isFollowed ? '互相关注' : '回关',
+            'actionText' => $isFollowed ? '互相关注' : '关注',
             'read'       => $this->is_read === 1,
         ];
     }

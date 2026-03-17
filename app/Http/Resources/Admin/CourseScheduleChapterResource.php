@@ -70,8 +70,6 @@ class CourseScheduleChapterResource extends JsonResource
             'height' => $content->height,
             'fileSize' => $content->file_size,
             'coverImage' => $content->cover_image,
-            'qualityList' => $content->quality_list,
-            'allowDownload' => $content->allow_download,
         ];
     }
 

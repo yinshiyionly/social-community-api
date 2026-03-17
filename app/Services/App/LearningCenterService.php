@@ -8,6 +8,7 @@ use App\Models\App\AppMemberChapterProgress;
 use App\Models\App\AppMemberCourse;
 use App\Models\App\AppMemberHomeworkSubmit;
 use App\Models\App\AppMemberSchedule;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -43,7 +44,11 @@ class LearningCenterService
         try {
             DB::transaction(function () use ($memberId, $courseId, $memberCourseId, $enrollDate, $chapters, $today) {
                 foreach ($chapters as $chapter) {
-                    $scheduleDate = $chapter->calculateUnlockDate($enrollDate);
+                    $scheduleDate = $chapter->calculateUnlockDate(
+                        !empty($chapter->chapter_start_time)
+                            ? Carbon::make($chapter->chapter_start_time)->toDateTime()
+                            : $enrollDate
+                    );
                     if (!$scheduleDate) {
                         continue;
                     }
@@ -51,23 +56,24 @@ class LearningCenterService
                     $isUnlocked = $scheduleDate <= $today ? 1 : 0;
 
                     AppMemberSchedule::create([
-                        'member_id' => $memberId,
-                        'course_id' => $courseId,
-                        'chapter_id' => $chapter->chapter_id,
+                        'member_id'        => $memberId,
+                        'course_id'        => $courseId,
+                        'chapter_id'       => $chapter->chapter_id,
                         'member_course_id' => $memberCourseId,
-                        'schedule_date' => $scheduleDate,
-                        'schedule_time' => $chapter->unlock_time,
-                        'is_unlocked' => $isUnlocked,
-                        'unlock_time' => $isUnlocked ? now() : null,
+                        'schedule_date'    => $scheduleDate,
+                        'schedule_time'    => $chapter->unlock_time,
+                        'is_unlocked'      => $isUnlocked,
+                        'unlock_time'      => Carbon::make($chapter->chapter_start_time)->toDateTimeString()
+                        // 'unlock_time'      => $isUnlocked ? now() : null,
                     ]);
                 }
             });
         } catch (\Exception $e) {
             Log::error('课表生成失败', [
-                'member_id' => $memberId,
-                'course_id' => $courseId,
+                'member_id'        => $memberId,
+                'course_id'        => $courseId,
                 'member_course_id' => $memberCourseId,
-                'error' => $e->getMessage(),
+                'error'            => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -160,8 +166,8 @@ class LearningCenterService
         while ($current <= $end) {
             $dateStr = $current->format('Y-m-d');
             $result[] = [
-                'date' => $dateStr,
-                'count' => isset($counts[$dateStr]) ? (int) $counts[$dateStr] : 0,
+                'date'  => $dateStr,
+                'count' => isset($counts[$dateStr]) ? (int)$counts[$dateStr] : 0,
             ];
             $current->modify('+1 day');
         }
@@ -255,7 +261,7 @@ class LearningCenterService
             $hasSchedule = $daySchedules->isNotEmpty();
 
             $marks[] = [
-                'date' => $dateStr,
+                'date'        => $dateStr,
                 'hasSchedule' => $hasSchedule,
             ];
 
@@ -275,9 +281,9 @@ class LearningCenterService
 
         return [
             'startDate' => $startDate,
-            'endDate' => $endDate,
-            'marks' => $marks,
-            'sections' => $sections,
+            'endDate'   => $endDate,
+            'marks'     => $marks,
+            'sections'  => $sections,
         ];
     }
 
@@ -300,7 +306,7 @@ class LearningCenterService
             $progressText = '已学完';
         } elseif (isset($progressMap[$schedule->chapter_id])) {
             $progress = $progressMap[$schedule->chapter_id];
-            $pct = (int) $progress['progress'];
+            $pct = (int)$progress['progress'];
             $progressText = $pct > 0 ? '已学' . $pct . '%' : '未学习';
         }
 
@@ -313,15 +319,15 @@ class LearningCenterService
         }
 
         $item = [
-            'id' => $schedule->id,
-            'type' => 'course',
-            'time' => $schedule->schedule_time ? $schedule->schedule_time : '',
-            'title' => $chapter ? $chapter->chapter_title : '',
-            'cover' => $course ? $course->cover_image : '',
+            'id'           => $schedule->id,
+            'type'         => 'course',
+            'time'         => $schedule->schedule_time ? $schedule->schedule_time : '',
+            'title'        => $chapter ? $chapter->chapter_title : '',
+            'cover'        => $course ? $course->cover_image : '',
             'progressText' => $progressText,
-            'actionText' => $actionText,
-            'actionType' => $actionType,
-            'bizId' => $schedule->course_id,
+            'actionText'   => $actionText,
+            'actionType'   => $actionType,
+            'bizId'        => $schedule->course_id,
         ];
 
         // 关联打卡任务（取章节第一个启用的作业）
@@ -330,18 +336,16 @@ class LearningCenterService
             $isSubmitted = in_array($homework->homework_id, $submittedHomeworkIds);
 
             $item['checkinTask'] = [
-                'id' => $homework->homework_id,
-                'title' => '打卡：' . $homework->homework_title,
+                'id'         => $homework->homework_id,
+                'title'      => '打卡：' . $homework->homework_title,
                 'actionText' => $isSubmitted ? '已完成' : '去完成',
                 'actionType' => $isSubmitted ? 'view' : 'task',
-                'bizId' => $homework->homework_id,
+                'bizId'      => $homework->homework_id,
             ];
         }
 
         return $item;
     }
-
-
 
 
 }

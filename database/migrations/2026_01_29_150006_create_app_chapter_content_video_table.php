@@ -19,11 +19,7 @@ class CreateAppChapterContentVideoTable extends Migration
                 height int4 NOT NULL DEFAULT 0,
                 file_size int8 NOT NULL DEFAULT 0,
                 cover_image varchar(500) NULL,
-                quality_list jsonb NOT NULL DEFAULT '[]',
                 subtitles jsonb NOT NULL DEFAULT '[]',
-                attachments jsonb NOT NULL DEFAULT '[]',
-                allow_download int2 NOT NULL DEFAULT 0,
-                drm_enabled int2 NOT NULL DEFAULT 0,
                 created_at timestamp(0) NULL,
                 updated_at timestamp(0) NULL,
                 deleted_at timestamp(0) NULL,
@@ -41,11 +37,7 @@ class CreateAppChapterContentVideoTable extends Migration
         DB::statement("COMMENT ON COLUMN app_chapter_content_video.height IS '视频高度'");
         DB::statement("COMMENT ON COLUMN app_chapter_content_video.file_size IS '文件大小（字节）'");
         DB::statement("COMMENT ON COLUMN app_chapter_content_video.cover_image IS '视频封面'");
-        DB::statement("COMMENT ON COLUMN app_chapter_content_video.quality_list IS '清晰度列表'");
         DB::statement("COMMENT ON COLUMN app_chapter_content_video.subtitles IS '字幕列表'");
-        DB::statement("COMMENT ON COLUMN app_chapter_content_video.attachments IS '课件附件'");
-        DB::statement("COMMENT ON COLUMN app_chapter_content_video.allow_download IS '允许下载：0=否 1=是'");
-        DB::statement("COMMENT ON COLUMN app_chapter_content_video.drm_enabled IS 'DRM加密：0=否 1=是'");
 
         DB::statement('CREATE UNIQUE INDEX uk_app_chapter_content_video_chapter_id ON app_chapter_content_video (chapter_id)');
         DB::statement("COMMENT ON TABLE app_chapter_content_video IS '录播课章节内容表'");

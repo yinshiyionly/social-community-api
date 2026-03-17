@@ -381,9 +381,10 @@ class CourseService
             throw new \Exception('课程不存在');
         }
 
-        if ($course->is_free != 1) {
+        // TODO 对于免费课程的判断需要调整
+        /*if ($course->is_free != 1) {
             throw new \Exception('该课程不是免费课程');
-        }
+        }*/
 
         if (AppMemberCourse::hasCourse($memberId, $courseId)) {
             throw new \Exception('您已领取过该课程');

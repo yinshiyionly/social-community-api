@@ -65,11 +65,15 @@ class AppCourseTeacher extends Model
     }
 
     /**
-     * 关联课程
+     * 关联课程（按讲师名称匹配）。
+     *
+     * 说明：
+     * - 课程主表已从 teacher_id 切换为 teacher_name，本关联用于兼容存量讲师模块；
+     * - 若 teacher_name 非唯一，统计结果会按同名聚合。
      */
     public function courses()
     {
-        return $this->hasMany(AppCourseBase::class, 'teacher_id', 'teacher_id');
+        return $this->hasMany(AppCourseBase::class, 'teacher_name', 'teacher_name');
     }
 
     /**
@@ -93,6 +97,15 @@ class AppCourseTeacher extends Model
      */
     public function updateCourseStats(): void
     {
+        // teacher_name 为空时，避免把所有 teacher_name 为空的课程误算到当前讲师。
+        if (empty($this->teacher_name)) {
+            $this->course_count = 0;
+            $this->student_count = 0;
+            $this->save();
+
+            return;
+        }
+
         $this->course_count = $this->courses()->online()->count();
         $this->student_count = AppMemberCourse::whereIn(
             'course_id',

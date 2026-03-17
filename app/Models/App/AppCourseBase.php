@@ -75,7 +75,9 @@ class AppCourseBase extends Model
         'remark',
         'suitable_crowd',
         'learn_goal',
-        'teacher_id',
+        'teacher_name',
+        'class_teacher_name',
+        'class_teacher_qr',
         'assistant_ids',
         'original_price',
         'current_price',
@@ -147,14 +149,6 @@ class AppCourseBase extends Model
     public function category()
     {
         return $this->belongsTo(AppCourseCategory::class, 'category_id', 'category_id');
-    }
-
-    /**
-     * 关联讲师
-     */
-    public function teacher()
-    {
-        return $this->belongsTo(AppCourseTeacher::class, 'teacher_id', 'teacher_id');
     }
 
     /**
@@ -327,6 +321,28 @@ class AppCourseBase extends Model
     public function setItemImageAttribute($value): void
     {
         $this->attributes['item_image'] = $this->extractTosPath($value);
+    }
+
+    /**
+     * 获取 class_teacher_qr - 将相对路径转为绝对路径
+     *
+     * @param string|null $value
+     * @return string|null
+     */
+    public function getClassTeacherQrAttribute($value): ?string
+    {
+        return $this->getTosUrl($value);
+    }
+
+    /**
+     * 设置 class_teacher_qr - 提取 TOS 相对路径
+     *
+     * @param string|null $value
+     * @return void
+     */
+    public function setClassTeacherQrAttribute($value): void
+    {
+        $this->attributes['class_teacher_qr'] = $this->extractTosPath($value);
     }
 
     /**

@@ -157,7 +157,6 @@ class CourseService
     {
         $course = AppCourseBase::query()
             ->with([
-                'teacher:teacher_id,teacher_name,avatar,title,brief',
                 'category:category_id,category_name',
             ])
             ->online()
@@ -264,16 +263,13 @@ class CourseService
                 'course_title',
                 'play_type',
                 'cover_image',
-                'teacher_id',
+                'teacher_name',
                 'brief',
                 'description',
                 'enroll_count',
                 'current_price',
                 'original_price',
                 'is_free',
-            ])
-            ->with([
-                'teacher:teacher_id,teacher_name',
             ])
             ->online()
             ->where('course_id', $courseId)
@@ -341,7 +337,7 @@ class CourseService
         $data = [
             'title' => (string)$course->course_title,
             'coverImage' => (string)($course->cover_image ?? ''),
-            'teacherName' => (string)($course->teacher->teacher_name ?? ''),
+            'teacherName' => (string)($course->teacher_name ?? ''),
             'studyCountText' => $this->buildStudyCountText((int)$course->enroll_count),
             'intro' => $this->buildCourseIntroText($course),
             'isUnlocked' => $isUnlocked,
@@ -476,9 +472,8 @@ class CourseService
                 'cover_image',
                 'current_price',
                 'original_price',
-                'teacher_id',
+                'teacher_name',
             ])
-            ->with('teacher:teacher_id,teacher_name,brief')
             ->online()
             ->where('is_new', 1)
             ->orderByDesc('publish_time')
@@ -502,9 +497,8 @@ class CourseService
                 'cover_image',
                 'current_price',
                 'original_price',
-                'teacher_id',
+                'teacher_name',
             ])
-            ->with('teacher:teacher_id,teacher_name,brief')
             ->online()
             ->where('is_recommend', 1)
             ->orderByDesc('sort_order')

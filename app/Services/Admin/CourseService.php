@@ -106,6 +106,9 @@ class CourseService
             'pay_type' => $data['payType'],
             'play_type' => $data['playType'],
             'schedule_type' => $data['scheduleType'] ?? AppCourseBase::SCHEDULE_TYPE_FIXED,
+            'teacher_name' => $data['teacherName'] ?? null,
+            'class_teacher_name' => $data['classTeacherName'] ?? null,
+            'class_teacher_qr' => $data['classTeacherQr'] ?? null,
             'cover_image' => $data['coverImage'] ?? null,
             'item_image' => $data['itemImage'] ?? null,
             'description' => $data['description'] ?? null,
@@ -152,6 +155,15 @@ class CourseService
         }
         if (isset($data['scheduleType'])) {
             $updateData['schedule_type'] = $data['scheduleType'];
+        }
+        if (array_key_exists('teacherName', $data)) {
+            $updateData['teacher_name'] = $data['teacherName'];
+        }
+        if (array_key_exists('classTeacherName', $data)) {
+            $updateData['class_teacher_name'] = $data['classTeacherName'];
+        }
+        if (array_key_exists('classTeacherQr', $data)) {
+            $updateData['class_teacher_qr'] = $data['classTeacherQr'];
         }
         if (array_key_exists('coverImage', $data)) {
             $updateData['cover_image'] = $data['coverImage'];
@@ -318,7 +330,7 @@ class CourseService
             ->select([
                 'course_id', 'course_title', 'course_subtitle',
                 'play_type', 'schedule_type', 'status',
-                'total_chapter', 'total_duration', 'cover_image', 'teacher_id',
+                'total_chapter', 'total_duration', 'cover_image', 'teacher_name',
             ])
             ->where('course_id', $courseId)
             ->first();

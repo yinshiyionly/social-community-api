@@ -28,7 +28,7 @@ class NewCourseListResource extends JsonResource
             'id' => $this->course_id,
             'cover' => $this->cover_image,
             'title' => $this->course_title,
-            'desc' => $this->teacher ? $this->teacher->brief : '',
+            'desc' => (string)($this->teacher_name ?? ''),
             'price' => $this->formatPriceString($this->current_price),
             'originalPrice' => $this->formatPriceString($this->original_price),
         ];

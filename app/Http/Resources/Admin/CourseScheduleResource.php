@@ -10,6 +10,16 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class CourseScheduleResource extends JsonResource
 {
+    /**
+     * 输出课表详情聚合数据（课程头 + 章节列表）。
+     *
+     * 字段约定：
+     * 1. teacherName 直接读取 app_course_base.teacher_name；
+     * 2. chapters 仅在预加载时返回，避免额外查询开销。
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return array<string, mixed>
+     */
     public function toArray($request)
     {
         return [
@@ -22,7 +32,7 @@ class CourseScheduleResource extends JsonResource
             'totalChapter' => $this->total_chapter,
             'totalDuration' => $this->total_duration,
             'coverImage' => $this->cover_image,
-            'teacherId' => $this->teacher_id,
+            'teacherName' => $this->teacher_name,
             'chapters' => $this->whenLoaded('chapters', function () {
                 return CourseScheduleChapterResource::collection(
                     $this->chapters->sortBy('sort_order')->values()

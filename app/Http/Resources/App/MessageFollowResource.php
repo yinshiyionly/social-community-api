@@ -44,14 +44,15 @@ class MessageFollowResource extends JsonResource
         }
 
         return [
-            'id' => $this->sender_id,
-            'nickname' => $sender ? $sender->nickname : '',
-            'avatar' => $sender ? $sender->avatar : '',
-            'title' => '关注了我',
-            'content' => '',
-            'time' => $this->created_at ? $this->formatRelativeTime($this->created_at) : '',
+            'id'         => $this->message_id,
+            'memberId'   => $this->sender_id,
+            'nickname'   => $sender ? $sender->nickname : '',
+            'avatar'     => $sender ? $sender->avatar : '',
+            'title'      => '关注了我',
+            'content'    => '',
+            'time'       => $this->created_at ? $this->formatRelativeTime($this->created_at) : '',
             'actionText' => $isFollowed ? '互相关注' : '回关',
-            'read' => $this->is_read === 1,
+            'read'       => $this->is_read === 1,
         ];
     }
 

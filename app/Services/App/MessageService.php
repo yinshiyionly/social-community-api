@@ -76,7 +76,9 @@ class MessageService
         $latestFollow = AppMessageInteraction::byReceiver($memberId)
             ->byType(MessageType::FOLLOW)
             ->with('sender:member_id,nickname,avatar')
-            ->orderBy('message_id', 'desc')
+            // 关注消息改为写入层幂等后，重复关注会刷新 created_at。
+            ->orderByDesc('created_at')
+            ->orderByDesc('message_id')
             ->first();
 
         $latestSecretary = AppMessageSystem::forReceiver($memberId)
@@ -214,7 +216,9 @@ class MessageService
         $latestFollow = AppMessageInteraction::byReceiver($memberId)
             ->byType(MessageType::FOLLOW)
             ->with('sender:member_id,nickname,avatar')
-            ->orderBy('message_id', 'desc')
+            // 幂等写入会复用同一条关注消息并刷新 created_at。
+            ->orderByDesc('created_at')
+            ->orderByDesc('message_id')
             ->first();
 
         $list[] = [
@@ -411,17 +415,24 @@ class MessageService
     /**
      * 获取关注消息列表
      *
+     * 规则：
+     * 1. 同一 sender_id 的关注消息在写入层已幂等为单条；
+     * 2. 列表按 created_at 倒序，确保最近一次关注优先展示；
+     * 3. message_id 作为次排序键，保证同秒数据顺序稳定。
+     *
      * @param int $memberId
-     * @param string|null $cursor
+     * @param int $pageNum
      * @param int $pageSize
-     * @return \Illuminate\Pagination\CursorPaginator
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
     public function getFollowMessages(int $memberId, int $pageNum, int $pageSize)
     {
         $query = AppMessageInteraction::byReceiver($memberId)
             ->byType(MessageType::FOLLOW)
             ->with('sender')
-            ->orderBy('message_id', 'desc');
+            // 按最近关注时间倒序，message_id 仅作为同秒数据的稳定次排序键。
+            ->orderByDesc('created_at')
+            ->orderByDesc('message_id');
 
         return $query->paginate($pageSize, ['*'], 'page', $pageNum);
     }

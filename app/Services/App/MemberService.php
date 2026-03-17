@@ -31,6 +31,7 @@ class MemberService
         'bio',
         'fans_count',
         'following_count',
+        'favorite_count',
         'like_count',
         'points'
     ];

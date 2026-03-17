@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\App\StudyCourseDetailRequest;
 use App\Http\Requests\App\StudyCourseListRequest;
 use App\Http\Resources\App\AppApiResponse;
 use App\Services\App\StudyCourseService;
@@ -61,8 +62,47 @@ class StudyCourseController extends Controller
     }
 
     /**
-     * 获取学习页总览数据
+     * 获取学习中心课程详情（头部信息 + 每日计划）。
+     *
+     * 访问约束：
+     * 1. 仅允许已领取/已购买该课程的用户访问；
+     * 2. 课程不存在返回数据不存在响应；
+     * 3. 未拥有课程返回无权访问响应。
+     *
+     * @param StudyCourseDetailRequest $request
+     * @return \Illuminate\Http\JsonResponse
      */
+    public function detail(StudyCourseDetailRequest $request)
+    {
+        $memberId = (int)$request->attributes->get('member_id');
+        $courseId = (int)$request->input('courseId');
+        $planKey = $request->input('planKey');
+
+        try {
+            $course = $this->studyCourseService->getLearningCourseBase($courseId);
+            if (!$course) {
+                return AppApiResponse::dataNotFound('课程不存在');
+            }
+
+            if (!$this->studyCourseService->checkMemberHasCourse($memberId, $courseId)) {
+                return AppApiResponse::forbidden('您未拥有该课程');
+            }
+
+            $data = $this->studyCourseService->buildLearningCourseDetail($memberId, $course, $planKey);
+
+            return AppApiResponse::success(['data' => $data]);
+        } catch (\Exception $e) {
+            Log::error('获取学习中心课程详情失败', [
+                'member_id' => $memberId,
+                'course_id' => $courseId,
+                'plan_key' => $planKey,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
     /**
      * 获取今日学习任务
      */

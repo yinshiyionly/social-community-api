@@ -118,6 +118,9 @@ Route::prefix('v1/study/course')->group(function () {
 
     // 以下接口需要登录
     Route::middleware('app.auth')->group(function () {
+        // 学习中心课程详情（头部信息 + 每日计划 + 当前计划项）
+        Route::get('/detail', [StudyCourseController::class, 'detail']);
+
         // 今日学习任务
         Route::get('/today-tasks', [StudyCourseController::class, 'todayTasks']);
 

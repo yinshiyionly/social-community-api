@@ -5,6 +5,7 @@ namespace App\Services\App;
 use App\Models\App\AppCourseBase;
 use App\Models\App\AppCourseCategory;
 use App\Models\App\AppCourseChapter;
+use App\Models\App\AppChapterContentVideo;
 use App\Models\App\AppLivePlayback;
 use App\Models\App\AppLiveRoom;
 use App\Models\App\AppLiveRoomReserve;
@@ -248,7 +249,8 @@ class CourseService
      * 1. 章节仅返回在线且未软删数据，并按 sort_order/chapter_no/chapter_id 升序；
      * 2. isUnlocked 仅由“是否拥有课程”决定；
      * 3. 已解锁课程按钮固定返回去学习（learn）；
-     * 4. 查询成功后累加 view_count。
+     * 4. 仅录播课（play_type=2）查询章节 video_url 并输出 videoUrl；
+     * 5. 查询成功后累加 view_count。
      *
      * @param int $courseId
      * @param int $memberId
@@ -260,6 +262,7 @@ class CourseService
             ->select([
                 'course_id',
                 'course_title',
+                'play_type',
                 'cover_image',
                 'teacher_id',
                 'brief',
@@ -304,9 +307,26 @@ class CourseService
             ->get();
 
         $isUnlocked = $memberId > 0 && AppMemberCourse::hasCourse($memberId, $courseId);
+        $chapterVideoUrlMap = [];
+
+        // 当前仅录播课需要补充章节 videoUrl，其它播放类型统一返回空字符串。
+        if ((int)$course->play_type === AppCourseBase::PLAY_TYPE_VIDEO && $chapters->isNotEmpty()) {
+            $chapterVideoUrlMap = AppChapterContentVideo::query()
+                ->whereIn('chapter_id', $chapters->pluck('chapter_id')->all())
+                ->pluck('video_url', 'chapter_id')
+                ->map(function ($videoUrl) {
+                    return is_string($videoUrl) ? trim($videoUrl) : '';
+                })
+                ->toArray();
+        }
 
         $chapterList = [];
         foreach ($chapters as $chapter) {
+            $videoUrl = '';
+            if ((int)$course->play_type === AppCourseBase::PLAY_TYPE_VIDEO) {
+                $videoUrl = (string)($chapterVideoUrlMap[$chapter->chapter_id] ?? '');
+            }
+
             $chapterList[] = [
                 'id' => (int)$chapter->chapter_id,
                 'title' => (string)$chapter->chapter_title,
@@ -314,6 +334,7 @@ class CourseService
                 'durationText' => $this->formatChapterDurationText((int)$chapter->duration),
                 // 先导课同样允许未解锁用户播放，按免费章节口径返回 true。
                 'isFree' => (int)$chapter->is_free === 1 || (int)$chapter->is_preview === 1,
+                'videoUrl' => $videoUrl,
             ];
         }
 

@@ -18,16 +18,17 @@ class MemberProfileResource extends JsonResource
     public function toArray($request): array
     {
         return [
-            'memberId' => $this->member_id,
-            'nickname' => $this->nickname ?? '',
-            'avatar' => $this->avatar ?? '',
+            'memberId'      => $this->member_id,
+            'nickname'      => $this->nickname ?? '',
+            'avatar'        => $this->avatar ?? '',
             // 用户主页背景图片地址
-            'bgImage' => $this->bgImage ?? '',
-            'bio' => $this->bio ?? '',
-            'fansCount' => $this->fans_count ?? 0,
-            'followCount' => $this->following_count ?? 0,
-            'likeCount' => $this->like_count ?? 0,
-            'score' => $this->points
+            'bgImage'       => $this->bgImage ?? '',
+            'bio'           => $this->bio ?? '',
+            'fansCount'     => $this->fans_count ?? 0,
+            'followCount'   => $this->following_count ?? 0,
+            'favoriteCount' => $this->favorite_count ?? 0,
+            'likeCount'     => $this->like_count ?? 0,
+            'score'         => $this->points ?? 0
         ];
     }
 }

@@ -5,6 +5,7 @@ namespace App\Services\App;
 use App\Models\App\AppCourseChapter;
 use App\Models\App\AppCourseBase;
 use App\Models\App\AppCourseCategory;
+use App\Models\App\AppChapterContentVideo;
 use App\Models\App\AppMemberChapterProgress;
 use App\Models\App\AppMemberCourse;
 use App\Models\App\AppMemberHomeworkSubmit;
@@ -81,6 +82,7 @@ class StudyCourseService
             ->select([
                 'course_id',
                 'course_title',
+                'play_type',
                 'cover_image',
                 'teacher_name',
                 'class_teacher_name',
@@ -568,6 +570,7 @@ class StudyCourseService
 
         $chapterIds = $previewChapters->pluck('chapter_id')->all();
         $progressMap = $this->getChapterProgressMap($memberId, $chapterIds);
+        $chapterVideoUrlMap = $this->getChapterVideoUrlMap($course, $chapterIds);
 
         $homeworkIds = [];
         foreach ($previewChapters as $chapter) {
@@ -591,6 +594,7 @@ class StudyCourseService
                 'actionText' => $isChapterCompleted ? '已学完' : '去学习',
                 'actionType' => $isChapterCompleted ? 'view' : 'learn',
                 'coverImage' => (string)($chapter->cover_image ?: $course->cover_image ?: ''),
+                'videoUrl' => (string)($chapterVideoUrlMap[(int)$chapter->chapter_id] ?? ''),
             ];
 
             // 先导课不依赖课表日期，不进行过期判定，只展示“去完成/已完成”。
@@ -671,6 +675,7 @@ class StudyCourseService
 
         $chapterIds = $schedules->pluck('chapter_id')->filter()->unique()->values()->all();
         $progressMap = $this->getChapterProgressMap($memberId, $chapterIds);
+        $chapterVideoUrlMap = $this->getChapterVideoUrlMap($course, $chapterIds);
 
         $homeworkIds = [];
         foreach ($schedules as $schedule) {
@@ -697,6 +702,7 @@ class StudyCourseService
                 'actionText' => $isChapterCompleted ? '已学完' : '去学习',
                 'actionType' => $isChapterCompleted ? 'view' : 'learn',
                 'coverImage' => (string)($chapter->cover_image ?? $course->cover_image ?? ''),
+                'videoUrl' => (string)($chapterVideoUrlMap[(int)$schedule->chapter_id] ?? ''),
             ];
 
             if (!$chapter || !$chapter->homeworks || $chapter->homeworks->isEmpty()) {
@@ -793,6 +799,44 @@ class StudyCourseService
             ->all();
 
         return array_fill_keys($submittedIds, true);
+    }
+
+    /**
+     * 批量查询章节视频地址映射。
+     *
+     * 规则：
+     * 1. 仅录播课（play_type=2）查询视频内容表；
+     * 2. 非录播课、空章节集合直接返回空映射；
+     * 3. 无视频地址或非字符串值统一归一化为空字符串。
+     *
+     * @param AppCourseBase $course
+     * @param array<int, int> $chapterIds
+     * @return array<int, string>
+     */
+    protected function getChapterVideoUrlMap(AppCourseBase $course, array $chapterIds): array
+    {
+        if ((int)$course->play_type !== AppCourseBase::PLAY_TYPE_VIDEO || empty($chapterIds)) {
+            return [];
+        }
+
+        return $this->fetchChapterVideoUrlPairs($chapterIds)
+            ->map(function ($videoUrl) {
+                return is_string($videoUrl) ? trim($videoUrl) : '';
+            })
+            ->toArray();
+    }
+
+    /**
+     * 批量读取章节视频地址键值对（chapter_id => video_url）。
+     *
+     * @param array<int, int> $chapterIds
+     * @return Collection<int, string|null>
+     */
+    protected function fetchChapterVideoUrlPairs(array $chapterIds): Collection
+    {
+        return AppChapterContentVideo::query()
+            ->whereIn('chapter_id', $chapterIds)
+            ->pluck('video_url', 'chapter_id');
     }
 
     /**

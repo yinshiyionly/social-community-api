@@ -2,13 +2,14 @@
 
 namespace App\Models\App;
 
+use App\Models\Traits\HasTosUrl;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppChapterContentVideo extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasTosUrl;
 
     protected $table = 'app_chapter_content_video';
     protected $primaryKey = 'id';
@@ -29,25 +30,17 @@ class AppChapterContentVideo extends Model
         'height',
         'file_size',
         'cover_image',
-        'quality_list',
         'subtitles',
-        'attachments',
-        'allow_download',
-        'drm_enabled',
     ];
 
     protected $casts = [
-        'id' => 'integer',
+        'id'         => 'integer',
         'chapter_id' => 'integer',
-        'duration' => 'integer',
-        'width' => 'integer',
-        'height' => 'integer',
-        'file_size' => 'integer',
-        'quality_list' => 'array',
-        'subtitles' => 'array',
-        'attachments' => 'array',
-        'allow_download' => 'integer',
-        'drm_enabled' => 'integer',
+        'duration'   => 'integer',
+        'width'      => 'integer',
+        'height'     => 'integer',
+        'file_size'  => 'integer',
+        'subtitles'  => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -91,5 +84,15 @@ class AppChapterContentVideo extends Model
         }
 
         return round($bytes, 2) . ' ' . $units[$index];
+    }
+
+    public function setVideoUrlAttribute($value)
+    {
+        $this->attributes['video_url'] = $this->extractTosPath($value);
+    }
+
+    public function getVideoUrlAttribute($value)
+    {
+        return $this->getTosUrl($value);
     }
 }

@@ -83,6 +83,7 @@ class PointService
      * @param string|null $bizId 业务ID
      * @param string|null $clientIp 客户端IP
      * @return array
+     * @throws \Exception
      */
     public function processTaskEarn(int $memberId, string $taskCode, ?string $bizId = null, ?string $clientIp = null): array
     {
@@ -108,6 +109,7 @@ class PointService
      * @param string|null $bizId
      * @param string|null $clientIp
      * @return array
+     * @throws \Exception
      */
     protected function processDailyTaskEarn(int $memberId, AppPointTask $task, ?string $bizId, ?string $clientIp): array
     {
@@ -196,6 +198,7 @@ class PointService
      * @param string|null $bizId
      * @param string|null $clientIp
      * @return array
+     * @throws \Exception
      */
     protected function processGrowthTaskEarn(int $memberId, AppPointTask $task, ?string $bizId, ?string $clientIp): array
     {
@@ -275,6 +278,7 @@ class PointService
      * @param string|null $remark 备注
      * @param string|null $clientIp 客户端IP
      * @return array
+     * @throws \Exception
      */
     public function processConsume(
         int $memberId,
@@ -348,6 +352,7 @@ class PointService
      * @param string|null $remark 备注
      * @param string|null $clientIp 客户端IP
      * @return array
+     * @throws \Exception
      */
     public function consumeSync(
         int $memberId,
@@ -382,6 +387,7 @@ class PointService
      * @param string|null $orderNo 订单号
      * @param string|null $clientIp 客户端IP
      * @return array
+     * @throws \Exception
      */
     public function freezePoints(
         int $memberId,
@@ -450,6 +456,7 @@ class PointService
      * @param string|null $orderNo 订单号
      * @param string|null $clientIp 客户端IP
      * @return array
+     * @throws \Exception
      */
     public function unfreezePoints(
         int $memberId,
@@ -523,6 +530,7 @@ class PointService
      * @param string|null $operatorName 操作人名称
      * @param string|null $remark 备注
      * @return array
+     * @throws \Exception
      */
     public function giftPoints(
         int $memberId,
@@ -587,6 +595,7 @@ class PointService
      * @param string|null $operatorName 操作人名称
      * @param string|null $remark 备注
      * @return array
+     * @throws \Exception
      */
     public function deductPoints(
         int $memberId,

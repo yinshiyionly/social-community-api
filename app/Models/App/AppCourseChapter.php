@@ -8,6 +8,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * 课程章节基础模型。
+ *
+ * 职责：
+ * 1. 承载章节基础字段（标题、解锁规则、排课时间、状态）；
+ * 2. 提供章节内容关联（录播/直播/图文/音频）；
+ * 3. 提供管理端常量选项，避免接口层重复维护枚举。
+ */
 class AppCourseChapter extends Model
 {
     use HasFactory, SoftDeletes, HasOperator;
@@ -24,6 +32,10 @@ class AppCourseChapter extends Model
     const STATUS_DRAFT = 0;
     const STATUS_ONLINE = 1;
     const STATUS_OFFLINE = 2;
+
+    // 是否免费
+    const IS_FREE_NO = 0;
+    const IS_FREE_YES = 1;
 
     protected $fillable = [
         'course_id',
@@ -85,6 +97,77 @@ class AppCourseChapter extends Model
         'deleted_at' => 'datetime',
         'deleted_by' => 'integer',
     ];
+
+    /**
+     * 解锁类型文本映射。
+     *
+     * @return array<int, string>
+     */
+    public static function getUnlockTypeTextMap(): array
+    {
+        return [
+            self::UNLOCK_TYPE_IMMEDIATE => '立即解锁',
+            self::UNLOCK_TYPE_DAYS => '按天数解锁',
+            self::UNLOCK_TYPE_DATE => '按日期解锁',
+        ];
+    }
+
+    /**
+     * 状态文本映射。
+     *
+     * @return array<int, string>
+     */
+    public static function getStatusTextMap(): array
+    {
+        return [
+            self::STATUS_DRAFT => '草稿',
+            self::STATUS_ONLINE => '上架',
+            self::STATUS_OFFLINE => '下架',
+        ];
+    }
+
+    /**
+     * 是否免费文本映射。
+     *
+     * @return array<int, string>
+     */
+    public static function getIsFreeTextMap(): array
+    {
+        return [
+            self::IS_FREE_YES => '免费',
+            self::IS_FREE_NO => '付费',
+        ];
+    }
+
+    /**
+     * 获取解锁类型选项。
+     *
+     * @return array<int, array{label:string, value:int}>
+     */
+    public static function getUnlockTypeOptions(): array
+    {
+        return self::buildOptions(self::getUnlockTypeTextMap());
+    }
+
+    /**
+     * 获取状态选项。
+     *
+     * @return array<int, array{label:string, value:int}>
+     */
+    public static function getStatusOptions(): array
+    {
+        return self::buildOptions(self::getStatusTextMap());
+    }
+
+    /**
+     * 获取是否免费选项。
+     *
+     * @return array<int, array{label:string, value:int}>
+     */
+    public static function getIsFreeOptions(): array
+    {
+        return self::buildOptions(self::getIsFreeTextMap());
+    }
 
     /**
      * 关联课程
@@ -226,5 +309,24 @@ class AppCourseChapter extends Model
     public function setChapterEndTimeAttribute($value)
     {
         $this->attributes['chapter_end_time'] = Carbon::make($value)->startOfMinute()->toDateTimeString();
+    }
+
+    /**
+     * 将 value=>label 映射转换为通用 options 结构。
+     *
+     * @param array<int, string> $map
+     * @return array<int, array{label:string, value:int}>
+     */
+    private static function buildOptions(array $map): array
+    {
+        $options = [];
+        foreach ($map as $value => $label) {
+            $options[] = [
+                'label' => $label,
+                'value' => $value,
+            ];
+        }
+
+        return $options;
     }
 }

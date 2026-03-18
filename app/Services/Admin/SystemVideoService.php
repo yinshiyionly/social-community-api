@@ -118,25 +118,25 @@ class SystemVideoService
     }
 
     /**
-     * 删除视频（软删除）
+     * 删除视频-软删除
      *
-     * @param array $videoIds
+     * @param $videoId
      * @return int
      */
-    public function delete(array $videoIds): int
+    public function delete($videoId): int
     {
         return AppVideoSystem::query()
-            ->whereIn('video_id', $videoIds)
+            ->where('video_id', $videoId)
             ->delete();
     }
 
     /**
      * 获取被章节使用的视频ID
      *
-     * @param array $videoIds
+     * @param $videoId
      * @return array
      */
-    public function getUsedVideoIds(array $videoIds): array
+    public function getUsedVideoId($videoId): array
     {
         if (empty($videoIds)) {
             return [];

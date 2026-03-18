@@ -78,6 +78,8 @@ Route::middleware('system.auth')->group(function () {
 
     // 录播课章节管理
     Route::prefix('/course/video/chapter')->group(function () {
+        // 常量选项（是否免费、解锁类型、状态）
+        Route::get('/constants', [VideoChapterController::class, 'constants']);
         // 章节列表（分页）
         Route::get('/list/{courseId}', [VideoChapterController::class, 'list'])->where('courseId', '[0-9]+');
         // 章节列表（全部，用于排序）
@@ -88,12 +90,10 @@ Route::middleware('system.auth')->group(function () {
         Route::post('/', [VideoChapterController::class, 'store']);
         // 更新章节
         Route::put('/', [VideoChapterController::class, 'update']);
-        // 更改状态
-        Route::put('/changeStatus', [VideoChapterController::class, 'changeStatus']);
         // 批量排序
         Route::put('/batchSort', [VideoChapterController::class, 'batchSort']);
         // 删除章节
-        Route::delete('/{chapterIds}', [VideoChapterController::class, 'destroy']);
+        Route::delete('/{chapterId}', [VideoChapterController::class, 'destroy'])->where('chapterId', '[0-9]+');
     });
 
     // 直播课章节管理

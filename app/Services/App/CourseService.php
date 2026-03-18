@@ -114,6 +114,7 @@ class CourseService
                 'is_free',
                 'valid_days',
                 'total_chapter',
+                'class_teacher_qr'
             ])
             ->online()
             ->where('course_id', $courseId)
@@ -142,8 +143,9 @@ class CourseService
         $isFree = (int)$course->is_free === 1 || (float)$price <= 0;
 
         return [
-            'phone' => (string)($phone ?? ''),
-            'payAmount' => $isFree ? '' : number_format((float)$price, 2, '.', ''),
+            'phone'          => (string)($phone ?? ''),
+            'payAmount'      => $isFree ? '' : number_format((float)$price, 2, '.', ''),
+            'classTeacherQr' => (string)$course->class_teacher_qr ?? null
         ];
     }
 
@@ -216,8 +218,10 @@ class CourseService
             ->select([
                 'course_id',
                 'item_image',
-                'banner_images',
                 'cover_image',
+                'class_teacher_name',
+                'class_teacher_qr',
+                'teacher_name',
                 'current_price',
                 'original_price',
                 'is_free',
@@ -237,7 +241,12 @@ class CourseService
         $contentImage = $course->item_image ?: ($bannerImages[0] ?? $course->cover_image ?? '');
 
         return array_merge([
-            'contentImage' => (string)($contentImage ?? ''),
+            // 'contentImage' => (string)($contentImage ?? ''),
+            'contentImage'     => (string)($course->item_image ?? ''),
+            'coverImage'       => (string)($course->cover_image ?? ''),
+            'classTeacherQr'   => (string)($course->class_teacher_qr ?? ''),
+            'classTeacherName' => (string)($course->class_teacher_name ?? ''),
+            'teacherName'      => (string)($course->teacher_name ?? ''),
         ], $this->buildBottomActionData($course, false));
     }
 
@@ -262,6 +271,9 @@ class CourseService
                 'course_id',
                 'course_title',
                 'play_type',
+                'item_image',
+                'class_teacher_name',
+                'class_teacher_qr',
                 'cover_image',
                 'teacher_name',
                 'brief',
@@ -324,24 +336,27 @@ class CourseService
             }
 
             $chapterList[] = [
-                'id' => (int)$chapter->chapter_id,
-                'title' => (string)$chapter->chapter_title,
-                'dateText' => $this->formatChapterDateText($chapter),
+                'id'           => (int)$chapter->chapter_id,
+                'title'        => (string)$chapter->chapter_title,
+                'dateText'     => $this->formatChapterDateText($chapter),
                 'durationText' => $this->formatChapterDurationText((int)$chapter->duration),
                 // 先导课同样允许未解锁用户播放，按免费章节口径返回 true。
-                'isFree' => (int)$chapter->is_free === 1 || (int)$chapter->is_preview === 1,
-                'videoUrl' => $videoUrl,
+                'isFree'       => (int)$chapter->is_free === 1 || (int)$chapter->is_preview === 1,
+                'videoUrl'     => $videoUrl,
             ];
         }
 
         $data = [
-            'title' => (string)$course->course_title,
-            'coverImage' => (string)($course->cover_image ?? ''),
-            'teacherName' => (string)($course->teacher_name ?? ''),
-            'studyCountText' => $this->buildStudyCountText((int)$course->enroll_count),
-            'intro' => $this->buildCourseIntroText($course),
-            'isUnlocked' => $isUnlocked,
-            'chapters' => $chapterList,
+            'title'            => (string)$course->course_title,
+            'coverImage'       => (string)($course->cover_image ?? ''),
+            'contentImage'     => (string)($course->item_image ?? ''),
+            'classTeacherQr'   => (string)($course->class_teacher_qr ?? ''),
+            'classTeacherName' => (string)($course->class_teacher_name ?? ''),
+            'teacherName'      => (string)($course->teacher_name ?? ''),
+            'studyCountText'   => $this->buildStudyCountText((int)$course->enroll_count),
+            'intro'            => $this->buildCourseIntroText($course),
+            'isUnlocked'       => $isUnlocked,
+            'chapters'         => $chapterList,
         ];
 
         return array_merge($data, $this->buildBottomActionData($course, $isUnlocked));
@@ -393,15 +408,15 @@ class CourseService
             }
 
             $memberCourse = AppMemberCourse::create([
-                'member_id' => $memberId,
-                'course_id' => $courseId,
-                'source_type' => AppMemberCourse::SOURCE_TYPE_FREE,
-                'enroll_phone' => $phone,
+                'member_id'        => $memberId,
+                'course_id'        => $courseId,
+                'source_type'      => AppMemberCourse::SOURCE_TYPE_FREE,
+                'enroll_phone'     => $phone,
                 'enroll_age_range' => $ageRange,
-                'paid_amount' => 0,
-                'enroll_time' => now(),
-                'expire_time' => $expireTime,
-                'total_chapters' => $course->total_chapter,
+                'paid_amount'      => 0,
+                'enroll_time'      => now(),
+                'expire_time'      => $expireTime,
+                'total_chapters'   => $course->total_chapter,
             ]);
 
             // 更新课程报名人数
@@ -448,12 +463,12 @@ class CourseService
 
         // 返回支付信息，供前端调起支付
         return [
-            'courseId' => $courseId,
-            'courseTitle' => $course->course_title,
-            'price' => $course->current_price,
+            'courseId'      => $courseId,
+            'courseTitle'   => $course->course_title,
+            'price'         => $course->current_price,
             'originalPrice' => $course->original_price,
-            'phone' => $phone,
-            'ageRange' => $ageRange,
+            'phone'         => $phone,
+            'ageRange'      => $ageRange,
         ];
     }
 
@@ -563,16 +578,16 @@ class CourseService
 
         return $rows->map(function ($row) {
             return [
-                'id' => (int)($row->room_id ?? 0),
-                'title' => (string)($row->room_title ?? ''),
-                'cover' => $this->buildCoverUrl((string)($row->room_cover ?? '')),
-                'startTime' => $this->formatDateTime($row->start_time ?? null),
-                'status' => 'live',
+                'id'           => (int)($row->room_id ?? 0),
+                'title'        => (string)($row->room_title ?? ''),
+                'cover'        => $this->buildCoverUrl((string)($row->room_cover ?? '')),
+                'startTime'    => $this->formatDateTime($row->start_time ?? null),
+                'status'       => 'live',
                 'reserveCount' => 0,
-                'isReserved' => false,
-                'watchCount' => (int)($row->watch_count ?? 0),
-                'liveToken' => '',
-                'actionText' => '进入直播',
+                'isReserved'   => false,
+                'watchCount'   => (int)($row->watch_count ?? 0),
+                'liveToken'    => '',
+                'actionText'   => '进入直播',
             ];
         })->values()->all();
     }
@@ -628,16 +643,16 @@ class CourseService
             $isReserved = (int)($row->is_reserved ?? 0) === 1;
 
             return [
-                'id' => (int)($row->room_id ?? 0),
-                'title' => (string)($row->room_title ?? ''),
-                'cover' => $this->buildCoverUrl((string)($row->room_cover ?? '')),
-                'startTime' => $this->formatDateTime($row->start_time ?? null),
-                'status' => 'upcoming',
+                'id'           => (int)($row->room_id ?? 0),
+                'title'        => (string)($row->room_title ?? ''),
+                'cover'        => $this->buildCoverUrl((string)($row->room_cover ?? '')),
+                'startTime'    => $this->formatDateTime($row->start_time ?? null),
+                'status'       => 'upcoming',
                 'reserveCount' => (int)($row->reserve_count ?? 0),
-                'isReserved' => $isReserved,
-                'watchCount' => 0,
-                'liveToken' => '',
-                'actionText' => $isReserved ? '已预约' : '预约',
+                'isReserved'   => $isReserved,
+                'watchCount'   => 0,
+                'liveToken'    => '',
+                'actionText'   => $isReserved ? '已预约' : '预约',
             ];
         })->values()->all();
     }
@@ -709,19 +724,19 @@ class CourseService
 
         return $rows->map(function ($row) {
             return [
-                'id' => (string)($row->third_party_room_id ?? ''),
-                'title' => (string)($row->room_title ?: $row->playback_name ?: ''),
-                'cover' => $this->buildCoverUrl(
+                'id'           => (string)($row->third_party_room_id ?? ''),
+                'title'        => (string)($row->room_title ?: $row->playback_name ?: ''),
+                'cover'        => $this->buildCoverUrl(
                     (string)($row->room_cover ?? ''),
                     (string)($row->playback_cover ?? '')
                 ),
-                'startTime' => $this->formatDateTime($row->start_time ?? null),
-                'status' => 'replay',
+                'startTime'    => $this->formatDateTime($row->start_time ?? null),
+                'status'       => 'replay',
                 'reserveCount' => 0,
-                'isReserved' => false,
-                'watchCount' => (int)($row->watch_count ?? 0),
-                'liveToken' => (string)($row->player_token ?? ''),
-                'actionText' => '看回放',
+                'isReserved'   => false,
+                'watchCount'   => (int)($row->watch_count ?? 0),
+                'liveToken'    => (string)($row->player_token ?? ''),
+                'actionText'   => '看回放',
             ];
         })->values()->all();
     }
@@ -810,10 +825,10 @@ class CourseService
     {
         if ($isUnlocked) {
             return [
-                'limitPrice' => null,
-                'originalPrice' => null,
-                'discountPoints' => null,
-                'buttonText' => '去学习',
+                'limitPrice'       => null,
+                'originalPrice'    => null,
+                'discountPoints'   => null,
+                'buttonText'       => '去学习',
                 'buttonActionType' => 'learn',
             ];
         }
@@ -821,10 +836,10 @@ class CourseService
         $isFree = $this->isCourseFreeForDisplay($course);
 
         return [
-            'limitPrice' => $this->normalizePriceValue($course->current_price),
-            'originalPrice' => $this->normalizePriceValue($course->original_price),
-            'discountPoints' => $isFree ? (string)intval(floatval($course->original_price) * 100) : null,
-            'buttonText' => $isFree ? '免费领取课程' : '立即购买',
+            'limitPrice'       => $this->normalizePriceValue($course->current_price),
+            'originalPrice'    => $this->normalizePriceValue($course->original_price),
+            'discountPoints'   => $isFree ? (string)intval(floatval($course->original_price) * 100) : null,
+            'buttonText'       => $isFree ? '免费领取课程' : '立即购买',
             'buttonActionType' => $isFree ? 'free_receive' : 'buy',
         ];
     }

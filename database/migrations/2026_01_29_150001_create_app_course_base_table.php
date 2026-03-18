@@ -32,7 +32,6 @@ class CreateAppCourseBaseTable extends Migration
                 remark text NULL,
                 suitable_crowd text NULL,
                 learn_goal text NULL,
-                teacher_id int8 NULL,
                 assistant_ids jsonb NOT NULL DEFAULT '[]',
                 original_price numeric(10,2) NOT NULL DEFAULT 0,
                 current_price numeric(10,2) NOT NULL DEFAULT 0,
@@ -61,6 +60,9 @@ class CreateAppCourseBaseTable extends Migration
                 updated_by int8 NULL,
                 deleted_at timestamp(0) NULL,
                 deleted_by int8 NULL,
+                class_teacher_name varchar(100) NULL,
+                class_teacher_qr varchar(500) NULL,
+                teacher_name varchar(100) NULL,
                 PRIMARY KEY (course_id)
             )
         ");
@@ -84,7 +86,6 @@ class CreateAppCourseBaseTable extends Migration
         DB::statement("COMMENT ON COLUMN app_course_base.remark IS '备注'");
         DB::statement("COMMENT ON COLUMN app_course_base.suitable_crowd IS '适合人群'");
         DB::statement("COMMENT ON COLUMN app_course_base.learn_goal IS '学习目标'");
-        DB::statement("COMMENT ON COLUMN app_course_base.teacher_id IS '主讲师ID'");
         DB::statement("COMMENT ON COLUMN app_course_base.assistant_ids IS '助教ID列表'");
         DB::statement("COMMENT ON COLUMN app_course_base.original_price IS '原价'");
         DB::statement("COMMENT ON COLUMN app_course_base.current_price IS '现价'");
@@ -113,12 +114,16 @@ class CreateAppCourseBaseTable extends Migration
         DB::statement("COMMENT ON COLUMN app_course_base.updated_by IS '更新人'");
         DB::statement("COMMENT ON COLUMN app_course_base.deleted_at IS '删除时间'");
         DB::statement("COMMENT ON COLUMN app_course_base.deleted_by IS '删除人'");
+        DB::statement("COMMENT ON COLUMN app_course_base.class_teacher_name IS '班主任名称'");
+        DB::statement("COMMENT ON COLUMN app_course_base.class_teacher_qr IS '班主任二维码'");
+        DB::statement("COMMENT ON COLUMN app_course_base.teacher_name IS '主讲老师名称'");
+
+
 
         // 索引
         DB::statement('CREATE INDEX idx_app_course_base_category_id ON app_course_base (category_id)');
         DB::statement('CREATE INDEX idx_app_course_base_pay_type ON app_course_base (pay_type)');
         DB::statement('CREATE INDEX idx_app_course_base_play_type ON app_course_base (play_type)');
-        DB::statement('CREATE INDEX idx_app_course_base_teacher_id ON app_course_base (teacher_id)');
         DB::statement('CREATE INDEX idx_app_course_base_status ON app_course_base (status)');
         DB::statement('CREATE INDEX idx_app_course_base_list ON app_course_base (status, is_recommend, sort_order)');
 

@@ -47,10 +47,10 @@ class CommonController extends Controller
             return ApiResponse::success([
                 'data' => [
                     'fileName' => $result['original_name'],
-                    'key' => $result['path'],
+                    'key'      => $result['path'],
                     // 'reused' => $result['reused'] ?? false,
-                    'size' => $result['file_size'],
-                    'url' => $result['url'],
+                    'size'     => $result['file_size'],
+                    'url'      => $result['url'],
                 ],
             ], '上传成功');
         } catch (FileValidationException $e) {
@@ -114,29 +114,29 @@ class CommonController extends Controller
             foreach ($batchResult['success'] as $index => $item) {
                 $results[] = [
                     'fileName' => $item['original_name'],
-                    'index' => $index,
-                    'key' => $item['path'],
+                    'index'    => $index,
+                    'key'      => $item['path'],
                     // 'reused' => $item['reused'] ?? false,
-                    'size' => $item['file_size'],
-                    'url' => $item['url'],
+                    'size'     => $item['file_size'],
+                    'url'      => $item['url'],
                 ];
             }
 
             foreach ($batchResult['failed'] as $failedItem) {
                 $errors[] = [
-                    'index' => $failedItem['index'],
+                    'index'    => $failedItem['index'],
                     'fileName' => $failedItem['original_name'] ?? '',
-                    'error' => '上传失败',
+                    'error'    => '上传失败',
                 ];
             }
 
             return ApiResponse::success([
                 'data' => [
-                    'errors' => $errors,
-                    'failed' => count($errors),
+                    'errors'  => $errors,
+                    'failed'  => count($errors),
                     'results' => $results,
                     'success' => count($results),
-                    'total' => count($files),
+                    'total'   => count($files),
                 ],
             ], '上传成功');
         } catch (FileValidationException $e) {
@@ -178,11 +178,15 @@ class CommonController extends Controller
 
             return ApiResponse::success([
                 'data' => [
-                    'fileName' => $result['original_name'],
-                    'key' => $result['path'],
+                    'fileName'   => $result['original_name'],
+                    'key'        => $result['path'],
                     // 'reused' => $result['reused'] ?? false,
-                    'size' => $result['file_size'],
-                    'url' => $result['url'],
+                    'size'       => $result['file_size'],
+                    'url'        => $result['url'],
+                    'coverImage' => $result['cover_image'] ?? null,
+                    'width'      => $result['width'] ?? 0,
+                    'height'     => $result['height'] ?? 0,
+                    'duration'   => $result['duration'] ?? 0
                 ],
             ], '上传成功');
         } catch (FileValidationException $e) {

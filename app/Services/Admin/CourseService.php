@@ -9,6 +9,14 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * 后台课程管理服务。
+ *
+ * 职责：
+ * 1. 提供课程列表/详情查询与创建、更新、删除能力；
+ * 2. 统一课程状态流转、排序等后台管理操作；
+ * 3. 聚合章节关系读取，向控制器输出稳定的课程业务数据。
+ */
 class CourseService
 {
     /**
@@ -26,6 +34,7 @@ class CourseService
             ->select([
                 'course_id', 'course_no', 'category_id', 'course_title',
                 'pay_type', 'play_type', 'schedule_type',
+                'teacher_name', 'class_teacher_name', 'class_teacher_qr',
                 'cover_image', 'item_image',
                 'original_price', 'current_price', 'is_free',
                 'status', 'publish_time', 'created_at',
@@ -136,58 +145,31 @@ class CourseService
             return false;
         }
 
-        $updateData = [];
+        // 与创建接口保持一致：必填字段固定写入，避免更新规则漂移。
+        $updateData = [
+            'category_id' => $data['categoryId'],
+            'course_title' => $data['courseTitle'],
+            'pay_type' => $data['payType'],
+            'play_type' => $data['playType'],
+            'schedule_type' => $data['scheduleType'],
+            'teacher_name' => $data['teacherName'],
+            'class_teacher_name' => $data['classTeacherName'],
+            'class_teacher_qr' => $data['classTeacherQr'],
+            'cover_image' => $data['coverImage'],
+            'item_image' => $data['itemImage'],
+            'description' => $data['description'],
+            'original_price' => $data['originalPrice'],
+            'current_price' => $data['currentPrice'],
+            'is_free' => $data['isFree'],
+            'status' => $data['status'],
+        ];
 
-        if (isset($data['categoryId'])) {
-            $updateData['category_id'] = $data['categoryId'];
-        }
-        if (isset($data['courseTitle'])) {
-            $updateData['course_title'] = $data['courseTitle'];
-        }
+        // 可选字段仅在显式传入时更新，避免未提交字段被置空。
         if (array_key_exists('courseSubtitle', $data)) {
             $updateData['course_subtitle'] = $data['courseSubtitle'];
         }
-        if (isset($data['payType'])) {
-            $updateData['pay_type'] = $data['payType'];
-        }
-        if (isset($data['playType'])) {
-            $updateData['play_type'] = $data['playType'];
-        }
-        if (isset($data['scheduleType'])) {
-            $updateData['schedule_type'] = $data['scheduleType'];
-        }
-        if (array_key_exists('teacherName', $data)) {
-            $updateData['teacher_name'] = $data['teacherName'];
-        }
-        if (array_key_exists('classTeacherName', $data)) {
-            $updateData['class_teacher_name'] = $data['classTeacherName'];
-        }
-        if (array_key_exists('classTeacherQr', $data)) {
-            $updateData['class_teacher_qr'] = $data['classTeacherQr'];
-        }
-        if (array_key_exists('coverImage', $data)) {
-            $updateData['cover_image'] = $data['coverImage'];
-        }
-        if (array_key_exists('itemImage', $data)) {
-            $updateData['item_image'] = $data['itemImage'];
-        }
-        if (array_key_exists('description', $data)) {
-            $updateData['description'] = $data['description'];
-        }
         if (array_key_exists('remark', $data)) {
             $updateData['remark'] = $data['remark'];
-        }
-        if (isset($data['originalPrice'])) {
-            $updateData['original_price'] = $data['originalPrice'];
-        }
-        if (isset($data['currentPrice'])) {
-            $updateData['current_price'] = $data['currentPrice'];
-        }
-        if (isset($data['isFree'])) {
-            $updateData['is_free'] = $data['isFree'];
-        }
-        if (isset($data['status'])) {
-            $updateData['status'] = $data['status'];
         }
         if (array_key_exists('publishTime', $data)) {
             $updateData['publish_time'] = $data['publishTime'];

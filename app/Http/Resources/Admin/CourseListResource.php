@@ -9,6 +9,17 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class CourseListResource extends JsonResource
 {
+    /**
+     * 输出课程分页列表项。
+     *
+     * 字段约定：
+     * 1. 返回字段统一使用 camelCase；
+     * 2. teacherName/classTeacherName/classTeacherQr 直接映射课程主表字段；
+     * 3. 时间字段统一格式化为 Y-m-d H:i:s。
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return array<string, mixed>
+     */
     public function toArray($request)
     {
         return [
@@ -22,6 +33,9 @@ class CourseListResource extends JsonResource
             'payType' => $this->pay_type,
             'playType' => $this->play_type,
             'scheduleType' => $this->schedule_type,
+            'teacherName' => $this->teacher_name,
+            'classTeacherName' => $this->class_teacher_name,
+            'classTeacherQr' => $this->class_teacher_qr,
             'coverImage' => $this->cover_image,
             'itemImage' => $this->item_image,
             'originalPrice' => $this->original_price,

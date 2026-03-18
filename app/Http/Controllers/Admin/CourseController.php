@@ -18,6 +18,14 @@ use App\Services\Admin\CourseCategoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * 后台课程管理控制器。
+ *
+ * 职责：
+ * 1. 提供课程列表、详情、创建、更新、删除等管理端接口；
+ * 2. 承接参数校验后的业务编排，调用 Service 完成课程写入与查询；
+ * 3. 对外统一返回 ApiResponse 结构，避免暴露内部异常细节。
+ */
 class CourseController extends Controller
 {
     /**
@@ -137,32 +145,15 @@ class CourseController extends Controller
     public function store(CourseStoreRequest $request)
     {
         try {
+            $validated = $request->validated();
+
             // 检查分类是否存在
-            $categoryId = $request->input('categoryId');
+            $categoryId = (int)$validated['categoryId'];
             if (!$this->categoryService->exists($categoryId)) {
                 return ApiResponse::error('课程分类不存在');
             }
 
-            $data = [
-                'categoryId' => $categoryId,
-                'courseTitle' => $request->input('courseTitle'),
-                'courseSubtitle' => $request->input('courseSubtitle'),
-                'payType' => $request->input('payType'),
-                'playType' => $request->input('playType'),
-                'scheduleType' => $request->input('scheduleType'),
-                'teacherName' => $request->input('teacherName'),
-                'classTeacherName' => $request->input('classTeacherName'),
-                'classTeacherQr' => $request->input('classTeacherQr'),
-                'coverImage' => $request->input('coverImage'),
-                'itemImage' => $request->input('itemImage'),
-                'description' => $request->input('description'),
-                'remark' => $request->input('remark'),
-                'originalPrice' => $request->input('originalPrice'),
-                'currentPrice' => $request->input('currentPrice'),
-                'isFree' => $request->input('isFree'),
-                'status' => $request->input('status'),
-                'publishTime' => $request->input('publishTime'),
-            ];
+            $data = $this->buildCoursePayload($validated);
 
             $course = $this->courseService->create($data);
 
@@ -189,34 +180,17 @@ class CourseController extends Controller
     public function update(CourseUpdateRequest $request)
     {
         try {
-            $courseId = (int)$request->input('courseId');
+            $validated = $request->validated();
+            $courseId = (int)$validated['courseId'];
+            $categoryId = (int)$validated['categoryId'];
 
-            // 检查分类是否存在
-            $categoryId = $request->input('categoryId');
-            if ($categoryId !== null && !$this->categoryService->exists($categoryId)) {
+            // 更新接口与创建接口保持同一必填集合，因此这里固定校验分类存在性。
+            if (!$this->categoryService->exists($categoryId)) {
                 return ApiResponse::error('课程分类不存在');
             }
 
-            $data = [
-                'categoryId' => $categoryId,
-                'courseTitle' => $request->input('courseTitle'),
-                'courseSubtitle' => $request->input('courseSubtitle'),
-                'payType' => $request->input('payType'),
-                'playType' => $request->input('playType'),
-                'scheduleType' => $request->input('scheduleType'),
-                'teacherName' => $request->input('teacherName'),
-                'classTeacherName' => $request->input('classTeacherName'),
-                'classTeacherQr' => $request->input('classTeacherQr'),
-                'coverImage' => $request->input('coverImage'),
-                'itemImage' => $request->input('itemImage'),
-                'description' => $request->input('description'),
-                'remark' => $request->input('remark'),
-                'originalPrice' => $request->input('originalPrice'),
-                'currentPrice' => $request->input('currentPrice'),
-                'isFree' => $request->input('isFree'),
-                'status' => $request->input('status'),
-                'publishTime' => $request->input('publishTime'),
-            ];
+            // 基于 validated 组装数据，只处理通过校验且显式提交的字段。
+            $data = $this->buildCoursePayload($validated);
 
             $result = $this->courseService->update($courseId, $data);
 
@@ -347,6 +321,49 @@ class CourseController extends Controller
         }
 
         return ApiResponse::resource($course, CourseScheduleResource::class, '查询成功');
+    }
+
+    /**
+     * 组装课程创建/更新载荷。
+     *
+     * 规则：
+     * 1. 必填字段固定透传，保证创建与更新语义一致；
+     * 2. 可选字段仅在显式传入时写入，避免更新时误清空存量值。
+     *
+     * @param array<string, mixed> $validated
+     * @return array<string, mixed>
+     */
+    private function buildCoursePayload(array $validated): array
+    {
+        $data = [
+            'categoryId' => $validated['categoryId'],
+            'courseTitle' => $validated['courseTitle'],
+            'payType' => $validated['payType'],
+            'playType' => $validated['playType'],
+            'scheduleType' => $validated['scheduleType'],
+            'teacherName' => $validated['teacherName'],
+            'classTeacherName' => $validated['classTeacherName'],
+            'classTeacherQr' => $validated['classTeacherQr'],
+            'coverImage' => $validated['coverImage'],
+            'itemImage' => $validated['itemImage'],
+            'description' => $validated['description'],
+            'originalPrice' => $validated['originalPrice'],
+            'currentPrice' => $validated['currentPrice'],
+            'isFree' => $validated['isFree'],
+            'status' => $validated['status'],
+        ];
+
+        if (array_key_exists('courseSubtitle', $validated)) {
+            $data['courseSubtitle'] = $validated['courseSubtitle'];
+        }
+        if (array_key_exists('remark', $validated)) {
+            $data['remark'] = $validated['remark'];
+        }
+        if (array_key_exists('publishTime', $validated)) {
+            $data['publishTime'] = $validated['publishTime'];
+        }
+
+        return $data;
     }
 
 }

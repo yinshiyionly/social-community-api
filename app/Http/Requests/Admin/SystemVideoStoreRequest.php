@@ -16,7 +16,7 @@ class SystemVideoStoreRequest extends FormRequest
         return [
             'name'       => 'required|string|max:255',
             'status'     => 'nullable|integer|in:1,2',
-            'totalSize'  => 'required|string|max:50',
+            'totalSize'  => 'required|integer',
             'prefaceUrl' => 'required|string|max:1024',
             'playUrl'    => 'required|string|max:512',
             'length'     => 'required|integer|min:0',
@@ -32,7 +32,7 @@ class SystemVideoStoreRequest extends FormRequest
             'name.max'            => '视频标题不能超过255个字符',
             'status.in'           => '状态值无效',
             'totalSize.required'  => '视频大小不能为空',
-            'totalSize.max'       => '视频大小不能超过50个字符',
+            'totalSize.integer'   => '视频大小必须是整数',
             'prefaceUrl.required' => '封面地址不能为空',
             'prefaceUrl.max'      => '封面地址不能超过1024个字符',
             'playUrl.required'    => '播放地址不能为空',

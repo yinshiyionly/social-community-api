@@ -445,7 +445,8 @@ class StudyCourseService
     {
         $tabs = [];
 
-        if ($hasPreviewTab) {
+        // TODO 不启用预习
+        /*if ($hasPreviewTab) {
             $tabs[] = [
                 'key' => 'preview',
                 'type' => 'preview',
@@ -455,7 +456,7 @@ class StudyCourseService
                 'hasDot' => true,
                 'isToday' => false,
             ];
-        }
+        }*/
 
         $dayNo = 1;
         foreach ($dayKeys as $dayKey) {
@@ -463,7 +464,7 @@ class StudyCourseService
                 'key' => $dayKey,
                 'type' => 'day',
                 'label' => '第' . $dayNo . '天',
-                'date' => $dayKey,
+                'date' => Carbon::make($dayKey)->format('m.d'),
                 'dayNo' => $dayNo,
                 'hasDot' => (int)($dateCountMap[$dayKey] ?? 0) > 0,
                 'isToday' => $dayKey === $todayKey,

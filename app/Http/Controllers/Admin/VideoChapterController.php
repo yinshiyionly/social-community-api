@@ -8,9 +8,18 @@ use App\Http\Requests\Admin\VideoChapterUpdateRequest;
 use App\Http\Resources\Admin\VideoChapterListResource;
 use App\Http\Resources\Admin\VideoChapterResource;
 use App\Http\Resources\ApiResponse;
+use App\Models\App\AppCourseChapter;
 use App\Services\Admin\VideoChapterService;
 use Illuminate\Http\Request;
 
+/**
+ * 后台录播课章节管理控制器。
+ *
+ * 职责：
+ * 1. 提供录播章节列表、详情、创建、更新、删除等管理端接口；
+ * 2. 统一返回章节相关常量选项，降低前端硬编码风险；
+ * 3. 仅做参数编排与响应封装，业务落库由 Service 负责。
+ */
 class VideoChapterController extends Controller
 {
     protected $videoChapterService;
@@ -18,6 +27,22 @@ class VideoChapterController extends Controller
     public function __construct(VideoChapterService $videoChapterService)
     {
         $this->videoChapterService = $videoChapterService;
+    }
+
+    /**
+     * 录播章节常量选项（是否免费、解锁类型、状态）。
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function constants()
+    {
+        $data = [
+            'isFreeOptions' => AppCourseChapter::getIsFreeOptions(),
+            'unlockTypeOptions' => AppCourseChapter::getUnlockTypeOptions(),
+            'statusOptions' => AppCourseChapter::getStatusOptions(),
+        ];
+
+        return ApiResponse::success(['data' => $data], '查询成功');
     }
 
     /**
@@ -56,7 +81,7 @@ class VideoChapterController extends Controller
      */
     public function store(VideoChapterStoreRequest $request)
     {
-        $chapter = $this->videoChapterService->store($request->validated());
+        $this->videoChapterService->store($request->validated());
         return ApiResponse::success(null, '操作成功');
     }
 
@@ -66,22 +91,6 @@ class VideoChapterController extends Controller
     public function update(VideoChapterUpdateRequest $request)
     {
         $this->videoChapterService->update($request->validated());
-        return ApiResponse::success(null, '操作成功');
-    }
-
-    /**
-     * 更改状态
-     */
-    public function changeStatus(Request $request)
-    {
-        $chapterId = $request->input('chapterId');
-        $status = $request->input('status');
-
-        if (!$chapterId || !$status) {
-            return ApiResponse::error('参数不完整');
-        }
-
-        $this->videoChapterService->changeStatus($chapterId, $status);
         return ApiResponse::success(null, '操作成功');
     }
 
@@ -100,12 +109,11 @@ class VideoChapterController extends Controller
     }
 
     /**
-     * 删除章节
+     * 删除章节（单个）
      */
-    public function destroy(string $chapterIds)
+    public function destroy(int $chapterId)
     {
-        $ids = array_map('intval', explode(',', $chapterIds));
-        $this->videoChapterService->destroy($ids);
+        $this->videoChapterService->destroy($chapterId);
         return ApiResponse::success(null, '操作成功');
     }
 }

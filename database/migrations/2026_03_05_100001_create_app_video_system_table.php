@@ -14,7 +14,7 @@ class CreateAppVideoSystemTable extends Migration
     {
         DB::statement("
             CREATE TABLE app_video_system (
-                video_id int8 NOT NULL GENERATED ALWAYS AS IDENTITY (INCREMENT 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 7100 CACHE 1),
+                video_id int8 NOT NULL GENERATED ALWAYS AS IDENTITY (INCREMENT 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1),
                 name varchar(255) NOT NULL DEFAULT '',
                 status int2 NOT NULL DEFAULT 1,
                 total_size varchar(50) NOT NULL DEFAULT '0',

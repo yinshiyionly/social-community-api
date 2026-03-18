@@ -178,6 +178,9 @@ Authorization: Bearer {token}
       "payType": 1,
       "playType": 2,
       "scheduleType": 1,
+      "teacherName": "李老师",
+      "classTeacherName": "王老师",
+      "classTeacherQr": "https://cdn.example.com/qr/class-teacher-1.png",
       "coverImage": "https://cdn.example.com/cover/course1.png",
       "itemImage": "https://cdn.example.com/item/course1.png",
       "originalPrice": "99.00",
@@ -201,6 +204,9 @@ Authorization: Bearer {token}
 | payType | number | 付费类型 |
 | playType | number | 播放类型 |
 | scheduleType | number | 排课类型 |
+| teacherName | string\|null | 主讲老师名称 |
+| classTeacherName | string\|null | 班主任名称 |
+| classTeacherQr | string\|null | 班主任二维码地址 |
 | coverImage | string\|null | 封面图地址 |
 | itemImage | string\|null | 详情图地址 |
 | originalPrice | string | 原价 |
@@ -262,6 +268,9 @@ Authorization: Bearer {token}
     "payType": 1,
     "playType": 2,
     "scheduleType": 1,
+    "teacherName": "李老师",
+    "classTeacherName": "王老师",
+    "classTeacherQr": "https://cdn.example.com/qr/class-teacher-1.png",
     "coverImage": "https://cdn.example.com/cover/course1.png",
     "itemImage": "https://cdn.example.com/item/course1.png",
     "description": "课程详细介绍...",
@@ -292,6 +301,9 @@ Authorization: Bearer {token}
 | payType | number | 付费类型 |
 | playType | number | 播放类型 |
 | scheduleType | number | 排课类型 |
+| teacherName | string\|null | 主讲老师名称 |
+| classTeacherName | string\|null | 班主任名称 |
+| classTeacherQr | string\|null | 班主任二维码地址 |
 | coverImage | string\|null | 封面图地址 |
 | itemImage | string\|null | 详情图地址 |
 | description | string\|null | 课程描述 |
@@ -319,15 +331,18 @@ Authorization: Bearer {token}
 | courseSubtitle | string | 否 | 课程副标题，最长 `300` 字符 |
 | payType | number | 是 | 付费类型：`1` 招生0元课，`2` 进阶课，`3` 高阶课 |
 | playType | number | 是 | 播放类型：`1` 直播，`2` 录播，`3` 图文，`4` 音频 |
-| scheduleType | number | 否 | 排课类型：`1` 固定日期，`2` 动态解锁，默认 `1` |
+| scheduleType | number | 是 | 排课类型：`1` 固定日期，`2` 动态解锁 |
+| teacherName | string | 是 | 主讲老师名称，最长 `100` 字符 |
+| classTeacherName | string | 是 | 班主任名称，最长 `100` 字符 |
+| classTeacherQr | string | 是 | 班主任二维码地址，最长 `500` 字符 |
 | coverImage | string | 是 | 封面图地址，最长 `500` 字符 |
 | itemImage | string | 是 | 详情图地址，最长 `500` 字符 |
 | description | string | 是 | 课程描述 |
 | remark | string | 否 | 备注 |
-| originalPrice | number | 否 | 原价，`>= 0`，默认 `0` |
-| currentPrice | number | 否 | 现价，`>= 0`，默认 `0` |
-| isFree | number | 否 | 是否免费：`0` 否，`1` 是，默认 `0` |
-| status | number | 否 | 状态：`0` 草稿，`1` 上架，`2` 下架，默认 `0` |
+| originalPrice | number | 是 | 原价，`>= 0` |
+| currentPrice | number | 是 | 现价，`>= 0` |
+| isFree | number | 是 | 是否免费：`0` 否，`1` 是 |
+| status | number | 是 | 状态：`0` 草稿，`1` 上架，`2` 下架 |
 | publishTime | string | 否 | 发布时间，日期格式 |
 
 #### 请求示例 JSON
@@ -339,6 +354,9 @@ Authorization: Bearer {token}
   "payType": 1,
   "playType": 2,
   "scheduleType": 1,
+  "teacherName": "李老师",
+  "classTeacherName": "王老师",
+  "classTeacherQr": "https://cdn.example.com/qr/class-teacher-1.png",
   "coverImage": "https://cdn.example.com/cover/course1.png",
   "itemImage": "https://cdn.example.com/item/course1.png",
   "description": "课程详细介绍...",
@@ -374,37 +392,56 @@ Authorization: Bearer {token}
 ### 3.6 更新课程
 - 方法：`PUT`
 - 路径：`/api/admin/course`
+- 说明：更新接口与新增接口使用同一套必填字段校验规则。
 
 #### Body 参数（JSON）
 | 参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | courseId | number | 是 | 课程 ID，`>= 1` |
-| categoryId | number | 否 | 分类 ID，`>= 1` |
-| courseTitle | string | 否 | 课程标题，最长 `200` 字符 |
+| categoryId | number | 是 | 分类 ID，`>= 1` |
+| courseTitle | string | 是 | 课程标题，最长 `200` 字符 |
 | courseSubtitle | string | 否 | 课程副标题，最长 `300` 字符 |
-| payType | number | 否 | 付费类型：`1` 招生0元课，`2` 进阶课，`3` 高阶课 |
-| playType | number | 否 | 播放类型：`1` 直播，`2` 录播，`3` 图文，`4` 音频 |
-| scheduleType | number | 否 | 排课类型：`1` 固定日期，`2` 动态解锁 |
+| payType | number | 是 | 付费类型：`1` 招生0元课，`2` 进阶课，`3` 高阶课 |
+| playType | number | 是 | 播放类型：`1` 直播，`2` 录播，`3` 图文，`4` 音频 |
+| scheduleType | number | 是 | 排课类型：`1` 固定日期，`2` 动态解锁 |
+| teacherName | string | 是 | 主讲老师名称，最长 `100` 字符 |
+| classTeacherName | string | 是 | 班主任名称，最长 `100` 字符 |
+| classTeacherQr | string | 是 | 班主任二维码地址，最长 `500` 字符 |
 | coverImage | string | 是 | 封面图地址，最长 `500` 字符 |
 | itemImage | string | 是 | 详情图地址，最长 `500` 字符 |
 | description | string | 是 | 课程描述 |
 | remark | string | 否 | 备注 |
-| originalPrice | number | 否 | 原价，`>= 0` |
-| currentPrice | number | 否 | 现价，`>= 0` |
-| isFree | number | 否 | 是否免费：`0` 否，`1` 是 |
-| status | number | 否 | 状态：`0` 草稿，`1` 上架，`2` 下架 |
+| originalPrice | number | 是 | 原价，`>= 0` |
+| currentPrice | number | 是 | 现价，`>= 0` |
+| isFree | number | 是 | 是否免费：`0` 否，`1` 是 |
+| status | number | 是 | 状态：`0` 草稿，`1` 上架，`2` 下架 |
 | publishTime | string | 否 | 发布时间，日期格式 |
+
+可选字段语义：
+- `courseSubtitle`、`remark`、`publishTime` 未传时保持原值；仅在显式传入时更新。
 
 #### 请求示例 JSON
 ```json
 {
   "courseId": 1,
+  "categoryId": 10,
   "courseTitle": "中医基础入门（修订版）",
+  "courseSubtitle": "零基础也能学的中医课（修订版）",
+  "payType": 1,
+  "playType": 2,
+  "scheduleType": 1,
+  "teacherName": "李老师",
+  "classTeacherName": "王老师",
+  "classTeacherQr": "https://cdn.example.com/qr/class-teacher-1-v2.png",
   "coverImage": "https://cdn.example.com/cover/course1_v2.png",
   "itemImage": "https://cdn.example.com/item/course1_v2.png",
   "description": "课程详细介绍（修订版）...",
+  "remark": "课程改版说明",
+  "originalPrice": 99.00,
   "currentPrice": 49.00,
-  "isFree": 0
+  "isFree": 0,
+  "status": 1,
+  "publishTime": "2026-03-18 10:00:00"
 }
 ```
 

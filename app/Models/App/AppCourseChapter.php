@@ -3,6 +3,7 @@
 namespace App\Models\App;
 
 use App\Models\Traits\HasOperator;
+use App\Models\Traits\HasTosUrl;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class AppCourseChapter extends Model
 {
-    use HasFactory, SoftDeletes, HasOperator;
+    use HasFactory, SoftDeletes, HasOperator, HasTosUrl;
 
     protected $table = 'app_course_chapter';
     protected $primaryKey = 'chapter_id';
@@ -328,5 +329,27 @@ class AppCourseChapter extends Model
         }
 
         return $options;
+    }
+
+    /**
+     * 拼接 TOS URL 绝对路径
+     *
+     * @param $value
+     * @return string|null
+     */
+    public function getCoverImageAttribute($value): ?string
+    {
+        return $this->getTosUrl($value);
+    }
+
+    /**
+     * 提取 TOS URL 相对路径
+     *
+     * @param $value
+     * @return void
+     */
+    public function setCoverImageAttribute($value): void
+    {
+        $this->attributes['cover_image'] = $this->extractTosPath($value);
     }
 }

@@ -2,10 +2,14 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Requests\Admin\Traits\VideoChapterUpsertRequestTrait;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class VideoChapterUpdateRequest extends FormRequest
 {
+    use VideoChapterUpsertRequestTrait;
+
     public function authorize()
     {
         return true;
@@ -13,26 +17,23 @@ class VideoChapterUpdateRequest extends FormRequest
 
     public function rules()
     {
-        return [
-            'chapterId' => 'required|integer',
-            'courseId' => 'required|integer',
-            'chapterTitle' => 'required|string|max:100',
-            'unlockTime' => 'nullable|date',
-            'isFreeTrial' => 'required|integer|in:0,1',
-            'videoIds' => 'nullable|array',
-            'videoIds.*' => 'integer',
-        ];
+        return array_merge([
+            'chapterId' => [
+                'required',
+                'integer',
+                Rule::exists('app_course_chapter', 'chapter_id')
+                    ->where('course_id', $this->input('courseId'))
+                    ->whereNull('deleted_at'),
+            ],
+        ], $this->videoChapterUpsertRules());
     }
 
     public function messages()
     {
-        return [
+        return array_merge([
             'chapterId.required' => '章节ID不能为空。',
-            'courseId.required' => '课程ID不能为空。',
-            'chapterTitle.required' => '章节标题不能为空。',
-            'chapterTitle.max' => '章节标题不能超过100个字符。',
-            'isFreeTrial.required' => '请选择是否免费试看。',
-            'isFreeTrial.in' => '免费试看参数不正确。',
-        ];
+            'chapterId.integer' => '章节ID必须是整数。',
+            'chapterId.exists' => '章节不存在或不属于当前课程。',
+        ], $this->videoChapterUpsertMessages());
     }
 }

@@ -53,8 +53,9 @@ Route::middleware('system.auth')->group(function () {
         Route::post('/', [SystemVideoController::class, 'store']);
         // 更新
         Route::put('/', [SystemVideoController::class, 'update']);
-        // 删除（支持批量）
-        Route::delete('/{videoIds}', [SystemVideoController::class, 'destroy']);
+        // 删除-不支持批量
+        Route::delete('/{videoId}', [SystemVideoController::class, 'destroy'])
+            ->where('videoId', '[0-9]+');
     });
 });
 

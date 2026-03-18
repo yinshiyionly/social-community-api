@@ -222,7 +222,8 @@ class StudyCourseService
             }
 
             $todayTasks[] = [
-                'id' => $schedule->id,
+                'id' => $schedule->id ?? 0,
+                'courseId' => $schedule->course_id ?? 0,
                 'time' => $schedule->schedule_time ? substr($schedule->schedule_time, 0, 5) : '',
                 'title' => $chapter ? $chapter->chapter_title : '',
                 'subtitle' => $chapter ? $chapter->chapter_subtitle : '',

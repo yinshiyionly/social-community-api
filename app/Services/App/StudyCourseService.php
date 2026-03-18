@@ -635,8 +635,10 @@ class StudyCourseService
                 'id',
                 'course_id',
                 'chapter_id',
+                'member_course_id',
                 'schedule_date',
                 'schedule_time',
+                'unlock_time',
                 'is_learned',
             ])
             ->with([
@@ -694,6 +696,8 @@ class StudyCourseService
             $isChapterCompleted = $this->isChapterCompleted((int)$schedule->is_learned, $progress);
 
             $items[] = [
+                'id' => $schedule->id,
+                'memberCourseId' => $schedule->member_course_id,
                 'itemType' => 'chapter',
                 'chapterId' => (int)$schedule->chapter_id,
                 'chapterTitle' => (string)($chapter->chapter_title ?? ''),
@@ -703,6 +707,7 @@ class StudyCourseService
                 'actionType' => $isChapterCompleted ? 'view' : 'learn',
                 'coverImage' => (string)($chapter->cover_image ?? $course->cover_image ?? ''),
                 'videoUrl' => (string)($chapterVideoUrlMap[(int)$schedule->chapter_id] ?? ''),
+                'isUnlocked' => true
             ];
 
             if (!$chapter || !$chapter->homeworks || $chapter->homeworks->isEmpty()) {

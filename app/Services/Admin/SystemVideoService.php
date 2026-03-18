@@ -109,24 +109,6 @@ class SystemVideoService
         if (array_key_exists('status', $data)) {
             $updateData['status'] = (int) $data['status'];
         }
-        if (array_key_exists('totalSize', $data)) {
-            $updateData['total_size'] = (string) $data['totalSize'];
-        }
-        if (array_key_exists('prefaceUrl', $data)) {
-            $updateData['preface_url'] = $data['prefaceUrl'];
-        }
-        if (array_key_exists('playUrl', $data)) {
-            $updateData['play_url'] = $data['playUrl'];
-        }
-        if (array_key_exists('length', $data)) {
-            $updateData['length'] = (int) $data['length'];
-        }
-        if (array_key_exists('width', $data)) {
-            $updateData['width'] = (int) $data['width'];
-        }
-        if (array_key_exists('height', $data)) {
-            $updateData['height'] = (int) $data['height'];
-        }
 
         if (empty($updateData)) {
             return true;

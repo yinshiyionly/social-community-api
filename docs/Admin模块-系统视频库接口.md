@@ -300,7 +300,7 @@ Authorization: Bearer {token}
 | 参数      | 类型     | 必填 | 说明               |
 |---------|--------|----|------------------|
 | videoId | number | 是  | 视频 ID，`>= 1`     |
-| name    | string | 否  | 视频标题，最长 `255` 字符 |
+| name    | string | 是  | 视频标题，最长 `255` 字符 |
 | status  | number | 否  | 状态：`1` 启用，`2` 禁用 |
 
 #### 请求示例 JSON

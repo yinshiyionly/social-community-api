@@ -268,6 +268,10 @@ class CourseController extends Controller
 
     /**
      * 免费领取课程
+     *
+     * 接口约束：
+     * 1. 仅免费课程允许领取，付费课程需走支付下单链路；
+     * 2. 成功响应会返回 orderNo，供“我的订单”页面与对账链路关联免费订单。
      */
     public function claim(CourseEnrollRequest $request)
     {
@@ -283,6 +287,7 @@ class CourseController extends Controller
                 'data' => [
                     'id' => $memberCourse->id,
                     'courseId' => $memberCourse->course_id,
+                    'orderNo' => (string)($memberCourse->order_no ?? ''),
                     'enrollTime' => $memberCourse->enroll_time->format('Y-m-d H:i:s'),
                 ],
             ], '领取成功');

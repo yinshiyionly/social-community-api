@@ -5,6 +5,7 @@ namespace App\Services\App;
 use App\Models\App\AppCourseBase;
 use App\Models\App\AppCourseCategory;
 use App\Models\App\AppCourseChapter;
+use App\Models\App\AppCourseOrder;
 use App\Models\App\AppChapterContentVideo;
 use App\Models\App\AppLivePlayback;
 use App\Models\App\AppLiveRoom;
@@ -109,6 +110,7 @@ class CourseService
             ->select([
                 'course_id',
                 'course_title',
+                'cover_image',
                 'current_price',
                 'original_price',
                 'is_free',
@@ -377,6 +379,11 @@ class CourseService
     /**
      * 免费领取课程
      *
+     * 关键规则：
+     * 1. 仅 is_free=1 或 current_price<=0 的课程允许领取，避免绕过支付链路；
+     * 2. member_id + course_id 只要存在历史记录（含软删）即不允许重复领取；
+     * 3. 在同一事务内同时写免费订单与用户课程，保证订单与权益一致。
+     *
      * @param int $memberId
      * @param int $courseId
      * @param string $phone
@@ -392,29 +399,70 @@ class CourseService
             throw new \Exception('课程不存在');
         }
 
-        // TODO 对于免费课程的判断需要调整
-        /*if ($course->is_free != 1) {
-            throw new \Exception('该课程不是免费课程');
-        }*/
-
-        if (AppMemberCourse::hasCourse($memberId, $courseId)) {
-            throw new \Exception('您已领取过该课程');
+        if (!$this->isCourseFreeForClaim($course)) {
+            throw new \Exception('该课程不是免费课程，请走支付下单');
         }
 
         return DB::transaction(function () use ($memberId, $courseId, $phone, $ageRange, $course) {
-            $expireTime = null;
-            if ($course->valid_days > 0) {
-                $expireTime = now()->addDays($course->valid_days);
+            $member = AppMemberBase::query()
+                ->select(['member_id'])
+                ->where('member_id', $memberId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$member) {
+                throw new \Exception('用户不存在');
             }
 
-            $memberCourse = AppMemberCourse::create([
+            // 只要存在历史领取/购买记录（含软删），统一视为已领取，避免重复建单和权益冲突。
+            $historyCourse = AppMemberCourse::withTrashed()
+                ->where('member_id', $memberId)
+                ->where('course_id', $courseId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($historyCourse) {
+                throw new \Exception('您已领取过该课程');
+            }
+
+            $enrollTime = now();
+            $expireTime = null;
+            if ((int)$course->valid_days > 0) {
+                $expireTime = $enrollTime->copy()->addDays((int)$course->valid_days);
+            }
+
+            $order = AppCourseOrder::query()->create([
+                'order_no' => AppCourseOrder::generateOrderNo(),
+                'member_id' => $memberId,
+                'course_id' => $courseId,
+                'course_title' => (string)$course->course_title,
+                'course_cover' => (string)($course->cover_image ?? ''),
+                'enroll_phone' => $phone,
+                'enroll_age_range' => $ageRange,
+                // 免费领取订单金额字段统一置 0，避免与支付单口径混淆。
+                'original_price' => 0,
+                'current_price' => 0,
+                'discount_amount' => 0,
+                'coupon_amount' => 0,
+                'point_deduct' => 0,
+                'point_amount' => 0,
+                'paid_amount' => 0,
+                'pay_status' => AppCourseOrder::PAY_STATUS_PAID,
+                'pay_type' => AppCourseOrder::PAY_TYPE_FREE,
+                'pay_time' => $enrollTime,
+                'refund_status' => AppCourseOrder::REFUND_STATUS_NONE,
+                'refund_amount' => 0,
+            ]);
+
+            $memberCourse = AppMemberCourse::query()->create([
                 'member_id'        => $memberId,
                 'course_id'        => $courseId,
+                'order_no'         => $order->order_no,
                 'source_type'      => AppMemberCourse::SOURCE_TYPE_FREE,
                 'enroll_phone'     => $phone,
                 'enroll_age_range' => $ageRange,
                 'paid_amount'      => 0,
-                'enroll_time'      => now(),
+                'enroll_time'      => $enrollTime,
                 'expire_time'      => $expireTime,
                 'total_chapters'   => $course->total_chapter,
             ]);
@@ -428,11 +476,39 @@ class CourseService
                 $memberId,
                 $courseId,
                 $memberCourse->id,
-                now()->toDateTime()
+                $enrollTime->toDateTime()
             );
 
             return $memberCourse;
         });
+    }
+
+    /**
+     * 判断课程是否满足免费领取资格。
+     *
+     * 判定规则：
+     * 1. is_free=1 直接视为免费课程；
+     * 2. current_price<=0 作为历史脏数据兜底，避免免费课误拦截。
+     *
+     * @param AppCourseBase $course
+     * @return bool
+     */
+    protected function isCourseFreeForClaim(AppCourseBase $course): bool
+    {
+        if ((int)$course->is_free === 1) {
+            return true;
+        }
+
+        $currentPrice = $course->current_price;
+        if (is_string($currentPrice)) {
+            $currentPrice = trim($currentPrice);
+        }
+
+        if ($currentPrice === '' || !is_numeric($currentPrice)) {
+            return false;
+        }
+
+        return (float)$currentPrice <= 0;
     }
 
     /**

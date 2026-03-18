@@ -2,13 +2,14 @@
 
 namespace App\Models\App;
 
+use App\Models\Traits\HasTosUrl;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppVideoSystem extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasTosUrl;
 
     protected $table = 'app_video_system';
     protected $primaryKey = 'video_id';
@@ -31,11 +32,11 @@ class AppVideoSystem extends Model
     ];
 
     protected $casts = [
-        'video_id' => 'integer',
-        'status' => 'integer',
-        'length' => 'integer',
-        'width' => 'integer',
-        'height' => 'integer',
+        'video_id'   => 'integer',
+        'status'     => 'integer',
+        'length'     => 'integer',
+        'width'      => 'integer',
+        'height'     => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -71,10 +72,10 @@ class AppVideoSystem extends Model
     public function getFormattedTotalSizeAttribute(): string
     {
         if (!is_numeric($this->total_size)) {
-            return (string) $this->total_size;
+            return (string)$this->total_size;
         }
 
-        return self::formatBytes((float) $this->total_size);
+        return self::formatBytes((float)$this->total_size);
     }
 
     /**
@@ -82,7 +83,7 @@ class AppVideoSystem extends Model
      */
     public function getFormattedLengthAttribute(): string
     {
-        $seconds = (int) $this->length;
+        $seconds = (int)$this->length;
         if ($seconds < 0) {
             $seconds = 0;
         }
@@ -100,7 +101,7 @@ class AppVideoSystem extends Model
     public static function getStatusTextMap(): array
     {
         return [
-            self::STATUS_ENABLED => '启用',
+            self::STATUS_ENABLED  => '启用',
             self::STATUS_DISABLED => '禁用',
         ];
     }
@@ -137,9 +138,53 @@ class AppVideoSystem extends Model
 
         $value = round($bytes, 2);
         if (floor($value) == $value) {
-            $value = (int) $value;
+            $value = (int)$value;
         }
 
         return $value . ' ' . $units[$index];
+    }
+
+    /**
+     * 拼接 TOS URL 绝对路径
+     *
+     * @param $value
+     * @return string|null
+     */
+    public function getPlayUrlAttribute($value): ?string
+    {
+        return $this->getTosUrl($value);
+    }
+
+    /**
+     * 提取 TOS URL 相对路径
+     *
+     * @param $value
+     * @return void
+     */
+    public function setPlayUrlAttribute($value): void
+    {
+        $this->attributes['play_url'] = $this->extractTosPath($value);
+    }
+
+    /**
+     * 拼接 TOS URL 绝对路径
+     *
+     * @param $value
+     * @return string|null
+     */
+    public function getPrefaceUrlAttribute($value): ?string
+    {
+        return $this->getTosUrl($value);
+    }
+
+    /**
+     * 提取 TOS URL 相对路径
+     *
+     * @param $value
+     * @return void
+     */
+    public function setPrefaceUrlAttribute($value): void
+    {
+        $this->attributes['preface_url'] = $this->extractTosPath($value);
     }
 }

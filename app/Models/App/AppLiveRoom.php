@@ -36,6 +36,10 @@ class AppLiveRoom extends Model
     const STATUS_DISABLED = 0;
     const STATUS_ENABLED = 1;
 
+    // 首页展示状态
+    const IS_SHOW_INDEX_NO = 0; // 不展示在首页
+    const IS_SHOW_INDEX_YES = 1; // 展示在首页
+
     // 伪直播素材来源
     const MOCK_VIDEO_SOURCE_PLAYBACK = 1; // 百家云回放
     const MOCK_VIDEO_SOURCE_VIDEO = 2; // 百家云点播视频
@@ -86,6 +90,7 @@ class AppLiveRoom extends Model
         'allow_like',
         'password',
         'ext_config',
+        'is_show_index',
         'status',
         'created_by',
         'updated_by',
@@ -114,6 +119,7 @@ class AppLiveRoom extends Model
         'allow_gift'           => 'integer',
         'allow_like'           => 'integer',
         'ext_config'           => 'array',
+        'is_show_index'        => 'integer',
         'status'               => 'integer',
         'created_by'           => 'integer',
         'updated_by'           => 'integer',

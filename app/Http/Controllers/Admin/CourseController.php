@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CourseBatchSortRequest;
+use App\Http\Requests\Admin\CourseCopyRequest;
 use App\Http\Requests\Admin\CourseStoreRequest;
 use App\Http\Requests\Admin\CourseUpdateRequest;
 use App\Http\Requests\Admin\CourseStatusRequest;
@@ -288,6 +289,40 @@ class CourseController extends Controller
         } catch (\Exception $e) {
             Log::error('批量更新课程排序失败', [
                 'action' => 'batchSort',
+                'error' => $e->getMessage(),
+            ]);
+            return ApiResponse::error('操作失败，请稍后重试');
+        }
+    }
+
+    /**
+     * 复制录播课程（包含章节与章节视频内容）。
+     *
+     * 规则：
+     * 1. 仅支持录播课复制；
+     * 2. 新课程与新章节统一重置为草稿状态；
+     * 3. 复制成功后返回新课程ID，供前端跳转编辑页。
+     *
+     * @param CourseCopyRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function copy(CourseCopyRequest $request)
+    {
+        try {
+            $courseId = (int)$request->input('courseId');
+            $course = $this->courseService->copyVideoCourse($courseId);
+
+            return ApiResponse::success([
+                'data' => [
+                    'courseId' => $course->course_id,
+                ],
+            ], '复制成功');
+        } catch (\InvalidArgumentException $e) {
+            return ApiResponse::error($e->getMessage());
+        } catch (\Exception $e) {
+            Log::error('复制课程失败', [
+                'action' => 'copy',
+                'course_id' => $request->input('courseId'),
                 'error' => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');

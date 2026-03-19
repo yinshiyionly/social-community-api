@@ -26,7 +26,7 @@ Route::prefix('v1/course')->group(function () {
     Route::get('/has-chapters', [CourseController::class, 'hasChapters']);
 
     // 无章节课程详情（旧版长图详情）
-    Route::get('/detail-legacy', [CourseController::class, 'detailLegacy']);
+    Route::get('/detail-legacy', [CourseController::class, 'detailLegacy'])->middleware('app.auth.optional');;
 
     // 有章节课程详情（可选登录，登录态可返回是否解锁）
     Route::get('/detail-chapters', [CourseController::class, 'detailChapters'])->middleware('app.auth.optional');

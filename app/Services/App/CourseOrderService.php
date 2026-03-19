@@ -468,6 +468,11 @@ class CourseOrderService
     /**
      * 标记订单已支付并发放课程（幂等）
      *
+     * 关键规则：
+     * 1. 仅待支付订单允许迁移为已支付；
+     * 2. 支付成功并发课完成后，事务提交后触发 `first_purchase` 成长任务积分；
+     * 3. 积分触发失败仅记录日志，不影响支付主链路成功。
+     *
      * @param array $notifyData
      * @param string|null $clientIp
      * @throws \Exception
@@ -477,8 +482,16 @@ class CourseOrderService
         $orderNo = (string)($notifyData['out_trade_no'] ?? '');
         $tradeNo = (string)($notifyData['transaction_id'] ?? '');
         $notifyAmountFen = (int)($notifyData['amount']['total'] ?? 0);
+        $firstPurchaseTriggerPayload = null;
 
-        DB::transaction(function () use ($orderNo, $tradeNo, $notifyAmountFen, $notifyData, $clientIp) {
+        DB::transaction(function () use (
+            $orderNo,
+            $tradeNo,
+            $notifyAmountFen,
+            $notifyData,
+            $clientIp,
+            &$firstPurchaseTriggerPayload
+        ) {
             $order = AppCourseOrder::query()
                 ->where('order_no', $orderNo)
                 ->lockForUpdate()
@@ -532,7 +545,24 @@ class CourseOrderService
             );
 
             $this->grantCourseForPaidOrder($order);
+
+            // 仅在“待支付 -> 已支付”状态迁移成功时记录触发信息，事务提交后再发积分任务。
+            $firstPurchaseTriggerPayload = [
+                'member_id' => (int)$order->member_id,
+                'order_no' => (string)$order->order_no,
+                'client_ip' => $clientIp,
+            ];
         });
+
+        if (!is_array($firstPurchaseTriggerPayload)) {
+            return;
+        }
+
+        $this->triggerFirstPurchasePoint(
+            (int)$firstPurchaseTriggerPayload['member_id'],
+            (string)$firstPurchaseTriggerPayload['order_no'],
+            $firstPurchaseTriggerPayload['client_ip']
+        );
     }
 
     /**
@@ -1219,6 +1249,34 @@ class CourseOrderService
         }
 
         return '127.0.0.1';
+    }
+
+    /**
+     * 触发首次购买成长任务积分。
+     *
+     * 关键约束：
+     * 1. 仅在订单完成支付并发课成功后触发；
+     * 2. biz_id 使用 order_no，便于排查与幂等追踪；
+     * 3. 触发异常仅记录日志，不影响支付成功主链路。
+     *
+     * @param int $memberId
+     * @param string $orderNo
+     * @param string|null $clientIp
+     * @return void
+     */
+    protected function triggerFirstPurchasePoint(int $memberId, string $orderNo, ?string $clientIp = null): void
+    {
+        try {
+            $pointService = new PointService();
+            $pointService->triggerTaskEarn($memberId, 'first_purchase', $orderNo, $clientIp);
+        } catch (\Throwable $e) {
+            Log::error('触发首次购买积分任务失败', [
+                'member_id' => $memberId,
+                'task_code' => 'first_purchase',
+                'biz_id' => $orderNo,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

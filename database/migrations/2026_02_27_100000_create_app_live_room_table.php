@@ -57,6 +57,7 @@ class CreateAppLiveRoomTable extends Migration
                 created_at timestamp(0) NULL,
                 updated_at timestamp(0) NULL,
                 deleted_at timestamp(0) NULL,
+                is_show_index int2 NOT NULL DEFAULT 0,
                 PRIMARY KEY (room_id)
             )
         ");
@@ -102,6 +103,7 @@ class CreateAppLiveRoomTable extends Migration
         DB::statement("COMMENT ON COLUMN app_live_room.created_by IS '创建人ID'");
         DB::statement("COMMENT ON COLUMN app_live_room.updated_by IS '更新人ID'");
         DB::statement("COMMENT ON COLUMN app_live_room.deleted_by IS '删除人ID'");
+        DB::statement("COMMENT ON COLUMN app_live_room.is_show_index IS '是否展示在首页：0=否 1=是'");
 
         // 索引
         DB::statement('CREATE INDEX idx_app_live_room_live_type ON app_live_room (live_type)');

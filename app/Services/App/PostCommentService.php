@@ -10,6 +10,14 @@ use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * App 端评论服务。
+ *
+ * 职责：
+ * 1. 提供帖子评论/回复的查询、发布、删除与点赞能力；
+ * 2. 处理评论计数、回复计数与互动消息副作用；
+ * 3. 在评论成功后触发 `daily_comment` 积分任务（异步，不阻塞主流程）。
+ */
 class PostCommentService
 {
     /**
@@ -195,6 +203,11 @@ class PostCommentService
     /**
      * 发表评论
      *
+     * 关键规则：
+     * 1. 评论、统计计数在同一事务内提交；
+     * 2. 评论成功后触发 `daily_comment` 积分任务；
+     * 3. 积分触发失败仅记录日志，不影响评论主流程。
+     *
      * @param int $memberId 会员ID
      * @param int $postId 帖子ID
      * @param string $content 评论内容
@@ -281,6 +294,9 @@ class PostCommentService
 
             DB::commit();
 
+            // 评论任务积分：统一以 comment_id 作为幂等业务键，覆盖评论与回复场景。
+            $this->triggerDailyCommentPoint($memberId, (int)$comment->comment_id);
+
             // 加载关联数据
             $comment->load(['member', 'replyToMember']);
 
@@ -316,6 +332,44 @@ class PostCommentService
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
+        }
+    }
+
+    /**
+     * 触发日常评论任务积分。
+     *
+     * @param int $memberId
+     * @param int $commentId
+     * @return void
+     */
+    protected function triggerDailyCommentPoint(int $memberId, int $commentId): void
+    {
+        $this->triggerTaskPointAsync($memberId, 'daily_comment', (string)$commentId);
+    }
+
+    /**
+     * 通用任务积分异步触发封装。
+     *
+     * 失败策略：
+     * - 仅记录日志，不抛异常，避免积分系统异常影响评论主流程。
+     *
+     * @param int $memberId
+     * @param string $taskCode
+     * @param string|null $bizId
+     * @return void
+     */
+    protected function triggerTaskPointAsync(int $memberId, string $taskCode, ?string $bizId = null): void
+    {
+        try {
+            $pointService = new PointService();
+            $pointService->triggerTaskEarn($memberId, $taskCode, $bizId);
+        } catch (\Throwable $e) {
+            Log::error('触发评论任务积分失败', [
+                'member_id' => $memberId,
+                'task_code' => $taskCode,
+                'biz_id' => $bizId,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

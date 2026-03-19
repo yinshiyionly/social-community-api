@@ -24,7 +24,8 @@ class LiveRoomStoreRequest extends FormRequest
      * 规则约束：
      * 1. 基础字段在两种直播类型下均必填，避免创建后详情页字段缺失；
      * 2. 伪直播仅允许两种素材来源：回放教室号或点播视频ID；
-     * 3. 主播模式下忽略 mock 字段，避免历史前端冗余字段导致创建失败。
+     * 3. 主播模式下忽略 mock 字段，避免历史前端冗余字段导致创建失败；
+     * 4. isShowIndex 创建时必传，确保首页展示策略在创建环节明确。
      *
      * @return array<string, string>
      */
@@ -37,6 +38,7 @@ class LiveRoomStoreRequest extends FormRequest
             'roomIntro'          => 'nullable|string|max:5000',
             'anchorName'         => 'required|string|max:100',
             'anchorAvatar'       => 'nullable|string|max:500',
+            'isShowIndex'        => 'required|integer|in:0,1',
             'scheduledStartTime' => 'required|date',
             'scheduledEndTime'   => 'required|date|after:scheduledStartTime',
             // 'appTemplate'        => 'required|integer|in:1,2',
@@ -65,6 +67,9 @@ class LiveRoomStoreRequest extends FormRequest
             'anchorName.required'         => '主播名称不能为空',
             'anchorName.max'              => '主播名称不能超过100个字符',
             'anchorAvatar.max'            => '主播头像地址不能超过500个字符',
+            'isShowIndex.required'        => '是否展示在首页不能为空',
+            'isShowIndex.integer'         => '是否展示在首页值无效',
+            'isShowIndex.in'              => '是否展示在首页值无效',
             'scheduledStartTime.required' => '直播开始时间不能为空',
             'scheduledStartTime.date'     => '直播开始时间格式无效',
             'scheduledEndTime.required'   => '直播结束时间不能为空',

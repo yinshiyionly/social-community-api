@@ -128,6 +128,16 @@
                 "label": "PPT带货模版",
                 "value": 2
             }
+        ],
+        "isShowIndexOptions": [
+            {
+                "label": "是-展示在首页",
+                "value": 1
+            },
+            {
+                "label": "否-不展示在首页",
+                "value": 0
+            }
         ]
     }
 }
@@ -142,6 +152,7 @@
 | mockVideoSourceOptions | array | 伪直播素材来源选项  |
 | appTemplateOptions     | array | APP端模版样式选项 |
 | enableLiveSellOptions  | array | 带货模版样式选项   |
+| isShowIndexOptions     | array | 首页展示开关选项   |
 
 每个选项对象结构：
 
@@ -302,6 +313,7 @@
             "liveType": 2,
             "thirdPartyRoomId": 26031082751952,
             "anchorName": "张三",
+            "isShowIndex": 1,
             "adminCode": "g5mx5w",
             "teacherCode": "",
             "studentCode": "jua7xm",
@@ -329,6 +341,7 @@
 | roomCover          | string\|null | 直播间封面                                 |
 | liveType           | number       | 直播类型                                  |
 | anchorName         | string\|null | 主播名称                                  |
+| isShowIndex        | number       | 是否展示在首页：`1` 展示，`0` 不展示                  |
 | adminCode          | string\|null | 助教参加码                                 |
 | teacherCode        | string\|null | 老师参加码                                 |
 | studentCode        | string\|null | 学生参加码                                 |
@@ -371,6 +384,8 @@
     // 直播结束时间
     "anchorName": "张三",
     // 主播名称
+    "isShowIndex": 1,
+    // 是否展示在首页 1=展示 0=不展示
     "enableLiveSell": 1
     // 直播带货模板属性 0：不启用 ，1：是纯视频模板，2：是ppt带货模板 ，请在教室未开始前更新
 }
@@ -393,6 +408,8 @@
     // 伪直播视频来源 1=回放 2=百家云视频文件
     "anchorName": "张三",
     // 主播名称
+    "isShowIndex": 1,
+    // 是否展示在首页 1=展示 0=不展示
     "enableLiveSell": 1,
     //        直播带货模板属性 0：不启用 ，1：是纯视频模板，2：是ppt带货模板 ，请在教室未开始前更新
     "mockRoomId": 26030953664321
@@ -417,6 +434,8 @@
     // 伪直播视频来源 1=回放 2=百家云视频文件
     "anchorName": "张三",
     // 主播名称
+    "isShowIndex": 1,
+    // 是否展示在首页 1=展示 0=不展示
     "enableLiveSell": 1,
     //        直播带货模板属性 0：不启用 ，1：是纯视频模板，2：是ppt带货模板 ，请在教室未开始前更新
     "mockVideoId": 313856340

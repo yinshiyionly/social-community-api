@@ -8,10 +8,23 @@ use App\Models\App\AppCheckinStat;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * App 端签到服务。
+ *
+ * 职责：
+ * 1. 处理用户签到记录与连续签到统计；
+ * 2. 输出签到状态、奖励配置与月度签到记录；
+ * 3. 在签到成功后触发任务中心 `daily_checkin` 积分任务（异步，不阻塞主流程）。
+ */
 class CheckinService
 {
     /**
      * 执行签到
+     *
+     * 关键规则：
+     * 1. 签到记录与统计在同一事务内提交；
+     * 2. 事务提交后触发 `daily_checkin` 积分任务；
+     * 3. 积分触发失败仅记录日志，不影响签到成功响应。
      *
      * @param int $memberId 用户ID
      * @param string|null $clientIp 客户端IP
@@ -63,10 +76,10 @@ class CheckinService
             // 更新签到统计
             $stat->updateCheckinStat($continuousDays, $totalReward);
 
-            // TODO: 发放奖励（积分/经验等），可在此处调用积分服务
-            // $this->pointService->addPoints($memberId, $totalReward, '签到奖励');
-
             DB::commit();
+
+            // 签到链路积分统一走任务中心配置，避免与连签奖励配置出现双口径。
+            $this->triggerDailyCheckinPoint($memberId, $clientIp);
 
             Log::channel('job')->info('用户签到成功', [
                 'member_id' => $memberId,
@@ -210,5 +223,37 @@ class CheckinService
             'max_continuous_days' => $stat->max_continuous_days,
             'total_reward_value' => $stat->total_reward_value,
         ];
+    }
+
+    /**
+     * 触发签到日常任务积分。
+     *
+     * 关键约束：
+     * 1. biz_id 使用 `Y-m-d`，同一用户同一天只会命中一次；
+     * 2. 触发异常仅记录日志，不影响签到主流程成功返回；
+     * 3. 积分值以任务配置 `daily_checkin` 为准，不复用签到配置 reward_value。
+     *
+     * @param int $memberId
+     * @param string|null $clientIp
+     * @return void
+     */
+    protected function triggerDailyCheckinPoint(int $memberId, ?string $clientIp = null): void
+    {
+        try {
+            $pointService = new PointService();
+            $pointService->triggerTaskEarn(
+                $memberId,
+                'daily_checkin',
+                date('Y-m-d'),
+                $clientIp
+            );
+        } catch (\Throwable $e) {
+            Log::error('触发签到积分任务失败', [
+                'member_id' => $memberId,
+                'task_code' => 'daily_checkin',
+                'biz_id' => date('Y-m-d'),
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

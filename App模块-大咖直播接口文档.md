@@ -18,8 +18,8 @@
 ## 后端业务逻辑说明
 1. 这个接口需要获取三种不同直播状态的数据，分别是：直播中、直播预告和直播回放
 2. 这三种不同的数据可以设置统一的limit，比如limit=2，那么就是2*3=6条数据
-3. 直播中和直播预告需要从app_live_room数据表中获取数据，获取距离当前时间最近的limit条数据，返回响应的时候，data.id 是 room_id
-4. 直播回放数据需要从app_live_playback数据表中获取数据，获取距离当前时间最近的limit条数据，返回响应的时候，data.id 是 third_party_room_id
+3. 直播中和直播预告需要从app_live_room数据表中获取数据，固定仅查询 `is_show_index=1` 的直播间，获取距离当前时间最近的limit条数据，返回响应的时候，data.id 是 room_id
+4. 直播回放数据需要从app_live_playback数据表中获取数据，且仅关联 `is_show_index=1` 的直播间，获取距离当前时间最近的limit条数据，返回响应的时候，data.id 是 third_party_room_id
 
 ---
 

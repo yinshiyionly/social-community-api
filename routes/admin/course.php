@@ -76,6 +76,15 @@ Route::middleware('system.auth')->group(function () {
 
         // 更改状态
         Route::put('/changeStatus', [CourseController::class, 'changeStatus']);
+
+        // 录播课-课程表
+        Route::get('/videoCourseSheet/{courseId}', [VideoChapterController::class, 'all'])
+            ->where('courseId', '[0-9]+');
+
+        // TODO 先不实现
+        // 直播课-课程表
+        /*Route::get('/liveCourseSheet/{courseId}', [LiveChapterController::class, 'all'])
+            ->where('courseId', '[0-9]+');*/
     });
 
     // 录播课章节管理

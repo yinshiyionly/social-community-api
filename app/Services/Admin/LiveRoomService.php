@@ -40,7 +40,7 @@ class LiveRoomService
                 'room_id', 'room_title', 'room_cover', 'live_type', 'third_party_room_id',
                 'anchor_name', 'scheduled_start_time', 'scheduled_end_time',
                 'student_code', 'teacher_code', 'admin_code', 'mock_video_id', 'mock_room_id',
-                'live_status', 'app_template', 'enable_live_sell', 'status', 'created_at',
+                'live_status', 'app_template', 'enable_live_sell', 'is_show_index', 'status', 'created_at',
             ])
             ->with('stat:room_id,current_online_count,total_viewer_count');
 
@@ -203,7 +203,7 @@ class LiveRoomService
      *
      * 关键规则：
      * 1. 创建前先调用第三方平台生成直播房间；
-     * 2. 创建成功后将 room_cover 等展示字段落库，供 App 列表封面兜底。
+     * 2. 创建成功后将 room_cover/is_show_index 等展示字段落库，供 App 端展示过滤。
      *
      * @param array $data
      * @return AppLiveRoom
@@ -220,6 +220,7 @@ class LiveRoomService
             'scheduled_end_time'   => $data['scheduledEndTime'] ?? null,
             'live_status'          => AppLiveRoom::LIVE_STATUS_NOT_STARTED,
             'enable_live_sell'     => AppLiveRoom::ENABLE_LIVE_SELL_OFF, // 禁用带货模版
+            'is_show_index'        => (int)($data['isShowIndex'] ?? AppLiveRoom::IS_SHOW_INDEX_NO),
         ];
 
         if ($liveType === AppLiveRoom::LIVE_TYPE_PSEUDO) {
@@ -270,7 +271,8 @@ class LiveRoomService
      * 关键规则：
      * 1. 真实直播与伪直播统一走百家云建房流程，避免分支实现漂移；
      * 2. 伪直播仅按 mockVideoSource 透传一种素材参数，避免 mock_room_id 与 mock_video_id 同时生效；
-     * 3. 主播模式会忽略 mock 字段，不落库也不透传第三方。
+     * 3. 主播模式会忽略 mock 字段，不落库也不透传第三方；
+     * 4. isShowIndex 由创建接口显式传入，默认值仅用于兼容历史调用。
      *
      * 失败策略：
      * - 第三方建房失败：返回错误结构，不抛异常中断控制器流程；
@@ -287,6 +289,7 @@ class LiveRoomService
         $scheduledEndTime = (string)($data['scheduledEndTime'] ?? '');
         $enableLiveSell = (int)($data['enableLiveSell'] ?? AppLiveRoom::ENABLE_LIVE_SELL_OFF);
         $appTemplate = (int)($data['app_template'] ?? AppLiveRoom::APP_TEMPLATE_HORIZONTAL);
+        $isShowIndex = (int)($data['isShowIndex'] ?? AppLiveRoom::IS_SHOW_INDEX_NO);
 
         if ($roomTitle === '' || $scheduledStartTime === '' || $scheduledEndTime === '') {
             return [
@@ -300,6 +303,14 @@ class LiveRoomService
             return [
                 'success' => false,
                 'error'   => '直播类型值无效',
+                'data'    => [],
+            ];
+        }
+
+        if (!in_array($isShowIndex, [AppLiveRoom::IS_SHOW_INDEX_NO, AppLiveRoom::IS_SHOW_INDEX_YES], true)) {
+            return [
+                'success' => false,
+                'error'   => '是否展示在首页值无效',
                 'data'    => [],
             ];
         }
@@ -320,7 +331,8 @@ class LiveRoomService
             'scheduled_end_time'   => $scheduledEndTime,
             'live_status'          => AppLiveRoom::LIVE_STATUS_NOT_STARTED,
             'enable_live_sell'     => $enableLiveSell,
-            'app_template'         => $appTemplate
+            'app_template'         => $appTemplate,
+            'is_show_index'        => $isShowIndex,
         ];
 
         if ($liveType === AppLiveRoom::LIVE_TYPE_PSEUDO) {
@@ -473,6 +485,7 @@ class LiveRoomService
             'anchorAvatar'       => 'anchor_avatar',
             'scheduledStartTime' => 'scheduled_start_time',
             'scheduledEndTime'   => 'scheduled_end_time',
+            'isShowIndex'        => 'is_show_index',
             'liveDuration'       => 'live_duration',
             'allowChat'          => 'allow_chat',
             'allowGift'          => 'allow_gift',

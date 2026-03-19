@@ -79,7 +79,12 @@ class LiveRoomController extends Controller
                 ['label' => '禁用带货模版', 'value' => AppLiveRoom::ENABLE_LIVE_SELL_OFF],
                 ['label' => '视频带货模版', 'value' => AppLiveRoom::ENABLE_LIVE_SELL_VIDEO],
                 ['label' => 'PPT带货模版', 'value' => AppLiveRoom::ENABLE_LIVE_SELL_PPT]
-            ]
+            ],
+            // 是否展示在首页
+            'isShowIndexOptions'     => [
+                ['label' => '是-展示在首页', 'value' => AppLiveRoom::IS_SHOW_INDEX_YES],
+                ['label' => '否-不展示在首页', 'value' => AppLiveRoom::IS_SHOW_INDEX_NO],
+            ],
         ];
 
         return ApiResponse::success(['data' => $data]);
@@ -244,7 +249,8 @@ class LiveRoomController extends Controller
      * 关键约束：
      * 1. roomCover 必须显式传入，确保直播创建后可直接在 App 列表展示；
      * 2. liveType=2 时按 mockVideoSource 二选一校验伪直播素材参数；
-     * 3. 创建时会调用第三方服务创建房间，本地仅落库必要字段。
+     * 3. isShowIndex 创建时必传，保证首页展示策略可追溯；
+     * 4. 创建时会调用第三方服务创建房间，本地仅落库必要字段。
      *
      * @param LiveRoomStoreRequest $request
      * @return \Illuminate\Http\JsonResponse
@@ -274,6 +280,7 @@ class LiveRoomController extends Controller
      * 字段透传规则：
      * - 仅透传请求中“显式出现”的字段，避免未传字段被写成 null；
      * - 显式传 roomCover 为 null 时允许清空封面。
+     * - isShowIndex 未传时保持原值，避免误改首页展示状态。
      *
      * @param LiveRoomUpdateRequest $request
      * @return \Illuminate\Http\JsonResponse
@@ -283,7 +290,7 @@ class LiveRoomController extends Controller
         try {
             $roomId = (int)$request->input('roomId');
 
-            $allowedFields = ['roomTitle', 'roomCover', 'scheduledStartTime', 'scheduledEndTime'];
+            $allowedFields = ['roomTitle', 'roomCover', 'scheduledStartTime', 'scheduledEndTime', 'isShowIndex'];
             $data = [];
 
             foreach ($allowedFields as $field) {

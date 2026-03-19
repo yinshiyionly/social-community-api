@@ -147,6 +147,9 @@ class LiveHomeService
      * - app_live_room_stat：预约人数；
      * - app_live_room_reserve：当前用户预约态（登录态时）。
      *
+     * 过滤约束：
+     * - 仅展示 is_show_index=1 的直播，避免后台设为“非首页展示”的直播出现在 App 直播首页。
+     *
      * @param int $memberId
      * @return Builder
      */
@@ -156,6 +159,7 @@ class LiveHomeService
             ->leftJoin('app_live_room_stat as rs', 'rs.room_id', '=', 'r.room_id')
             ->whereNull('r.deleted_at')
             ->where('r.status', AppLiveRoom::STATUS_ENABLED)
+            ->where('r.is_show_index', AppLiveRoom::IS_SHOW_INDEX_YES)
             ->where('r.live_status', AppLiveRoom::LIVE_STATUS_NOT_STARTED);
 
         $selectFields = [
@@ -189,6 +193,9 @@ class LiveHomeService
      * - 不在基础查询阶段限制 live_status，交由上层组合条件；
      * - 额外返回 live_status 字段，用于 latest 状态映射。
      *
+     * 过滤约束：
+     * - 固定限制 is_show_index=1，保证 latest 与列表遵循同一首页展示策略。
+     *
      * @param int $memberId
      * @return Builder
      */
@@ -197,7 +204,8 @@ class LiveHomeService
         $query = DB::table('app_live_room as r')
             ->leftJoin('app_live_room_stat as rs', 'rs.room_id', '=', 'r.room_id')
             ->whereNull('r.deleted_at')
-            ->where('r.status', AppLiveRoom::STATUS_ENABLED);
+            ->where('r.status', AppLiveRoom::STATUS_ENABLED)
+            ->where('r.is_show_index', AppLiveRoom::IS_SHOW_INDEX_YES);
 
         $selectFields = [
             'r.room_id',
@@ -227,7 +235,7 @@ class LiveHomeService
      *
      * 过滤规则：
      * - 仅“转码成功 + 未屏蔽 + play_url 非空 + room_id 有效”的回放；
-     * - 仅展示启用且未删除的直播间；
+     * - 仅展示启用、未删除且 is_show_index=1 的直播间；
      * - 同一 room_id 仅保留 create_time 最新的一条回放。
      *
      * @return Builder
@@ -238,7 +246,8 @@ class LiveHomeService
             ->join('app_live_room as r', function ($join) {
                 $join->on('r.third_party_room_id', '=', 'p.third_party_room_id')
                     ->whereNull('r.deleted_at')
-                    ->where('r.status', '=', AppLiveRoom::STATUS_ENABLED);
+                    ->where('r.status', '=', AppLiveRoom::STATUS_ENABLED)
+                    ->where('r.is_show_index', '=', AppLiveRoom::IS_SHOW_INDEX_YES);
             })
             ->whereNull('p.deleted_at')
             ->where('p.status', AppLivePlayback::STATUS_TRANSCODE_SUCCESS)

@@ -49,6 +49,8 @@ Route::middleware('system.auth')->group(function () {
         Route::get('/constants', [CourseController::class, 'constants']);
         // 列表
         Route::get('/list', [CourseController::class, 'list']);
+        // 复制课程（仅录播课）
+        Route::post('/copy', [CourseController::class, 'copy']);
         // 订单列表
         Route::get('/order/list', [CourseOrderController::class, 'orderList']);
         // 退款列表
@@ -80,6 +82,8 @@ Route::middleware('system.auth')->group(function () {
     Route::prefix('/course/video/chapter')->group(function () {
         // 常量选项（是否免费、解锁类型、状态）
         Route::get('/constants', [VideoChapterController::class, 'constants']);
+        // 复制章节（仅同课程）
+        Route::post('/copy', [VideoChapterController::class, 'copy']);
         // 章节列表（分页）
         Route::get('/list/{courseId}', [VideoChapterController::class, 'list'])->where('courseId', '[0-9]+');
         // 章节列表（全部，用于排序）

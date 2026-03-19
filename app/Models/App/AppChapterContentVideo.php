@@ -95,4 +95,14 @@ class AppChapterContentVideo extends Model
     {
         return $this->getTosUrl($value);
     }
+
+    public function setCoverImageAttribute($value)
+    {
+        $this->attributes['cover_image'] = $this->extractTosPath($value);
+    }
+
+    public function getCoverImageAttribute($value)
+    {
+        return $this->getTosUrl($value);
+    }
 }

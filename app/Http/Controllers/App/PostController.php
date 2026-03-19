@@ -886,4 +886,58 @@ class PostController extends Controller
             return AppApiResponse::serverError();
         }
     }
+
+    /**
+     * 分享帖子（点击分享按钮即触发）。
+     *
+     * 接口用途：
+     * - 前端点击分享按钮后上报一次分享行为，回写帖子分享数并触发日常分享积分任务。
+     *
+     * 关键输入：
+     * - postId：被分享的帖子 ID。
+     *
+     * 关键输出：
+     * - isShared：固定返回 true，表示本次分享行为已被记录；
+     * - shareCount：帖子最新分享数，前端可直接用于局部刷新。
+     *
+     * 失败分支：
+     * - postId 非法返回参数错误；
+     * - 帖子不存在返回 404；
+     * - 其他异常记录日志后返回通用错误，避免泄露内部实现细节。
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function share(Request $request): JsonResponse
+    {
+        $memberId = (int)$this->getMemberId($request);
+        $postId = (int)$request->input('postId', 0);
+
+        if ($postId <= 0) {
+            return AppApiResponse::error('帖子ID不能为空');
+        }
+
+        try {
+            $result = $this->postService->sharePost($memberId, $postId);
+
+            if (!$result['success'] && $result['message'] === 'not_found') {
+                return AppApiResponse::dataNotFound('内容不存在');
+            }
+
+            return AppApiResponse::success([
+                'data' => [
+                    'isShared' => true,
+                    'shareCount' => (int)$result['share_count'],
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('分享帖子失败', [
+                'member_id' => $memberId,
+                'post_id' => $postId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
 }

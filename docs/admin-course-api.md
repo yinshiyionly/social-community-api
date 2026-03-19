@@ -13,6 +13,7 @@
 | 更新课程 | PUT | `/api/admin/course` |
 | 批量修改课程排序 | PUT | `/api/admin/course/batchSort` |
 | 删除课程 | DELETE | `/api/admin/course/{courseId}` |
+| 复制录播课程 | POST | `/api/admin/course/copy` |
 
 ## 2. 通用说明
 - 鉴权：所有接口都需要 `Authorization: Bearer {token}`
@@ -674,3 +675,47 @@ Authorization: Bearer {token}
   ]
 }
 ```
+
+---
+
+### 3.12 复制录播课程
+- 方法：`POST`
+- 路径：`/api/admin/course/copy`
+- 说明：复制课程基础信息、录播章节及章节视频内容映射；仅支持录播课。
+
+#### Body 参数（JSON）
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| courseId | number | 是 | 源课程 ID，必须为录播课（`playType=2`） |
+
+#### 请求示例 JSON
+```json
+{
+  "courseId": 2001
+}
+```
+
+#### 响应示例 JSON（成功）
+```json
+{
+  "code": 200,
+  "msg": "复制成功",
+  "data": {
+    "courseId": 3001
+  }
+}
+```
+
+#### 响应示例 JSON（失败）
+```json
+{
+  "code": 6000,
+  "msg": "仅支持录播课复制",
+  "data": []
+}
+```
+
+#### 业务行为说明
+- 新课程会生成新的 `course_no`，并将 `course_title` 追加 `（复制）` 后缀。
+- 新课程状态重置为草稿，`publish_time` 置空。
+- 新章节按顺序重建 `chapter_no/sort_order`，章节标题追加 `（复制）`，状态重置为草稿。

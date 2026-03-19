@@ -68,17 +68,14 @@ class CreateAppMemberPointTaskTable extends Migration
         DB::table('app_member_point_task')->insert([
             // 日常任务
             ['task_code' => 'daily_checkin', 'task_name' => '每日签到', 'task_type' => 1, 'task_category' => 'daily', 'point_value' => 10, 'daily_limit' => 1, 'total_limit' => 0, 'description' => '每日签到获得积分', 'sort_order' => 1],
-            ['task_code' => 'daily_post', 'task_name' => '每日发帖', 'task_type' => 1, 'task_category' => 'daily', 'point_value' => 20, 'daily_limit' => 3, 'total_limit' => 0, 'description' => '每日发布帖子，最多3次', 'sort_order' => 2],
-            ['task_code' => 'daily_comment', 'task_name' => '每日评论', 'task_type' => 1, 'task_category' => 'daily', 'point_value' => 5, 'daily_limit' => 5, 'total_limit' => 0, 'description' => '每日评论帖子，最多5次', 'sort_order' => 3],
-            ['task_code' => 'daily_like', 'task_name' => '每日点赞', 'task_type' => 1, 'task_category' => 'daily', 'point_value' => 2, 'daily_limit' => 10, 'total_limit' => 0, 'description' => '每日点赞帖子，最多10次', 'sort_order' => 4],
-            ['task_code' => 'daily_share', 'task_name' => '每日分享', 'task_type' => 1, 'task_category' => 'daily', 'point_value' => 10, 'daily_limit' => 3, 'total_limit' => 0, 'description' => '每日分享帖子，最多3次', 'sort_order' => 5],
+            ['task_code' => 'daily_post', 'task_name' => '每日发帖', 'task_type' => 1, 'task_category' => 'daily', 'point_value' => 20, 'daily_limit' => 1, 'total_limit' => 0, 'description' => '每日发布帖子，最多1次', 'sort_order' => 2],
+            ['task_code' => 'daily_comment', 'task_name' => '每日评论', 'task_type' => 1, 'task_category' => 'daily', 'point_value' => 5, 'daily_limit' => 1, 'total_limit' => 0, 'description' => '每日评论帖子，最多1次', 'sort_order' => 3],
+            ['task_code' => 'daily_like', 'task_name' => '每日点赞', 'task_type' => 1, 'task_category' => 'daily', 'point_value' => 2, 'daily_limit' => 1, 'total_limit' => 0, 'description' => '每日点赞帖子，最多1次', 'sort_order' => 4],
+            ['task_code' => 'daily_share', 'task_name' => '每日分享', 'task_type' => 1, 'task_category' => 'daily', 'point_value' => 10, 'daily_limit' => 1, 'total_limit' => 0, 'description' => '每日分享帖子，最多1次', 'sort_order' => 5],
             // 成长任务
             ['task_code' => 'first_post', 'task_name' => '首次发帖', 'task_type' => 2, 'task_category' => 'growth', 'point_value' => 50, 'daily_limit' => 0, 'total_limit' => 1, 'description' => '首次发布帖子奖励', 'sort_order' => 10],
             ['task_code' => 'first_follow', 'task_name' => '首次关注', 'task_type' => 2, 'task_category' => 'growth', 'point_value' => 20, 'daily_limit' => 0, 'total_limit' => 1, 'description' => '首次关注其他用户', 'sort_order' => 11],
             ['task_code' => 'first_purchase', 'task_name' => '首次购买课程', 'task_type' => 2, 'task_category' => 'growth', 'point_value' => 100, 'daily_limit' => 0, 'total_limit' => 1, 'description' => '首次购买课程奖励', 'sort_order' => 12],
-            ['task_code' => 'first_avatar', 'task_name' => '完善头像', 'task_type' => 2, 'task_category' => 'growth', 'point_value' => 30, 'daily_limit' => 0, 'total_limit' => 1, 'description' => '首次上传头像', 'sort_order' => 13],
-            ['task_code' => 'first_bio', 'task_name' => '完善简介', 'task_type' => 2, 'task_category' => 'growth', 'point_value' => 20, 'daily_limit' => 0, 'total_limit' => 1, 'description' => '首次填写个人简介', 'sort_order' => 14],
-            ['task_code' => 'invite_user', 'task_name' => '邀请好友', 'task_type' => 2, 'task_category' => 'growth', 'point_value' => 50, 'daily_limit' => 0, 'total_limit' => 0, 'description' => '每邀请一位好友注册', 'sort_order' => 15],
         ]);
     }
 

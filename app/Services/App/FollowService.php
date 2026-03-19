@@ -10,7 +10,16 @@ use App\Models\App\AppPostLike;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
+/**
+ * App 端关注服务。
+ *
+ * 职责：
+ * 1. 提供关注关系的创建、取消与列表查询；
+ * 2. 维护粉丝/关注冗余计数，保障列表展示性能；
+ * 3. 在关注关系实际生效时触发成长任务 `first_follow`（异步，不阻塞主流程）。
+ */
 class FollowService
 {
     /**
@@ -128,6 +137,11 @@ class FollowService
     /**
      * 关注用户
      *
+     * 关键规则：
+     * 1. 仅在关注关系“真实生效”时更新粉丝/关注计数；
+     * 2. 关系生效后触发 `first_follow` 成长任务积分；
+     * 3. 积分与消息发送失败仅记录日志，不影响关注主流程。
+     *
      * @param int $memberId 当前用户ID
      * @param int $followMemberId 被关注用户ID
      * @param string $source 关注来源
@@ -196,9 +210,20 @@ class FollowService
 
             DB::commit();
 
-            // 创建关注消息（仅当实际更新了计数时才发送）
+            // 仅当关系真实生效时触发成长任务，避免重复点击重复发放。
             if ($shouldUpdateCount) {
-                MessageService::createFollowMessage($memberId, $followMemberId);
+                $this->triggerFirstFollowPoint($memberId, $followMemberId);
+
+                // 关注消息属于通知副作用，失败不应影响关注主流程成功返回。
+                try {
+                    MessageService::createFollowMessage($memberId, $followMemberId);
+                } catch (\Throwable $e) {
+                    Log::error('创建关注消息失败', [
+                        'member_id' => $memberId,
+                        'follow_member_id' => $followMemberId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
 
             return [
@@ -363,5 +388,43 @@ class FollowService
         return AppMemberBase::query()
             ->where('member_id', $memberId)
             ->exists();
+    }
+
+    /**
+     * 触发首次关注成长任务积分。
+     *
+     * @param int $memberId
+     * @param int $followMemberId
+     * @return void
+     */
+    protected function triggerFirstFollowPoint(int $memberId, int $followMemberId): void
+    {
+        $this->triggerTaskPointAsync($memberId, 'first_follow', (string)$followMemberId);
+    }
+
+    /**
+     * 通用任务积分异步触发封装。
+     *
+     * 失败策略：
+     * - 仅记录日志，不抛异常，避免积分系统异常影响关注主流程。
+     *
+     * @param int $memberId
+     * @param string $taskCode
+     * @param string|null $bizId
+     * @return void
+     */
+    protected function triggerTaskPointAsync(int $memberId, string $taskCode, ?string $bizId = null): void
+    {
+        try {
+            $pointService = new PointService();
+            $pointService->triggerTaskEarn($memberId, $taskCode, $bizId);
+        } catch (\Throwable $e) {
+            Log::error('触发关注任务积分失败', [
+                'member_id' => $memberId,
+                'task_code' => $taskCode,
+                'biz_id' => $bizId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

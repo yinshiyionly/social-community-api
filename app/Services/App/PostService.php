@@ -28,6 +28,11 @@ class PostService
     /**
      * 发表帖子
      *
+     * 关键副作用：
+     * 1. 发帖成功后触发媒体补全异步任务；
+     * 2. 发帖成功后触发 `daily_post` 与 `first_post` 积分任务；
+     * 3. 积分触发失败仅记录日志，不影响发帖主流程。
+     *
      * @param int $memberId 会员ID
      * @param array $data 帖子数据
      * @return int 帖子ID
@@ -64,6 +69,9 @@ class PostService
 
             // 派发异步任务填充媒体信息
             FillPostMediaInfoJob::dispatch($post->post_id, (int)$data['post_type']);
+
+            // 发帖任务积分：同一帖子 ID 作为幂等业务键，保障重试不重复发放。
+            $this->triggerPostPublishPoints($memberId, (int)$post->post_id);
 
             return $post->post_id;
         } catch (\Exception $e) {
@@ -709,6 +717,11 @@ class PostService
     /**
      * 点赞帖子
      *
+     * 关键规则：
+     * 1. 仅首次点赞成功时写入点赞记录并增加点赞数；
+     * 2. 点赞成功后触发 `daily_like` 积分任务；
+     * 3. 积分触发失败仅记录日志，不影响点赞主流程。
+     *
      * @param int $memberId 会员ID
      * @param int $postId 帖子ID
      * @return array ['success' => bool, 'message' => string, 'is_liked' => bool]
@@ -754,6 +767,9 @@ class PostService
 
             DB::commit();
 
+            // 日常点赞任务积分：业务键使用 post_id，避免重复点赞重入时重复发放。
+            $this->triggerDailyLikePoint($memberId, $postId);
+
             // 创建点赞消息（异步，不影响主流程）
             $coverUrl = isset($post->cover['url']) ? $post->cover['url'] : null;
             MessageService::createLikeMessage(
@@ -769,6 +785,57 @@ class PostService
                 'success' => true,
                 'message' => 'liked',
                 'is_liked' => true,
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * 分享帖子并增加分享计数。
+     *
+     * 关键规则：
+     * 1. 仅允许分享“已通过且公开可见”的帖子；
+     * 2. 分享成功后立即累加 share_count；
+     * 3. 分享任务积分按 post_id 作为 biz_id 触发，失败不影响分享成功响应。
+     *
+     * @param int $memberId 当前用户ID
+     * @param int $postId 帖子ID
+     * @return array{success:bool,message:string,share_count:int}
+     */
+    public function sharePost(int $memberId, int $postId): array
+    {
+        $post = AppPostBase::query()
+            ->select(['post_id'])
+            ->approved()
+            ->visible()
+            ->where('post_id', $postId)
+            ->first();
+
+        if (!$post) {
+            return [
+                'success' => false,
+                'message' => 'not_found',
+                'share_count' => 0,
+            ];
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $postStat = $post->getOrCreateStat();
+            $postStat->incrementShareCount();
+            $postStat->refresh();
+
+            DB::commit();
+
+            $this->triggerDailySharePoint($memberId, $postId);
+
+            return [
+                'success' => true,
+                'message' => 'shared',
+                'share_count' => (int)$postStat->share_count,
             ];
         } catch (\Exception $e) {
             DB::rollBack();
@@ -910,5 +977,74 @@ class PostService
             ->normal()
             ->pluck('follow_member_id')
             ->toArray();
+    }
+
+    /**
+     * 触发发帖相关任务积分。
+     *
+     * @param int $memberId
+     * @param int $postId
+     * @return void
+     */
+    protected function triggerPostPublishPoints(int $memberId, int $postId): void
+    {
+        $bizId = (string)$postId;
+        $this->triggerTaskPointAsync($memberId, 'daily_post', $bizId);
+        $this->triggerTaskPointAsync($memberId, 'first_post', $bizId);
+    }
+
+    /**
+     * 触发日常点赞任务积分。
+     *
+     * @param int $memberId
+     * @param int $postId
+     * @return void
+     */
+    protected function triggerDailyLikePoint(int $memberId, int $postId): void
+    {
+        $this->triggerTaskPointAsync($memberId, 'daily_like', (string)$postId);
+    }
+
+    /**
+     * 触发日常分享任务积分。
+     *
+     * @param int $memberId
+     * @param int $postId
+     * @return void
+     */
+    protected function triggerDailySharePoint(int $memberId, int $postId): void
+    {
+        $this->triggerTaskPointAsync($memberId, 'daily_share', (string)$postId);
+    }
+
+    /**
+     * 通用任务积分异步触发封装。
+     *
+     * 失败策略：
+     * - 仅记录日志，不抛异常，避免积分系统异常影响发帖/点赞/分享主流程。
+     *
+     * @param int $memberId
+     * @param string $taskCode
+     * @param string|null $bizId
+     * @param string|null $clientIp
+     * @return void
+     */
+    protected function triggerTaskPointAsync(
+        int $memberId,
+        string $taskCode,
+        ?string $bizId = null,
+        ?string $clientIp = null
+    ): void {
+        try {
+            $pointService = new PointService();
+            $pointService->triggerTaskEarn($memberId, $taskCode, $bizId, $clientIp);
+        } catch (\Throwable $e) {
+            Log::error('触发帖子任务积分失败', [
+                'member_id' => $memberId,
+                'task_code' => $taskCode,
+                'biz_id' => $bizId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

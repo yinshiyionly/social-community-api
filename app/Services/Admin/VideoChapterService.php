@@ -3,10 +3,12 @@
 namespace App\Services\Admin;
 
 use App\Models\App\AppChapterContentVideo;
+use App\Models\App\AppCourseBase;
 use App\Models\App\AppCourseChapter;
 use App\Models\App\AppVideoSystem;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * 后台录播课章节服务。
@@ -203,6 +205,68 @@ class VideoChapterService
     }
 
     /**
+     * 复制录播章节（仅同课程）。
+     *
+     * 关键规则：
+     * 1. 仅允许复制录播课课程下的章节；
+     * 2. 新章节追加到课程末尾，避免打乱既有课表顺序；
+     * 3. 复制后重置章节状态与统计字段，避免继承历史运营数据。
+     *
+     * @param int $chapterId 源章节ID
+     * @return AppCourseChapter 新章节
+     */
+    public function copy(int $chapterId): AppCourseChapter
+    {
+        return DB::transaction(function () use ($chapterId) {
+            $sourceChapter = AppCourseChapter::query()
+                ->with(['videoContent', 'course:course_id,play_type'])
+                ->where('chapter_id', $chapterId)
+                ->first();
+
+            if (!$sourceChapter) {
+                throw new \InvalidArgumentException('章节不存在');
+            }
+
+            if (!$sourceChapter->course || (int)$sourceChapter->course->play_type !== AppCourseBase::PLAY_TYPE_VIDEO) {
+                throw new \InvalidArgumentException('章节不属于录播课课程');
+            }
+
+            $sourceVideoContent = $sourceChapter->videoContent;
+
+            if (!$sourceVideoContent) {
+                throw new \InvalidArgumentException('章节视频内容缺失，无法复制');
+            }
+
+            $courseId = (int)$sourceChapter->course_id;
+            $maxSortOrder = AppCourseChapter::query()->byCourse($courseId)->max('sort_order');
+            $maxChapterNo = AppCourseChapter::query()->byCourse($courseId)->max('chapter_no');
+
+            $targetChapter = $sourceChapter->replicate();
+            $targetChapter->course_id = $courseId;
+            // 复制章节统一追加到尾部，避免穿插进中间导致前端展示顺序异常。
+            $targetChapter->chapter_no = ($maxChapterNo ?? 0) + 1;
+            $targetChapter->sort_order = ($maxSortOrder ?? 0) + 1;
+            $targetChapter->chapter_title = $this->appendCopySuffix((string)$sourceChapter->chapter_title, 200);
+            $targetChapter->status = AppCourseChapter::STATUS_DRAFT;
+            $targetChapter->view_count = 0;
+            $targetChapter->complete_count = 0;
+            $targetChapter->homework_count = 0;
+            $targetChapter->created_by = null;
+            $targetChapter->updated_by = null;
+            $targetChapter->deleted_at = null;
+            $targetChapter->deleted_by = null;
+            $targetChapter->save();
+
+            $targetVideoContent = $sourceVideoContent->replicate();
+            $targetVideoContent->chapter_id = $targetChapter->chapter_id;
+            $targetVideoContent->deleted_at = null;
+            $targetVideoContent->save();
+
+            return $targetChapter->fresh('videoContent');
+        });
+    }
+
+    /**
      * 批量更新章节排序。
      *
      * @param array<int, array{chapterId:int, sortOrder:int}> $items
@@ -333,5 +397,26 @@ class VideoChapterService
         }
 
         return null;
+    }
+
+    /**
+     * 追加复制后缀，并限制最大长度避免写库超长。
+     *
+     * @param string $title 原标题
+     * @param int $maxLength 字段最大长度
+     * @return string
+     */
+    private function appendCopySuffix(string $title, int $maxLength): string
+    {
+        $suffix = '（复制）';
+        $candidate = $title . $suffix;
+
+        if (Str::length($candidate) <= $maxLength) {
+            return $candidate;
+        }
+
+        $keepLength = max($maxLength - Str::length($suffix), 0);
+
+        return Str::substr($title, 0, $keepLength) . $suffix;
     }
 }

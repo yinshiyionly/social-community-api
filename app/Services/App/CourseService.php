@@ -626,8 +626,9 @@ class CourseService
      *
      * 查询规则：
      * 1. 仅取启用且未删除的直播间；
-     * 2. 仅取 live_status=直播中；
-     * 3. watchCount 取 app_live_room_stat.total_viewer_count。
+     * 2. 固定限制 is_show_index=1，确保课程页与直播首页展示口径一致；
+     * 3. 仅取 live_status=直播中；
+     * 4. watchCount 取 app_live_room_stat.total_viewer_count。
      *
      * @param int $limit
      * @return array<int, array<string, mixed>>
@@ -638,6 +639,7 @@ class CourseService
             ->leftJoin('app_live_room_stat as rs', 'rs.room_id', '=', 'r.room_id')
             ->whereNull('r.deleted_at')
             ->where('r.status', AppLiveRoom::STATUS_ENABLED)
+            ->where('r.is_show_index', AppLiveRoom::IS_SHOW_INDEX_YES)
             ->where('r.live_status', AppLiveRoom::LIVE_STATUS_LIVING)
             ->select([
                 'r.room_id',
@@ -673,8 +675,9 @@ class CourseService
      *
      * 查询规则：
      * 1. 仅取启用且未删除的直播间；
-     * 2. 仅取 live_status=未开始；
-     * 3. 登录态下关联预约表输出 isReserved，游客固定 false。
+     * 2. 固定限制 is_show_index=1，确保课程页与直播首页展示口径一致；
+     * 3. 仅取 live_status=未开始；
+     * 4. 登录态下关联预约表输出 isReserved，游客固定 false。
      *
      * @param int $limit
      * @param int $memberId
@@ -686,6 +689,7 @@ class CourseService
             ->leftJoin('app_live_room_stat as rs', 'rs.room_id', '=', 'r.room_id')
             ->whereNull('r.deleted_at')
             ->where('r.status', AppLiveRoom::STATUS_ENABLED)
+            ->where('r.is_show_index', AppLiveRoom::IS_SHOW_INDEX_YES)
             ->where('r.live_status', AppLiveRoom::LIVE_STATUS_NOT_STARTED);
 
         $selectFields = [
@@ -738,8 +742,9 @@ class CourseService
      *
      * 过滤规则：
      * 1. 仅取转码成功 + 未屏蔽 + player_token 可用的回放；
-     * 2. 同一 third_party_room_id 仅保留最新一条回放；
-     * 3. 返回 id 使用 third_party_room_id（字符串）。
+     * 2. 仅关联 is_show_index=1 的直播间，避免回放绕过首页展示开关；
+     * 3. 同一 third_party_room_id 仅保留最新一条回放；
+     * 4. 返回 id 使用 third_party_room_id（字符串）。
      *
      * @param int $limit
      * @return array<int, array<string, mixed>>
@@ -750,7 +755,8 @@ class CourseService
             ->join('app_live_room as r', function ($join) {
                 $join->on('r.third_party_room_id', '=', 'p.third_party_room_id')
                     ->whereNull('r.deleted_at')
-                    ->where('r.status', '=', AppLiveRoom::STATUS_ENABLED);
+                    ->where('r.status', '=', AppLiveRoom::STATUS_ENABLED)
+                    ->where('r.is_show_index', '=', AppLiveRoom::IS_SHOW_INDEX_YES);
             })
             ->whereNull('p.deleted_at')
             ->where('p.status', AppLivePlayback::STATUS_TRANSCODE_SUCCESS)

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Admin\VideoCourseSheetChapterResource;
 use App\Http\Requests\Admin\VideoChapterCopyRequest;
 use App\Http\Requests\Admin\VideoChapterStoreRequest;
 use App\Http\Requests\Admin\VideoChapterUpdateRequest;
@@ -39,9 +40,9 @@ class VideoChapterController extends Controller
     public function constants()
     {
         $data = [
-            'isFreeOptions' => AppCourseChapter::getIsFreeOptions(),
+            'isFreeOptions'     => AppCourseChapter::getIsFreeOptions(),
             'unlockTypeOptions' => AppCourseChapter::getUnlockTypeOptions(),
-            'statusOptions' => AppCourseChapter::getStatusOptions(),
+            'statusOptions'     => AppCourseChapter::getStatusOptions(),
         ];
 
         return ApiResponse::success(['data' => $data], '查询成功');
@@ -57,12 +58,20 @@ class VideoChapterController extends Controller
     }
 
     /**
-     * 章节列表（全部，用于排序）
+     * 章节列表（全部，用于排序与录播课课程表）。
+     *
+     * 返回约定：
+     * 1. 保留章节列表基础字段，兼容既有排序场景；
+     * 2. 额外补充视频元数据（标题、封面、宽高），供录播课课程表直接渲染；
+     * 3. 课程表接口与章节 all 接口共用本方法，避免重复维护。
+     *
+     * @param int $courseId 课程ID
+     * @return \Illuminate\Http\JsonResponse
      */
     public function all(int $courseId)
     {
         $chapters = $this->videoChapterService->getAll($courseId);
-        return ApiResponse::collection($chapters, VideoChapterListResource::class);
+        return ApiResponse::collection($chapters, VideoCourseSheetChapterResource::class);
     }
 
 
@@ -139,16 +148,16 @@ class VideoChapterController extends Controller
             return ApiResponse::success([
                 'data' => [
                     'chapterId' => $chapter->chapter_id,
-                    'courseId' => $chapter->course_id,
+                    'courseId'  => $chapter->course_id,
                 ],
             ], '复制成功');
         } catch (\InvalidArgumentException $e) {
             return ApiResponse::error($e->getMessage());
         } catch (\Exception $e) {
             Log::error('复制录播章节失败', [
-                'action' => 'copy',
+                'action'     => 'copy',
                 'chapter_id' => $request->input('chapterId'),
-                'error' => $e->getMessage(),
+                'error'      => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');
         }

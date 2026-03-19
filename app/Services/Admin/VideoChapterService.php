@@ -57,15 +57,20 @@ class VideoChapterService
     }
 
     /**
-     * 获取录播章节全部列表（用于排序）。
+     * 获取录播章节全部列表（用于排序与录播课课程表）。
+     *
+     * 关键规则：
+     * 1. 章节基础字段与分页列表保持一致，避免排序页出现字段差异；
+     * 2. 额外聚合视频标题/封面/宽高，优先系统视频表，缺失时回退章节内容表；
+     * 3. 仅收集纯数字 video_id，避免字符串异常值参与 bigint 查询导致兼容问题。
      *
      * @param int $courseId 课程ID
      * @return Collection<int, AppCourseChapter>
      */
     public function getAll(int $courseId): Collection
     {
-        return AppCourseChapter::query()
-            ->with('videoContent:id,chapter_id,video_id')
+        $chapters = AppCourseChapter::query()
+            ->with('videoContent:id,chapter_id,video_id,video_url,duration,cover_image,width,height')
             ->select([
                 'chapter_id',
                 'course_id',
@@ -86,6 +91,61 @@ class VideoChapterService
             ->orderBy('sort_order', 'asc')
             ->orderBy('chapter_id', 'asc')
             ->get();
+
+        $videoIds = [];
+        foreach ($chapters as $chapter) {
+            $videoId = $chapter->videoContent ? (string)$chapter->videoContent->video_id : '';
+
+            // 仅保留纯数字 video_id，避免异常值参与 whereIn bigint 导致 SQL 报错。
+            if ($videoId !== '' && preg_match('/^\d+$/', $videoId) === 1) {
+                $videoIds[] = (int)$videoId;
+            }
+        }
+
+        $videoMetaMap = collect();
+        if (!empty($videoIds)) {
+            $videoMetaMap = AppVideoSystem::query()
+                ->select(['video_id', 'name', 'preface_url', 'width', 'height'])
+                ->whereIn('video_id', array_values(array_unique($videoIds)))
+                ->get()
+                ->keyBy('video_id');
+        }
+
+        foreach ($chapters as $chapter) {
+            $videoContent = $chapter->videoContent;
+            $videoId = $videoContent ? (string)$videoContent->video_id : '';
+
+            $videoMeta = null;
+            if ($videoId !== '' && preg_match('/^\d+$/', $videoId) === 1) {
+                $videoMeta = $videoMetaMap->get((int)$videoId);
+            }
+
+            $videoTitle = $videoMeta ? trim((string)$videoMeta->name) : '';
+            $chapter->setAttribute('video_title', $videoTitle !== '' ? $videoTitle : null);
+
+            // 封面优先系统视频 preface_url，缺失时回退章节视频内容封面。
+            $chapter->setAttribute(
+                'video_cover_image',
+                $videoMeta && !empty($videoMeta->preface_url)
+                    ? $videoMeta->preface_url
+                    : ($videoContent ? $videoContent->cover_image : null)
+            );
+
+            // 宽高优先系统视频元数据，缺失时回退章节内容；都缺失时返回 0。
+            $videoMetaWidth = $videoMeta ? (int)$videoMeta->width : 0;
+            $videoMetaHeight = $videoMeta ? (int)$videoMeta->height : 0;
+
+            $chapter->setAttribute(
+                'video_width',
+                $videoMetaWidth > 0 ? $videoMetaWidth : (int)($videoContent->width ?? 0)
+            );
+            $chapter->setAttribute(
+                'video_height',
+                $videoMetaHeight > 0 ? $videoMetaHeight : (int)($videoContent->height ?? 0)
+            );
+        }
+
+        return $chapters;
     }
 
     /**
@@ -139,20 +199,20 @@ class VideoChapterService
             $maxChapterNo = AppCourseChapter::query()->byCourse($courseId)->max('chapter_no');
 
             $chapter = AppCourseChapter::query()->create([
-                'course_id' => $courseId,
-                'chapter_no' => ($maxChapterNo ?? 0) + 1,
-                'chapter_title' => $data['chapterTitle'],
-                'chapter_subtitle' => $data['chapterSubtitle'],
-                'cover_image' => $data['coverImage'],
-                'is_free' => (int)$data['isFree'],
-                'unlock_type' => (int)$data['unlockType'],
-                'unlock_days' => $this->resolveUnlockDays($data),
-                'unlock_date' => $this->resolveUnlockDate($data),
+                'course_id'          => $courseId,
+                'chapter_no'         => ($maxChapterNo ?? 0) + 1,
+                'chapter_title'      => $data['chapterTitle'],
+                'chapter_subtitle'   => $data['chapterSubtitle'],
+                'cover_image'        => $data['coverImage'],
+                'is_free'            => (int)$data['isFree'],
+                'unlock_type'        => (int)$data['unlockType'],
+                'unlock_days'        => $this->resolveUnlockDays($data),
+                'unlock_date'        => $this->resolveUnlockDate($data),
                 'chapter_start_time' => $data['chapterStartTime'],
-                'chapter_end_time' => $data['chapterEndTime'],
-                'duration' => (int)$video->length,
-                'status' => (int)$data['status'],
-                'sort_order' => ($maxSortOrder ?? 0) + 1,
+                'chapter_end_time'   => $data['chapterEndTime'],
+                'duration'           => (int)$video->length,
+                'status'             => (int)$data['status'],
+                'sort_order'         => ($maxSortOrder ?? 0) + 1,
             ]);
 
             $this->syncVideoContent($chapter->chapter_id, $video);
@@ -185,17 +245,17 @@ class VideoChapterService
                 ->firstOrFail();
 
             $chapter->update([
-                'chapter_title' => $data['chapterTitle'],
-                'chapter_subtitle' => $data['chapterSubtitle'],
-                'cover_image' => $data['coverImage'],
-                'is_free' => (int)$data['isFree'],
-                'unlock_type' => (int)$data['unlockType'],
-                'unlock_days' => $this->resolveUnlockDays($data),
-                'unlock_date' => $this->resolveUnlockDate($data),
+                'chapter_title'      => $data['chapterTitle'],
+                'chapter_subtitle'   => $data['chapterSubtitle'],
+                'cover_image'        => $data['coverImage'],
+                'is_free'            => (int)$data['isFree'],
+                'unlock_type'        => (int)$data['unlockType'],
+                'unlock_days'        => $this->resolveUnlockDays($data),
+                'unlock_date'        => $this->resolveUnlockDate($data),
                 'chapter_start_time' => $data['chapterStartTime'],
-                'chapter_end_time' => $data['chapterEndTime'],
-                'duration' => (int)$video->length,
-                'status' => (int)$data['status'],
+                'chapter_end_time'   => $data['chapterEndTime'],
+                'duration'           => (int)$video->length,
+                'status'             => (int)$data['status'],
             ]);
 
             $this->syncVideoContent($chapter->chapter_id, $video);
@@ -316,14 +376,16 @@ class VideoChapterService
     private function syncVideoContent(int $chapterId, AppVideoSystem $video): void
     {
         $payload = [
-            'video_url' => $video->getRawOriginal('play_url') ?: $video->play_url,
-            'video_id' => (string)$video->video_id,
-            'video_source' => AppChapterContentVideo::SOURCE_LOCAL,
-            'duration' => (int)$video->length,
-            'width' => (int)$video->width,
-            'height' => (int)$video->height,
-            'file_size' => (int)$video->total_size,
-            'cover_image' => $video->getRawOriginal('preface_url') ?: $video->preface_url,
+            //    'video_url'    => $video->getRawOriginal('play_url') ?: $video->play_url,
+            'video_url'    => $video->play_url,
+            'video_id'     => (string)$video->video_id,
+            'video_source' => AppChapterContentVideo::SOURCE_VOLCENGINE,
+            'duration'     => (int)$video->length,
+            'width'        => (int)$video->width,
+            'height'       => (int)$video->height,
+            'file_size'    => (int)$video->total_size,
+            //    'cover_image'  => $video->getRawOriginal('preface_url') ?: $video->preface_url,
+            'cover_image'  => $video->preface_url,
         ];
 
         $content = AppChapterContentVideo::withTrashed()

@@ -214,7 +214,7 @@ class CourseService
      * @param int $courseId
      * @return array<string, mixed>|null
      */
-    public function getLegacyDetailData(int $courseId): ?array
+    public function getLegacyDetailData(int $courseId, int $memberId = 0): ?array
     {
         $course = AppCourseBase::query()
             ->select([
@@ -239,6 +239,9 @@ class CourseService
         // 详情接口访问成功后再累计浏览次数，避免无效 ID 干扰统计。
         AppCourseBase::where('course_id', $courseId)->increment('view_count');
 
+        $isUnlocked = $memberId > 0 && AppMemberCourse::hasCourse($memberId, $courseId);
+
+
         $bannerImages = is_array($course->banner_images) ? $course->banner_images : [];
         $contentImage = $course->item_image ?: ($bannerImages[0] ?? $course->cover_image ?? '');
 
@@ -249,6 +252,7 @@ class CourseService
             'classTeacherQr'   => (string)($course->class_teacher_qr ?? ''),
             'classTeacherName' => (string)($course->class_teacher_name ?? ''),
             'teacherName'      => (string)($course->teacher_name ?? ''),
+            'isOwn'            => $isUnlocked
         ], $this->buildBottomActionData($course, false));
     }
 
@@ -432,26 +436,26 @@ class CourseService
             }
 
             $order = AppCourseOrder::query()->create([
-                'order_no' => AppCourseOrder::generateOrderNo(),
-                'member_id' => $memberId,
-                'course_id' => $courseId,
-                'course_title' => (string)$course->course_title,
-                'course_cover' => (string)($course->cover_image ?? ''),
-                'enroll_phone' => $phone,
+                'order_no'         => AppCourseOrder::generateOrderNo(),
+                'member_id'        => $memberId,
+                'course_id'        => $courseId,
+                'course_title'     => (string)$course->course_title,
+                'course_cover'     => (string)($course->cover_image ?? ''),
+                'enroll_phone'     => $phone,
                 'enroll_age_range' => $ageRange,
                 // 免费领取订单金额字段统一置 0，避免与支付单口径混淆。
-                'original_price' => 0,
-                'current_price' => 0,
-                'discount_amount' => 0,
-                'coupon_amount' => 0,
-                'point_deduct' => 0,
-                'point_amount' => 0,
-                'paid_amount' => 0,
-                'pay_status' => AppCourseOrder::PAY_STATUS_PAID,
-                'pay_type' => AppCourseOrder::PAY_TYPE_FREE,
-                'pay_time' => $enrollTime,
-                'refund_status' => AppCourseOrder::REFUND_STATUS_NONE,
-                'refund_amount' => 0,
+                'original_price'   => 0,
+                'current_price'    => 0,
+                'discount_amount'  => 0,
+                'coupon_amount'    => 0,
+                'point_deduct'     => 0,
+                'point_amount'     => 0,
+                'paid_amount'      => 0,
+                'pay_status'       => AppCourseOrder::PAY_STATUS_PAID,
+                'pay_type'         => AppCourseOrder::PAY_TYPE_FREE,
+                'pay_time'         => $enrollTime,
+                'refund_status'    => AppCourseOrder::REFUND_STATUS_NONE,
+                'refund_amount'    => 0,
             ]);
 
             $memberCourse = AppMemberCourse::query()->create([

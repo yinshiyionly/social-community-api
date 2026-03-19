@@ -131,9 +131,11 @@ class CourseController extends Controller
     public function detailLegacy(CourseDetailRequest $request)
     {
         $courseId = $request->getCourseId();
+        $memberId = (int)$request->attributes->get('member_id', 0);
+
 
         try {
-            $data = $this->courseService->getLegacyDetailData($courseId);
+            $data = $this->courseService->getLegacyDetailData($courseId, $memberId);
             if (is_null($data)) {
                 return AppApiResponse::dataNotFound('课程不存在');
             }
@@ -142,6 +144,7 @@ class CourseController extends Controller
         } catch (\Exception $e) {
             Log::error('获取无章节课程详情失败', [
                 'course_id' => $courseId,
+                'member_id' => $memberId,
                 'error' => $e->getMessage(),
             ]);
 

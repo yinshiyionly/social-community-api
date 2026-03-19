@@ -73,5 +73,7 @@ Route::prefix('v1/post')->group(function () {
         Route::post('like', [PostController::class, 'like']);
         // 取消点赞
         Route::post('unlike', [PostController::class, 'unlike']);
+        // 分享帖子（点击分享按钮即计一次）
+        Route::post('share', [PostController::class, 'share']);
     });
 });

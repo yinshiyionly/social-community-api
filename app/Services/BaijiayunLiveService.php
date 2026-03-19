@@ -244,6 +244,22 @@ class BaijiayunLiveService
     }
 
     /**
+     * 获取直播教室当前上课状态
+     * @see https://dev.baijiayun.com/wiki/detail/79#-h6-21
+     *
+     * @param $roomId
+     * @return array
+     */
+    public function liveGetLiveStatus($roomId): array
+    {
+        $params = [
+            'room_id' => $roomId
+        ];
+
+        return $this->sendRequest('openapi/live/getLiveStatus', $params);
+    }
+
+    /**
      * 点播-视频库相关
      */
 

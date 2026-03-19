@@ -30,6 +30,11 @@ class SuXueDaoController extends Controller
 
         // 3. 判断用户是否存在
         if (empty($memberInfo) || empty($memberInfo['phone'])) {
+            return AppApiResponse::success([
+                'data' => [
+                    'aiToken' => ''
+                ]
+            ]);
             return AppApiResponse::error('用户不存在');
         }
         try {
@@ -41,6 +46,11 @@ class SuXueDaoController extends Controller
 
             // 5. 判断用户是否两端存在
             if (empty($v5UserInfo) || empty($v5UserInfo['id'])) {
+                return AppApiResponse::success([
+                    'data' => [
+                        'aiToken' => ''
+                    ]
+                ]);
                 return AppApiResponse::error('用户未注册AI工具站或未打通用户数据');
             }
 
@@ -51,8 +61,7 @@ class SuXueDaoController extends Controller
             // 3. 返回 Authorization
             return AppApiResponse::success([
                 'data' => [
-                    'authorization' => $authorization ?? null,
-                    'mobile'        => $memberInfo['phone'] ?? null
+                    'aiToken' => $authorization ?? ''
                 ]
             ]);
         } catch (\Exception $e) {

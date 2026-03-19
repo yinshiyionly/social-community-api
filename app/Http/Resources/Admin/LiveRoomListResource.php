@@ -9,6 +9,17 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class LiveRoomListResource extends JsonResource
 {
+    /**
+     * 输出直播间列表项。
+     *
+     * 字段约定：
+     * - 返回字段统一使用 camelCase；
+     * - isShowIndex 直接反映直播间首页展示开关，便于列表页快速确认；
+     * - 时间字段统一格式化为 Y-m-d H:i:s。
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return array<string, mixed>
+     */
     public function toArray($request)
     {
         // $stat = $this->relationLoaded('stat') ? $this->stat : null;
@@ -23,6 +34,7 @@ class LiveRoomListResource extends JsonResource
             'adminCode'          => $this->admin_code ?? null,
             'teacherCode'        => $this->teacher_code ?? null,
             'studentCode'        => $this->student_code ?? null,
+            'isShowIndex'        => (int)$this->is_show_index,
             'scheduledStartTime' => $this->scheduled_start_time ? $this->scheduled_start_time->format('Y-m-d H:i:s') : null,
             'scheduledEndTime'   => $this->scheduled_end_time ? $this->scheduled_end_time->format('Y-m-d H:i:s') : null,
             'enableLiveSell'     => $this->enable_live_sell ?? null,

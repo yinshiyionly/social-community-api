@@ -16,6 +16,7 @@ class LiveRoomResource extends JsonResource
      * 字段约定：
      * - 返回字段统一使用 camelCase；
      * - 伪直播扩展字段仅在 liveType=2 时返回真实值，其他类型固定返回 null，避免前端误用脏数据；
+     * - isShowIndex 与后台配置保持一致，用于编辑页回显首页展示开关；
      * - 时间字段统一格式化为 Y-m-d H:i:s。
      *
      * @param \Illuminate\Http\Request $request
@@ -33,6 +34,7 @@ class LiveRoomResource extends JsonResource
             'liveType'           => $this->live_type,
             'thirdPartyRoomId'   => $this->third_party_room_id,
             'anchorName'         => $this->anchor_name,
+            'isShowIndex'        => (int)$this->is_show_index,
             'scheduledStartTime' => $this->scheduled_start_time ? $this->scheduled_start_time->format('Y-m-d H:i:s') : null,
             'scheduledEndTime'   => $this->scheduled_end_time ? $this->scheduled_end_time->format('Y-m-d H:i:s') : null,
             'enableLiveSell'     => $this->enable_live_sell ?? null,

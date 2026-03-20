@@ -57,7 +57,7 @@ class AdItemService
             $query->where('created_at', '<=', $filters['endTime']);
         }
 
-        $query->orderByDesc('sort_num')->orderByDesc('ad_id');
+        $query->orderBy('sort_num')->orderByDesc('ad_id');
 
         return $query->paginate($pageSize, ['*'], 'pageNum', $pageNum);
     }

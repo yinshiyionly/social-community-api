@@ -44,10 +44,6 @@ class RouteServiceProvider extends ServiceProvider
             Route::prefix('policy')
                 ->middleware('web')
                 ->group(base_path('routes/policy.php'));
-
-            // 文件上传模块路由
-//            Route::prefix('api')
-//                ->group(base_path('routes/file.php'));
         });
     }
 }

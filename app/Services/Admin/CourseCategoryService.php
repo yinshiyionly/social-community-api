@@ -39,7 +39,7 @@ class CourseCategoryService
         }
 
         // 排序
-        $query->orderByDesc('sort_order')->orderByDesc('category_id');
+        $query->orderBy('sort_order')->orderByDesc('category_id');
 
         return $query->paginate($pageSize, ['*'], 'pageNum', $pageNum);
     }

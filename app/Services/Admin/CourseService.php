@@ -81,7 +81,7 @@ class CourseService
         }
 
         // 排序
-        $query->orderByDesc('course_id');
+        $query->orderBy('sort_order')->orderByDesc('course_id');
 
         return $query->paginate($pageSize, ['*'], 'pageNum', $pageNum);
     }

@@ -10,7 +10,9 @@ use App\Http\Resources\App\LiveHomeResource;
 use App\Models\App\AppLiveRoom;
 use App\Models\App\AppLiveRoomReserve;
 use App\Models\App\AppLiveRoomStat;
+use App\Models\App\AppMemberSchedule;
 use App\Services\App\LiveHomeService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -237,6 +239,9 @@ class LiveCourseController extends Controller
             $stat->save();
         }
 
+        // 预约成功后确保直播写入用户课表，重复预约走幂等更新不重复插入。
+        $this->upsertLiveSchedule($memberId, $room);
+
         return (int)$stat->reserve_count;
     }
 
@@ -274,6 +279,7 @@ class LiveCourseController extends Controller
 
         $reserve->status = AppLiveRoomReserve::STATUS_CANCELLED;
         $reserve->save();
+        // 约定：取消预约不移除 app_member_schedule 直播课表，仅取消预约态。
 
         if ((int)$stat->reserve_count > 0) {
             $stat->reserve_count = (int)$stat->reserve_count - 1;
@@ -296,7 +302,7 @@ class LiveCourseController extends Controller
     protected function lockReservableRoom(int $roomId): ?AppLiveRoom
     {
         return AppLiveRoom::query()
-            ->select(['room_id', 'status'])
+            ->select(['room_id', 'status', 'scheduled_start_time'])
             ->where('room_id', $roomId)
             ->where('status', AppLiveRoom::STATUS_ENABLED)
             ->whereNull('deleted_at')
@@ -338,6 +344,48 @@ class LiveCourseController extends Controller
         }
 
         return $stat;
+    }
+
+    /**
+     * 幂等写入直播课表。
+     *
+     * 规则：
+     * 1. 业务类型固定为直播课表（biz_type=2）；
+     * 2. schedule_date/schedule_time 优先使用直播计划开播时间；
+     * 3. 计划时间缺失时回退预约当下时间，保证学习页可展示。
+     *
+     * @param int $memberId
+     * @param AppLiveRoom $room
+     * @return void
+     */
+    protected function upsertLiveSchedule(int $memberId, AppLiveRoom $room): void
+    {
+        $now = Carbon::now('Asia/Shanghai');
+
+        // 开播时间缺失时使用预约当下时间兜底，避免 today-tasks/sections 无法定位日期。
+        $scheduleAt = $room->scheduled_start_time
+            ? Carbon::make($room->scheduled_start_time)->timezone('Asia/Shanghai')
+            : $now->copy();
+
+        $scheduleDate = $scheduleAt->format('Y-m-d');
+        $isUnlocked = $scheduleDate <= $now->format('Y-m-d') ? 1 : 0;
+
+        AppMemberSchedule::query()->updateOrCreate(
+            [
+                'member_id' => $memberId,
+                'biz_type' => AppMemberSchedule::BIZ_TYPE_LIVE,
+                'room_id' => (int)$room->room_id,
+            ],
+            [
+                'course_id' => null,
+                'chapter_id' => null,
+                'member_course_id' => null,
+                'schedule_date' => $scheduleDate,
+                'schedule_time' => $scheduleAt->format('H:i:s'),
+                'is_unlocked' => $isUnlocked,
+                'unlock_time' => $isUnlocked ? $now->toDateTimeString() : null,
+            ]
+        );
     }
 
 }

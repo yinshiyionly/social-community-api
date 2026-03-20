@@ -57,6 +57,7 @@ class LearningCenterService
 
                     AppMemberSchedule::create([
                         'member_id'        => $memberId,
+                        'biz_type'         => AppMemberSchedule::BIZ_TYPE_CHAPTER,
                         'course_id'        => $courseId,
                         'chapter_id'       => $chapter->chapter_id,
                         'member_course_id' => $memberCourseId,
@@ -120,7 +121,9 @@ class LearningCenterService
      */
     public function getDailySchedule(int $memberId, string $date): Collection
     {
+        // 课表Tab（日视图）当前仅展示章节排课，避免直播预约课表混入旧页面。
         $schedules = AppMemberSchedule::byMember($memberId)
+            ->chapterBiz()
             ->byDate($date)
             ->select([
                 'id',
@@ -152,7 +155,9 @@ class LearningCenterService
      */
     public function getWeekOverview(int $memberId, string $startDate, string $endDate): array
     {
+        // 周概览红点沿用章节课表口径，直播预约仅在课程Tab的 today-tasks/sections 展示。
         $counts = AppMemberSchedule::byMember($memberId)
+            ->chapterBiz()
             ->whereBetween('schedule_date', [$startDate, $endDate])
             ->selectRaw("to_char(schedule_date, 'YYYY-MM-DD') as date, COUNT(*) as count")
             ->groupBy('schedule_date')
@@ -186,7 +191,9 @@ class LearningCenterService
     public function getScheduleRange(int $memberId, string $startDate, string $endDate): array
     {
         // 查询区间内的课表记录，预加载章节、课程、作业
+        // 区间课表接口保持章节维度，防止已上线前端出现直播空卡片。
         $schedules = AppMemberSchedule::byMember($memberId)
+            ->chapterBiz()
             ->whereBetween('schedule_date', [$startDate, $endDate])
             ->select([
                 'id',

@@ -6,6 +6,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * 用户课表模型。
+ *
+ * 职责：
+ * 1. 统一承载章节课表与直播预约课表；
+ * 2. 通过 biz_type 区分不同业务来源，避免同表语义混淆；
+ * 3. 提供按用户、日期、业务类型的基础查询作用域。
+ */
 class AppMemberSchedule extends Model
 {
     use HasFactory, SoftDeletes;
@@ -13,8 +21,14 @@ class AppMemberSchedule extends Model
     protected $table = 'app_member_schedule';
     protected $primaryKey = 'id';
 
+    // 课表业务类型
+    const BIZ_TYPE_CHAPTER = 1; // 章节排课
+    const BIZ_TYPE_LIVE = 2; // 直播预约
+
     protected $fillable = [
         'member_id',
+        'biz_type',
+        'room_id',
         'course_id',
         'chapter_id',
         'member_course_id',
@@ -30,6 +44,8 @@ class AppMemberSchedule extends Model
     protected $casts = [
         'id' => 'integer',
         'member_id' => 'integer',
+        'biz_type' => 'integer',
+        'room_id' => 'integer',
         'course_id' => 'integer',
         'chapter_id' => 'integer',
         'member_course_id' => 'integer',
@@ -76,6 +92,14 @@ class AppMemberSchedule extends Model
     }
 
     /**
+     * 关联直播间（仅 biz_type=2 场景）。
+     */
+    public function liveRoom()
+    {
+        return $this->belongsTo(AppLiveRoom::class, 'room_id', 'room_id');
+    }
+
+    /**
      * 查询作用域：按用户
      */
     public function scopeByMember($query, int $memberId)
@@ -89,6 +113,22 @@ class AppMemberSchedule extends Model
     public function scopeByDate($query, string $date)
     {
         return $query->where('schedule_date', $date);
+    }
+
+    /**
+     * 查询作用域：章节课表
+     */
+    public function scopeChapterBiz($query)
+    {
+        return $query->where('biz_type', self::BIZ_TYPE_CHAPTER);
+    }
+
+    /**
+     * 查询作用域：直播课表
+     */
+    public function scopeLiveBiz($query)
+    {
+        return $query->where('biz_type', self::BIZ_TYPE_LIVE);
     }
 
     /**
@@ -145,6 +185,10 @@ class AppMemberSchedule extends Model
             return false;
         }
 
+        if (!$this->schedule_date) {
+            return false;
+        }
+
         $today = date('Y-m-d');
         $scheduleDate = $this->schedule_date->format('Y-m-d');
 
@@ -169,6 +213,7 @@ class AppMemberSchedule extends Model
 
             self::create([
                 'member_id' => $memberId,
+                'biz_type' => self::BIZ_TYPE_CHAPTER,
                 'course_id' => $courseId,
                 'chapter_id' => $chapter->chapter_id,
                 'member_course_id' => $memberCourseId,

@@ -40,7 +40,7 @@ class CourseService
                 ->select(['category_id', 'category_name', 'icon'])
                 ->enabled()
                 ->topLevel()
-                ->orderByDesc('sort_order')
+                ->orderBy('sort_order')
                 ->limit($limit)
                 ->get();
         }
@@ -48,7 +48,7 @@ class CourseService
             ->select(['category_id', 'category_name', 'icon'])
             ->enabled()
             ->topLevel()
-            ->orderByDesc('sort_order')
+            ->orderBy('sort_order')
             ->get();
     }
 
@@ -78,7 +78,7 @@ class CourseService
             ])
             ->online()
             ->where('category_id', $categoryId)
-            ->orderByDesc('sort_order')
+            ->orderBy('sort_order')
             ->get();
 
         // 按付费类型分组
@@ -316,8 +316,8 @@ class CourseService
             ->online()
             ->where('course_id', $courseId)
             ->orderBy('sort_order')
-            ->orderBy('chapter_no')
-            ->orderBy('chapter_id')
+            // ->orderBy('chapter_no')
+            ->orderByDesc('chapter_id')
             ->get();
 
         $isUnlocked = $memberId > 0 && AppMemberCourse::hasCourse($memberId, $courseId);
@@ -572,7 +572,7 @@ class CourseService
             ->online()
             ->where('is_new', 1)
             ->orderByDesc('publish_time')
-            ->orderByDesc('sort_order')
+            ->orderBy('sort_order')
             ->limit($limit)
             ->get();
     }
@@ -596,7 +596,7 @@ class CourseService
             ])
             ->online()
             ->where('is_recommend', 1)
-            ->orderByDesc('sort_order')
+            ->orderBy('sort_order')
             ->orderByDesc('enroll_count')
             ->limit($limit)
             ->get();

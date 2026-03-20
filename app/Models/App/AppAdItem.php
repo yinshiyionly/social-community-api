@@ -99,7 +99,7 @@ class AppAdItem extends Model
      */
     public function scopeOrderByPriority($query)
     {
-        return $query->orderByDesc('sort_num');
+        return $query->orderBy('sort_num');
     }
 
     /**

@@ -37,9 +37,9 @@ class TaskService
 
         return [
             'scoreBalance' => $account->available_points,
-            'tabs' => $tabs,
-            'currentTab' => $tab,
-            'list' => $list,
+            'tabs'         => $tabs,
+            'currentTab'   => $tab,
+            'list'         => $list,
         ];
     }
 
@@ -69,20 +69,20 @@ class TaskService
         $list = [];
         foreach ($paginator->items() as $log) {
             $list[] = [
-                'id' => $log->log_id,
-                'title' => $log->title,
-                'time' => $log->created_at ? $log->created_at->format('Y.m.d H:i:s') : '',
+                'id'          => $log->log_id,
+                'title'       => $log->title,
+                'time'        => $log->created_at ? $log->created_at->format('Y.m.d H:i:s') : '',
                 'scoreChange' => $log->change_value,
             ];
         }
 
         return [
             'scoreBalance' => $account->available_points,
-            'totalEarned' => (int) $totalEarned,
-            'list' => $list,
-            'total' => $paginator->total(),
-            'page' => $paginator->currentPage(),
-            'pageSize' => $paginator->perPage(),
+            'totalEarned'  => (int)$totalEarned,
+            'list'         => $list,
+            'total'        => $paginator->total(),
+            'page'         => $paginator->currentPage(),
+            'pageSize'     => $paginator->perPage(),
         ];
     }
 
@@ -97,7 +97,7 @@ class TaskService
         $tasks = AppPointTask::enabled()
             ->active()
             ->byType(AppPointTask::TYPE_GROWTH)
-            ->select(['task_id', 'task_code', 'task_name', 'point_value', 'sort_order'])
+            ->select(['task_id', 'task_code', 'task_name', 'point_value', 'jump_url', 'sort_order'])
             ->orderBy('sort_order')
             ->get();
 
@@ -116,12 +116,13 @@ class TaskService
             $isDone = $memberTask && $memberTask->is_completed;
 
             $list[] = [
-                'id' => $task->task_id,
-                'title' => $task->task_name,
+                'id'          => $task->task_id,
+                'title'       => $task->task_name,
                 'rewardScore' => $task->point_value,
-                'status' => $isDone ? 'done' : 'todo',
-                'actionText' => $isDone ? '已完成' : '去完成',
-                'sortNo' => $task->sort_order,
+                'status'      => $isDone ? 'done' : 'todo',
+                'actionText'  => $isDone ? '已完成' : '去完成',
+                'sortNo'      => $task->sort_order,
+                'pageUrl'     => $task->jump_url ?? null
             ];
         }
 
@@ -139,7 +140,7 @@ class TaskService
         $tasks = AppPointTask::enabled()
             ->active()
             ->byType(AppPointTask::TYPE_DAILY)
-            ->select(['task_id', 'task_code', 'task_name', 'point_value', 'daily_limit', 'icon', 'sort_order'])
+            ->select(['task_id', 'task_code', 'task_name', 'point_value', 'daily_limit', 'icon', 'jump_url', 'sort_order'])
             ->orderBy('sort_order')
             ->get();
 
@@ -159,16 +160,17 @@ class TaskService
 
         $list = [];
         foreach ($tasks as $task) {
-            $completedCount = (int) ($todayCounts->get($task->task_code, 0));
+            $completedCount = (int)($todayCounts->get($task->task_code, 0));
             $isDone = $task->daily_limit > 0 && $completedCount >= $task->daily_limit;
 
             $list[] = [
-                'id' => $task->task_id,
-                'title' => $task->task_name,
+                'id'          => $task->task_id,
+                'title'       => $task->task_name,
                 'rewardScore' => $task->point_value,
-                'status' => $isDone ? 'done' : 'todo',
-                'actionText' => $isDone ? '已完成' : '去完成',
-                'avatar' => $task->icon,
+                'status'      => $isDone ? 'done' : 'todo',
+                'actionText'  => $isDone ? '已完成' : '去完成',
+                'avatar'      => $task->icon,
+                'pageUrl'     => $task->jump_url ?? null
             ];
         }
 
@@ -215,14 +217,14 @@ class TaskService
         foreach ($tasks as $task) {
             $memberTask = $memberTasks->get($task->task_code);
             $list[] = [
-                'taskId' => $task->task_id,
-                'taskCode' => $task->task_code,
-                'taskName' => $task->task_name,
-                'pointValue' => $task->point_value,
-                'icon' => $task->icon,
-                'description' => $task->description,
-                'jumpUrl' => $task->jump_url,
-                'isCompleted' => $memberTask ? $memberTask->is_completed : 0,
+                'taskId'       => $task->task_id,
+                'taskCode'     => $task->task_code,
+                'taskName'     => $task->task_name,
+                'pointValue'   => $task->point_value,
+                'icon'         => $task->icon,
+                'description'  => $task->description,
+                'jumpUrl'      => $task->jump_url,
+                'isCompleted'  => $memberTask ? $memberTask->is_completed : 0,
                 'completeTime' => $memberTask && $memberTask->complete_time
                     ? $memberTask->complete_time->format('Y-m-d H:i:s')
                     : null,
@@ -276,22 +278,22 @@ class TaskService
         // 组装数据
         $list = [];
         foreach ($tasks as $task) {
-            $completedCount = (int) ($todayCounts->get($task->task_code, 0));
+            $completedCount = (int)($todayCounts->get($task->task_code, 0));
             $dailyLimit = $task->daily_limit;
             // 达到每日上限则为已完成
             $isCompleted = $dailyLimit > 0 && $completedCount >= $dailyLimit;
 
             $list[] = [
-                'taskId' => $task->task_id,
-                'taskCode' => $task->task_code,
-                'taskName' => $task->task_name,
-                'pointValue' => $task->point_value,
-                'dailyLimit' => $dailyLimit,
+                'taskId'         => $task->task_id,
+                'taskCode'       => $task->task_code,
+                'taskName'       => $task->task_name,
+                'pointValue'     => $task->point_value,
+                'dailyLimit'     => $dailyLimit,
                 'completedCount' => $completedCount,
-                'isCompleted' => $isCompleted ? 1 : 0,
-                'icon' => $task->icon,
-                'description' => $task->description,
-                'jumpUrl' => $task->jump_url,
+                'isCompleted'    => $isCompleted ? 1 : 0,
+                'icon'           => $task->icon,
+                'description'    => $task->description,
+                'jumpUrl'        => $task->jump_url,
             ];
         }
 

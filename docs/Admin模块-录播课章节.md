@@ -21,6 +21,9 @@ Content-Type: application/json
 Accept: application/json
 Authorization: Bearer {token}
 ```
+- 只有录播课程（播放类型，playType=2）的课程才需要调用这些接口
+- 直播课程的章节接口还在开发中
+- 新增/更新录播章节所需要的videoId字段数据来自系统视频库列表接口（/api/admin/video/system/list）
 
 ### 2.1 通用响应示例
 

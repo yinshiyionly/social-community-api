@@ -195,12 +195,12 @@ class VideoChapterService
             $courseId = (int)$data['courseId'];
             $video = $this->getSystemVideo((int)$data['videoId']);
 
-            $maxSortOrder = AppCourseChapter::query()->byCourse($courseId)->max('sort_order');
-            $maxChapterNo = AppCourseChapter::query()->byCourse($courseId)->max('chapter_no');
+            // $maxSortOrder = AppCourseChapter::query()->byCourse($courseId)->max('sort_order');
+            // $maxChapterNo = AppCourseChapter::query()->byCourse($courseId)->max('chapter_no');
 
             $chapter = AppCourseChapter::query()->create([
                 'course_id'          => $courseId,
-                'chapter_no'         => ($maxChapterNo ?? 0) + 1,
+                'chapter_no'         => 0,
                 'chapter_title'      => $data['chapterTitle'],
                 'chapter_subtitle'   => $data['chapterSubtitle'],
                 'cover_image'        => $data['coverImage'],
@@ -212,7 +212,7 @@ class VideoChapterService
                 'chapter_end_time'   => $data['chapterEndTime'],
                 'duration'           => (int)$video->length,
                 'status'             => (int)$data['status'],
-                'sort_order'         => ($maxSortOrder ?? 0) + 1,
+                'sort_order'         => 0
             ]);
 
             $this->syncVideoContent($chapter->chapter_id, $video);
@@ -298,14 +298,14 @@ class VideoChapterService
             }
 
             $courseId = (int)$sourceChapter->course_id;
-            $maxSortOrder = AppCourseChapter::query()->byCourse($courseId)->max('sort_order');
-            $maxChapterNo = AppCourseChapter::query()->byCourse($courseId)->max('chapter_no');
+            // $maxSortOrder = AppCourseChapter::query()->byCourse($courseId)->max('sort_order');
+            // $maxChapterNo = AppCourseChapter::query()->byCourse($courseId)->max('chapter_no');
 
             $targetChapter = $sourceChapter->replicate();
             $targetChapter->course_id = $courseId;
             // 复制章节统一追加到尾部，避免穿插进中间导致前端展示顺序异常。
-            $targetChapter->chapter_no = ($maxChapterNo ?? 0) + 1;
-            $targetChapter->sort_order = ($maxSortOrder ?? 0) + 1;
+            $targetChapter->chapter_no = 0;
+            $targetChapter->sort_order = 0;
             $targetChapter->chapter_title = $this->appendCopySuffix((string)$sourceChapter->chapter_title, 200);
             $targetChapter->status = AppCourseChapter::STATUS_DRAFT;
             $targetChapter->view_count = 0;

@@ -81,10 +81,9 @@ Route::middleware('system.auth')->group(function () {
         Route::get('/videoCourseSheet/{courseId}', [VideoChapterController::class, 'all'])
             ->where('courseId', '[0-9]+');
 
-        // TODO 先不实现
         // 直播课-课程表
-        /*Route::get('/liveCourseSheet/{courseId}', [LiveChapterController::class, 'all'])
-            ->where('courseId', '[0-9]+');*/
+        Route::get('/liveCourseSheet/{courseId}', [LiveChapterController::class, 'all'])
+            ->where('courseId', '[0-9]+');
     });
 
     // 录播课章节管理
@@ -111,6 +110,8 @@ Route::middleware('system.auth')->group(function () {
 
     // 直播课章节管理
     Route::prefix('/course/live/chapter')->group(function () {
+        // 常量选项（是否免费、解锁类型、状态）
+        Route::get('/constants', [LiveChapterController::class, 'constants']);
         // 章节列表（分页）
         Route::get('/list/{courseId}', [LiveChapterController::class, 'list'])->where('courseId', '[0-9]+');
         // 章节详情
@@ -119,16 +120,14 @@ Route::middleware('system.auth')->group(function () {
         Route::post('/', [LiveChapterController::class, 'store']);
         // 更新章节
         Route::put('/', [LiveChapterController::class, 'update']);
-        // 更改状态
-        Route::put('/changeStatus', [LiveChapterController::class, 'changeStatus']);
         // 同步直播间状态
         Route::put('/syncLiveStatus/{chapterId}', [LiveChapterController::class, 'syncLiveStatus'])->where('chapterId', '[0-9]+');
         // 获取回放列表
         Route::get('/playback/{chapterId}', [LiveChapterController::class, 'playbackList'])->where('chapterId', '[0-9]+');
         // 同步回放信息
         Route::put('/syncPlayback/{chapterId}', [LiveChapterController::class, 'syncPlayback'])->where('chapterId', '[0-9]+');
-        // 删除章节
-        Route::delete('/{chapterIds}', [LiveChapterController::class, 'destroy']);
+        // 删除章节（单个）
+        Route::delete('/{chapterId}', [LiveChapterController::class, 'destroy'])->where('chapterId', '[0-9]+');
     });
 
 });

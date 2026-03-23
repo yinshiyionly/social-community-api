@@ -221,9 +221,9 @@ class BaijiayunVideoController extends Controller
             }
 
             // 已被章节引用的视频禁止删除，避免课程内容出现断链。
-            if ($this->baijiayunVideoService->isVideoUsed($videoId)) {
+            /*if ($this->baijiayunVideoService->isVideoUsed($videoId)) {
                 return ApiResponse::error('视频已被课程章节使用，无法删除');
-            }
+            }*/
 
             $deletedCount = $this->baijiayunVideoService->delete($videoId);
             if ($deletedCount <= 0) {

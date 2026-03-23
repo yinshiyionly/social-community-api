@@ -14,7 +14,7 @@ class MemberProfileResource extends JsonResource
      *
      * 字段约定：
      * 1. `score` 字段名保持兼容历史前端；
-     * 2. `score` 的值来自 `app_member_point.available_points`（由 Service 注入别名 `points`）。
+     * 2. `score` 的值来自 `app_member_base.points`（由积分账户增量同步维护）。
      *
      * @param \Illuminate\Http\Request $request
      * @return array

@@ -14,8 +14,8 @@ class MemberInfoResource extends JsonResource
      *
      * 字段约定：
      * 1. 返回字段保持 camelCase；
-     * 2. `points` 字段值来自 `app_member_point.available_points`（由 Service 注入别名）；
-     * 3. 当积分账户不存在时，`points` 兜底返回 0。
+     * 2. `points` 字段读取 `app_member_base.points`；
+     * 3. `app_member_base.points` 由积分账户 `available_points` 增量同步维护。
      *
      * @param \Illuminate\Http\Request $request
      * @return array

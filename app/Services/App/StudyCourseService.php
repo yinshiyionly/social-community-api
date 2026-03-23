@@ -12,6 +12,7 @@ use App\Models\App\AppMemberHomeworkSubmit;
 use App\Models\App\AppMemberSchedule;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * 学习页（课程Tab）服务。
@@ -19,7 +20,8 @@ use Illuminate\Support\Collection;
  * 职责：
  * 1. 提供学习中心课程筛选、分组与列表查询；
  * 2. 聚合学习中心课程详情（课程头部 + 每日计划 tabs + 当日章节/作业项）；
- * 3. 统一章节进度与作业状态文案，避免控制器重复拼装业务规则。
+ * 3. 提供章节学习上报流转（课表/章节进度/课程汇总）；
+ * 4. 统一章节进度与作业状态文案，避免控制器重复拼装业务规则。
  */
 class StudyCourseService
 {
@@ -102,6 +104,134 @@ class StudyCourseService
     public function checkMemberHasCourse(int $memberId, int $courseId): bool
     {
         return AppMemberCourse::hasCourse($memberId, $courseId);
+    }
+
+    /**
+     * 上报章节学习完成状态。
+     *
+     * 流转规则：
+     * 1. 仅允许已拥有课程（未过期）的用户上报；
+     * 2. 章节必须属于课程，且存在章节课表（biz_type=1）；
+     * 3. 未解锁章节拒绝上报，防止绕过排课规则；
+     * 4. 重复上报按幂等成功处理，但会刷新学习时间。
+     *
+     * @param int $memberId
+     * @param int $courseId
+     * @param int $chapterId
+     * @return array{courseId:int, chapterId:int, isLearned:int, learnTime:string}
+     */
+    public function markChapterLearned(int $memberId, int $courseId, int $chapterId): array
+    {
+        $now = Carbon::now('Asia/Shanghai');
+
+        return DB::transaction(function () use ($memberId, $courseId, $chapterId, $now) {
+            $memberCourse = AppMemberCourse::query()
+                ->byMember($memberId)
+                ->notExpired()
+                ->where('course_id', $courseId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$memberCourse) {
+                throw new \DomainException('course_not_owned');
+            }
+
+            $chapter = AppCourseChapter::query()
+                ->select(['chapter_id', 'course_id'])
+                ->where('course_id', $courseId)
+                ->where('chapter_id', $chapterId)
+                ->first();
+
+            if (!$chapter) {
+                throw new \DomainException('chapter_not_found');
+            }
+
+            $schedule = AppMemberSchedule::query()
+                ->byMember($memberId)
+                ->chapterBiz()
+                ->where('course_id', $courseId)
+                ->where('chapter_id', $chapterId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$schedule) {
+                throw new \DomainException('schedule_not_found');
+            }
+
+            if ((int)$schedule->is_unlocked !== 1) {
+                throw new \DomainException('schedule_not_unlocked');
+            }
+
+            // 幂等约束：重复上报仍刷新 learn_time，保证“最近学习”排序可感知最新学习行为。
+            $schedule->is_learned = 1;
+            $schedule->learn_time = $now->copy();
+            $schedule->save();
+
+            $chapterProgress = AppMemberChapterProgress::getOrCreate($memberId, $courseId, $chapterId);
+            $chapterProgress->markCompleted();
+
+            $this->syncMemberCourseLearnSnapshot($memberCourse, $memberId, $courseId, $chapterId, $now);
+
+            return [
+                'courseId' => $courseId,
+                'chapterId' => $chapterId,
+                'isLearned' => 1,
+                'learnTime' => $schedule->learn_time
+                    ? $schedule->learn_time->format('Y-m-d H:i:s')
+                    : $now->format('Y-m-d H:i:s'),
+            ];
+        });
+    }
+
+    /**
+     * 同步用户课程汇总学习快照。
+     *
+     * 同步内容：
+     * 1. learned_chapters：按章节课表 is_learned=1 统计；
+     * 2. last_chapter_id / last_learn_time：记录本次学习落点；
+     * 3. progress / is_completed / complete_time：按章节完成占比重算。
+     *
+     * @param AppMemberCourse $memberCourse
+     * @param int $memberId
+     * @param int $courseId
+     * @param int $chapterId
+     * @param Carbon $now
+     * @return void
+     */
+    private function syncMemberCourseLearnSnapshot(
+        AppMemberCourse $memberCourse,
+        int $memberId,
+        int $courseId,
+        int $chapterId,
+        Carbon $now
+    ): void {
+        $learnedChapters = AppMemberSchedule::query()
+            ->byMember($memberId)
+            ->chapterBiz()
+            ->where('course_id', $courseId)
+            ->where('is_learned', 1)
+            ->count();
+
+        $chapterTotalFromBase = (int)AppCourseChapter::query()
+            ->where('course_id', $courseId)
+            ->count();
+
+        $totalChapters = max((int)$memberCourse->total_chapters, $chapterTotalFromBase);
+        $progress = $totalChapters > 0
+            ? round(min(100, ($learnedChapters / $totalChapters) * 100), 2)
+            : 0;
+        $isCompleted = $totalChapters > 0 && $progress >= 100;
+
+        $memberCourse->learned_chapters = $learnedChapters;
+        $memberCourse->total_chapters = $totalChapters;
+        $memberCourse->last_chapter_id = $chapterId;
+        $memberCourse->last_learn_time = $now->copy();
+        $memberCourse->progress = $progress;
+        $memberCourse->is_completed = $isCompleted ? 1 : 0;
+        $memberCourse->complete_time = $isCompleted
+            ? ($memberCourse->complete_time ?: $now->copy())
+            : null;
+        $memberCourse->save();
     }
 
     /**
@@ -194,75 +324,60 @@ class StudyCourseService
     }
 
     /**
-     * 获取今日学习任务（章节 + 直播）。
+     * 获取今日学习任务（课程维度）。
      *
-     * 规则：
-     * 1. 章节任务沿用课表原口径；
-     * 2. 直播任务使用 biz_type=2，标题取直播间标题；
-     * 3. 直播间被删除或不可读时跳过该条课表，避免返回空卡片。
+     * 约束：
+     * 1. 仅统计章节课表（biz_type=1），本次改造不混入直播预约；
+     * 2. 同一课程当天可能有多条课表，返回时按“每课程1张卡”去重；
+     * 3. 返回统一课程卡片字段，并保留旧字段用于前端兼容。
      *
      * @param int $memberId
      * @return array<int, array<string, mixed>>
      */
     public function getTodayTasks(int $memberId): array
     {
-        $todaySchedules = AppMemberSchedule::byMember($memberId)
-            ->today()
-            ->select([
-                'id',
-                'biz_type',
-                'room_id',
-                'course_id',
-                'chapter_id',
-                'schedule_date',
-                'schedule_time',
-                'is_learned',
-            ])
-            ->with([
-                'chapter:chapter_id,chapter_title,chapter_subtitle',
-                'course:course_id,course_title,play_type',
-                'liveRoom:room_id,room_title,room_cover',
-            ])
-            ->orderBy('schedule_time')
-            ->orderBy('id')
-            ->get();
+        $today = Carbon::now('Asia/Shanghai')->format('Y-m-d');
+        $todaySchedules = $this->queryChapterSchedules($memberId, [], $today, true);
+        if ($todaySchedules->isEmpty()) {
+            return [];
+        }
+
+        $now = Carbon::now('Asia/Shanghai');
+        $courseIds = $todaySchedules->pluck('course_id')->filter()->unique()->values()->all();
+        $chapterMetaMap = $this->buildCourseChapterMetaMap($courseIds);
+        $groupedSchedules = $this->groupSchedulesByCourse($todaySchedules);
 
         $todayTasks = [];
-        foreach ($todaySchedules as $schedule) {
-            if ($this->shouldSkipInvalidLiveSchedule($schedule)) {
+        foreach ($groupedSchedules as $courseId => $courseSchedules) {
+            $course = $this->resolveCourseFromSchedules($courseSchedules);
+            if (!$course) {
                 continue;
             }
 
-            $isLiveSchedule = $this->isLiveSchedule($schedule);
-            $chapter = $schedule->chapter;
-            $liveRoom = $schedule->liveRoom;
+            $chapterMeta = $chapterMetaMap[$courseId] ?? $this->buildEmptyCourseChapterMeta();
+            $representativeSchedule = $this->selectTodayRepresentativeSchedule($courseSchedules);
+            $representativeChapter = $this->resolveRepresentativeChapter($representativeSchedule, $chapterMeta);
+            $card = $this->buildCourseCardPayload(
+                $course,
+                $chapterMeta,
+                $representativeSchedule,
+                $representativeChapter,
+                $now
+            );
 
-            $statusText = '待学习';
-            if ((int)$schedule->is_learned === 1) {
-                $statusText = '已学完';
-            } elseif ($schedule->schedule_time) {
-                $statusText = '待开课';
-            }
-
-            $todayTasks[] = [
-                'id' => (int)($schedule->id ?? 0),
-                'courseId' => (int)($schedule->course_id ?? 0),
-                'time' => $schedule->schedule_time ? substr((string)$schedule->schedule_time, 0, 5) : '',
-                'title' => $isLiveSchedule
-                    ? ($liveRoom ? (string)($liveRoom->room_title ?? '') : '')
-                    : ($chapter ? (string)($chapter->chapter_title ?? '') : ''),
-                'subtitle' => $isLiveSchedule
-                    ? ''
-                    : ($chapter ? (string)($chapter->chapter_subtitle ?? '') : ''),
-                'statusText' => $statusText,
-                // 兼容旧字段，同时补充业务定位字段供前端渐进切换。
-                'bizType' => $isLiveSchedule ? 'live' : 'chapter',
-                'bizId' => $isLiveSchedule
-                    ? (int)($schedule->room_id ?? 0)
-                    : (int)($schedule->chapter_id ?? 0),
-                'liveId' => $isLiveSchedule ? (int)($schedule->room_id ?? 0) : 0,
-                'chapterId' => $isLiveSchedule ? 0 : (int)($schedule->chapter_id ?? 0),
-            ];
+            $todayTasks[] = array_merge($card, [
+                // 兼容旧字段：time/subtitle 继续保留，避免前端一次性切换。
+                'time' => $this->formatScheduleTime(
+                    $representativeSchedule ? (string)$representativeSchedule->schedule_time : null
+                ),
+                'subtitle' => $representativeChapter ? (string)($representativeChapter->chapter_subtitle ?? '') : '',
+                'scheduleId' => $representativeSchedule ? (int)($representativeSchedule->id ?? 0) : 0,
+                'courseId' => (int)($course->course_id ?? 0),
+                'chapterId' => $representativeSchedule ? (int)($representativeSchedule->chapter_id ?? 0) : 0,
+                'liveId' => 0,
+                'bizType' => 'chapter',
+                'bizId' => $representativeSchedule ? (int)($representativeSchedule->chapter_id ?? 0) : 0,
+            ]);
         }
 
         return $todayTasks;
@@ -271,25 +386,202 @@ class StudyCourseService
     /**
      * 获取学习页分组数据（最近学习 / 待学习 / 已结课）。
      *
-     * 业务口径：
-     * 1. 最近学习：is_learned=1，按 learn_time 倒序；
-     * 2. 待学习：is_learned=0，按 schedule_date/schedule_time 正序；
-     * 3. 已结课：章节看 chapter_end_time，直播看 scheduled_end_time（含兜底）。
-     *
-     * 注意：
-     * - 三组独立，不互斥，允许重复；
-     * - 直播课表失效数据默认跳过。
+     * 课程维度规则：
+     * 1. 三组独立，不互斥，允许同一课程跨组重复；
+     * 2. 每组内按课程去重，避免同课程多章节重复卡片；
+     * 3. 分组判定沿用旧口径（recent/pending/finished），但展示字段统一为课程卡片字段。
      *
      * @param int $memberId
      * @return array<string, array{title:string,list:array<int, array<string, mixed>>}>
      */
     public function getCourseSections(int $memberId): array
     {
-        $schedules = AppMemberSchedule::byMember($memberId)
+        $schedules = $this->queryChapterSchedules($memberId, [], null, true);
+        if ($schedules->isEmpty()) {
+            return [
+                'recentSection' => ['title' => '最近学习', 'list' => []],
+                'pendingSection' => ['title' => '待学习', 'list' => []],
+                'finishedSection' => ['title' => '已结课', 'list' => []],
+            ];
+        }
+
+        $now = Carbon::now('Asia/Shanghai');
+        $courseIds = $schedules->pluck('course_id')->filter()->unique()->values()->all();
+        $chapterMetaMap = $this->buildCourseChapterMetaMap($courseIds);
+        $groupedSchedules = $this->groupSchedulesByCourse($schedules);
+
+        $recentList = [];
+        $pendingList = [];
+        $finishedList = [];
+
+        foreach ($groupedSchedules as $courseId => $courseSchedules) {
+            $course = $this->resolveCourseFromSchedules($courseSchedules);
+            if (!$course) {
+                continue;
+            }
+
+            $chapterMeta = $chapterMetaMap[$courseId] ?? $this->buildEmptyCourseChapterMeta();
+            $representativeSchedule = $this->selectGeneralRepresentativeSchedule($courseSchedules);
+            $representativeChapter = $this->resolveRepresentativeChapter($representativeSchedule, $chapterMeta);
+            $item = $this->buildSectionItem(
+                $course,
+                $chapterMeta,
+                $representativeSchedule,
+                $representativeChapter,
+                $now
+            );
+
+            if ($courseSchedules->contains(function (AppMemberSchedule $schedule) {
+                return (int)$schedule->is_learned === 1;
+            })) {
+                $item['_sortTs'] = $this->calculateSectionSortTs($courseSchedules, 'recent', $now);
+                $recentList[] = $item;
+            }
+
+            if ($courseSchedules->contains(function (AppMemberSchedule $schedule) {
+                return (int)$schedule->is_learned === 0;
+            })) {
+                $item['_sortTs'] = $this->calculateSectionSortTs($courseSchedules, 'pending', $now);
+                $pendingList[] = $item;
+            }
+
+            if ($courseSchedules->contains(function (AppMemberSchedule $schedule) use ($now) {
+                return $this->isChapterScheduleFinished($schedule, $now);
+            })) {
+                $item['_sortTs'] = $this->calculateSectionSortTs($courseSchedules, 'finished', $now);
+                $finishedList[] = $item;
+            }
+        }
+
+        return [
+            'recentSection' => [
+                'title' => '最近学习',
+                'list' => $this->sortAndNormalizeSectionItems($recentList, true),
+            ],
+            'pendingSection' => [
+                'title' => '待学习',
+                'list' => $this->sortAndNormalizeSectionItems($pendingList, false),
+            ],
+            'finishedSection' => [
+                'title' => '已结课',
+                'list' => $this->sortAndNormalizeSectionItems($finishedList, true),
+            ],
+        ];
+    }
+
+    /**
+     * 获取筛选后的课程列表（分页，课程维度）。
+     *
+     * 保持原筛选和分页口径，仅替换卡片字段生成逻辑。
+     *
+     * @param int $memberId
+     * @param int|null $categoryId 课程分类ID
+     * @param int|null $payType 课程付费类型
+     * @param int $page
+     * @param int $pageSize
+     * @return array<string, mixed>
+     */
+    public function getFilteredCourseList(int $memberId, $categoryId, $payType, int $page, int $pageSize): array
+    {
+        $query = AppMemberCourse::byMember($memberId)
+            ->notExpired()
             ->select([
                 'id',
-                'biz_type',
-                'room_id',
+                'course_id',
+                'progress',
+                'learned_chapters',
+                'total_chapters',
+                'is_completed',
+                'last_learn_time',
+                'enroll_time',
+            ]);
+
+        // 兼容原筛选行为，避免影响前端面板组合筛选。
+        if ($categoryId) {
+            $query->whereHas('course', function ($subQuery) use ($categoryId) {
+                $subQuery->where('category_id', (int)$categoryId);
+            });
+        }
+
+        if ($payType) {
+            $query->whereHas('course', function ($subQuery) use ($payType) {
+                $subQuery->where('pay_type', (int)$payType);
+            });
+        }
+
+        $query->with(['course:course_id,course_title,cover_image,pay_type'])
+            ->orderByRaw('last_learn_time DESC NULLS LAST')
+            ->orderBy('enroll_time', 'desc');
+
+        $paginator = $query->paginate($pageSize, ['*'], 'page', $page);
+        $courseIds = collect($paginator->items())
+            ->map(function (AppMemberCourse $memberCourse) {
+                return (int)$memberCourse->course_id;
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $now = Carbon::now('Asia/Shanghai');
+        $chapterMetaMap = $this->buildCourseChapterMetaMap($courseIds);
+        $scheduleMap = $this->groupSchedulesByCourse(
+            $this->queryChapterSchedules($memberId, $courseIds, null, false)
+        );
+
+        $list = [];
+        foreach ($paginator->items() as $memberCourse) {
+            $course = $memberCourse->course;
+            if (!$course) {
+                continue;
+            }
+
+            $courseId = (int)$course->course_id;
+            $courseSchedules = $scheduleMap[$courseId] ?? collect();
+            $chapterMeta = $chapterMetaMap[$courseId] ?? $this->buildEmptyCourseChapterMeta();
+            $representativeSchedule = $this->selectGeneralRepresentativeSchedule($courseSchedules);
+            $representativeChapter = $this->resolveRepresentativeChapter($representativeSchedule, $chapterMeta);
+
+            $list[] = $this->buildCourseCardPayload(
+                $course,
+                $chapterMeta,
+                $representativeSchedule,
+                $representativeChapter,
+                $now
+            );
+        }
+
+        return [
+            'list' => $list,
+            'total' => $paginator->total(),
+            'page' => $paginator->currentPage(),
+            'pageSize' => $paginator->perPage(),
+        ];
+    }
+
+    /**
+     * 统一查询章节课表，并按需预加载课程信息。
+     *
+     * 查询原因：
+     * - 三个接口共享同一份课程课表来源，统一入口可避免口径漂移。
+     *
+     * @param int $memberId
+     * @param array<int, int> $courseIds
+     * @param string|null $scheduleDate
+     * @param bool $withCourse
+     * @return Collection<int, AppMemberSchedule>
+     */
+    private function queryChapterSchedules(
+        int $memberId,
+        array $courseIds = [],
+        ?string $scheduleDate = null,
+        bool $withCourse = true
+    ): Collection {
+        $query = AppMemberSchedule::query()
+            ->byMember($memberId)
+            ->chapterBiz()
+            ->select([
+                'id',
                 'course_id',
                 'chapter_id',
                 'schedule_date',
@@ -298,143 +590,492 @@ class StudyCourseService
                 'learn_time',
             ])
             ->with([
-                'chapter:chapter_id,course_id,chapter_title,cover_image,chapter_end_time',
-                'course:course_id,course_title,cover_image,play_type,pay_type',
-                'liveRoom:room_id,room_title,room_cover,scheduled_start_time,scheduled_end_time',
+                'chapter:chapter_id,course_id,chapter_no,chapter_title,chapter_subtitle,chapter_start_time,chapter_end_time',
+            ]);
+
+        if ($withCourse) {
+            $query->with([
+                'course:course_id,course_title,cover_image,pay_type',
+            ]);
+        }
+
+        if (!empty($courseIds)) {
+            $query->whereIn('course_id', $courseIds);
+        }
+
+        if ($scheduleDate !== null) {
+            $query->where('schedule_date', $scheduleDate);
+        }
+
+        return $query
+            ->orderBy('schedule_date')
+            ->orderBy('schedule_time')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * 构建课程章节统计与首章信息。
+     *
+     * 规则：
+     * 1. 章节总数来自 app_course_chapter（软删自动排除）；
+     * 2. 首章按 sort_order/chapter_no/chapter_id 升序判定；
+     * 3. 不额外按 status 过滤，保持与既有课程配置一致。
+     *
+     * @param array<int, int> $courseIds
+     * @return array<int, array{chapterCount:int, firstChapter:?AppCourseChapter, chapterMap:array<int, AppCourseChapter>}>
+     */
+    private function buildCourseChapterMetaMap(array $courseIds): array
+    {
+        if (empty($courseIds)) {
+            return [];
+        }
+
+        $metaMap = [];
+        foreach ($courseIds as $courseId) {
+            $metaMap[(int)$courseId] = $this->buildEmptyCourseChapterMeta();
+        }
+
+        $chapters = AppCourseChapter::query()
+            ->whereIn('course_id', $courseIds)
+            ->select([
+                'chapter_id',
+                'course_id',
+                'chapter_no',
+                'chapter_title',
+                'chapter_start_time',
+                'chapter_end_time',
+                'sort_order',
             ])
+            ->orderBy('course_id')
+            ->orderBy('sort_order')
+            ->orderBy('chapter_no')
+            ->orderBy('chapter_id')
             ->get();
 
-        $now = Carbon::now('Asia/Shanghai');
-
-        $recentList = [];
-        $pendingList = [];
-        $finishedList = [];
-
-        foreach ($schedules as $schedule) {
-            if ($this->shouldSkipInvalidLiveSchedule($schedule)) {
-                continue;
+        foreach ($chapters as $chapter) {
+            $courseId = (int)$chapter->course_id;
+            if (!isset($metaMap[$courseId])) {
+                $metaMap[$courseId] = $this->buildEmptyCourseChapterMeta();
             }
 
-            if ((int)$schedule->is_learned === 1) {
-                $recentList[] = $this->formatScheduleSectionItem($schedule, 'recent');
+            $metaMap[$courseId]['chapterCount']++;
+            if ($metaMap[$courseId]['firstChapter'] === null) {
+                $metaMap[$courseId]['firstChapter'] = $chapter;
             }
-
-            if ((int)$schedule->is_learned === 0) {
-                $pendingList[] = $this->formatScheduleSectionItem($schedule, 'pending');
-            }
-
-            if ($this->isScheduleFinished($schedule, $now)) {
-                $finishedList[] = $this->formatScheduleSectionItem($schedule, 'finished');
-            }
+            $metaMap[$courseId]['chapterMap'][(int)$chapter->chapter_id] = $chapter;
         }
 
-        $recentList = $this->sortAndNormalizeSectionItems($recentList, true);
-        $pendingList = $this->sortAndNormalizeSectionItems($pendingList, false);
-        $finishedList = $this->sortAndNormalizeSectionItems($finishedList, true);
+        return $metaMap;
+    }
 
+    /**
+     * 空章节统计结构，避免重复写默认值。
+     *
+     * @return array{chapterCount:int, firstChapter:?AppCourseChapter, chapterMap:array<int, AppCourseChapter>}
+     */
+    private function buildEmptyCourseChapterMeta(): array
+    {
         return [
-            'recentSection' => [
-                'title' => '最近学习',
-                'list' => $recentList,
-            ],
-            'pendingSection' => [
-                'title' => '待学习',
-                'list' => $pendingList,
-            ],
-            'finishedSection' => [
-                'title' => '已结课',
-                'list' => $finishedList,
-            ],
+            'chapterCount' => 0,
+            'firstChapter' => null,
+            'chapterMap' => [],
         ];
     }
 
     /**
-     * 判断是否为直播课表。
+     * 将课表按课程分组，并归一化为 int 课程ID键。
      *
-     * @param AppMemberSchedule $schedule
-     * @return bool
+     * @param Collection<int, AppMemberSchedule> $schedules
+     * @return array<int, Collection<int, AppMemberSchedule>>
      */
-    private function isLiveSchedule(AppMemberSchedule $schedule): bool
+    private function groupSchedulesByCourse(Collection $schedules): array
     {
-        return (int)$schedule->biz_type === AppMemberSchedule::BIZ_TYPE_LIVE;
+        $grouped = [];
+        foreach ($schedules->groupBy('course_id') as $courseId => $courseSchedules) {
+            $grouped[(int)$courseId] = $courseSchedules->values();
+        }
+
+        return $grouped;
     }
 
     /**
-     * 过滤无效直播课表（直播间已删除或不可读）。
+     * 从课程课表集合中取课程实体。
      *
-     * @param AppMemberSchedule $schedule
-     * @return bool
+     * @param Collection<int, AppMemberSchedule> $courseSchedules
+     * @return AppCourseBase|null
      */
-    private function shouldSkipInvalidLiveSchedule(AppMemberSchedule $schedule): bool
+    private function resolveCourseFromSchedules(Collection $courseSchedules): ?AppCourseBase
     {
-        return $this->isLiveSchedule($schedule) && !$schedule->liveRoom;
+        foreach ($courseSchedules as $schedule) {
+            if ($schedule->course) {
+                return $schedule->course;
+            }
+        }
+
+        return null;
     }
 
     /**
-     * 格式化学习页分组卡片。
+     * 选择 today-tasks 的代表章节：当天最早课表。
      *
-     * @param AppMemberSchedule $schedule
-     * @param string $sectionType recent|pending|finished
+     * @param Collection<int, AppMemberSchedule> $courseSchedules
+     * @return AppMemberSchedule|null
+     */
+    private function selectTodayRepresentativeSchedule(Collection $courseSchedules): ?AppMemberSchedule
+    {
+        return $courseSchedules
+            ->sort(function (AppMemberSchedule $left, AppMemberSchedule $right) {
+                $leftTime = $left->schedule_time ? (string)$left->schedule_time : '23:59:59';
+                $rightTime = $right->schedule_time ? (string)$right->schedule_time : '23:59:59';
+                if ($leftTime === $rightTime) {
+                    return (int)$left->id <=> (int)$right->id;
+                }
+
+                return $leftTime <=> $rightTime;
+            })
+            ->first();
+    }
+
+    /**
+     * 选择 sections/list 的代表章节。
+     *
+     * 规则：
+     * 1. 优先最早未学章节；
+     * 2. 无未学时回退最近已学章节；
+     * 3. 都不存在时回退首条课表。
+     *
+     * @param Collection<int, AppMemberSchedule> $courseSchedules
+     * @return AppMemberSchedule|null
+     */
+    private function selectGeneralRepresentativeSchedule(Collection $courseSchedules): ?AppMemberSchedule
+    {
+        if ($courseSchedules->isEmpty()) {
+            return null;
+        }
+
+        $pendingSchedule = $courseSchedules
+            ->filter(function (AppMemberSchedule $schedule) {
+                return (int)$schedule->is_learned === 0;
+            })
+            ->sort(function (AppMemberSchedule $left, AppMemberSchedule $right) {
+                return $this->compareScheduleAsc($left, $right);
+            })
+            ->first();
+
+        if ($pendingSchedule) {
+            return $pendingSchedule;
+        }
+
+        $learnedSchedule = $courseSchedules
+            ->filter(function (AppMemberSchedule $schedule) {
+                return (int)$schedule->is_learned === 1;
+            })
+            ->sort(function (AppMemberSchedule $left, AppMemberSchedule $right) {
+                $leftLearnTs = $left->learn_time ? (int)$left->learn_time->getTimestamp() : 0;
+                $rightLearnTs = $right->learn_time ? (int)$right->learn_time->getTimestamp() : 0;
+                if ($leftLearnTs !== $rightLearnTs) {
+                    return $rightLearnTs <=> $leftLearnTs;
+                }
+
+                return $this->compareScheduleAsc($right, $left);
+            })
+            ->first();
+
+        if ($learnedSchedule) {
+            return $learnedSchedule;
+        }
+
+        return $courseSchedules
+            ->sort(function (AppMemberSchedule $left, AppMemberSchedule $right) {
+                return $this->compareScheduleAsc($left, $right);
+            })
+            ->first();
+    }
+
+    /**
+     * 比较两条课表的计划时间（升序）。
+     *
+     * @param AppMemberSchedule $left
+     * @param AppMemberSchedule $right
+     * @return int
+     */
+    private function compareScheduleAsc(AppMemberSchedule $left, AppMemberSchedule $right): int
+    {
+        $leftAt = $this->resolveScheduleDateTime($left);
+        $rightAt = $this->resolveScheduleDateTime($right);
+
+        if ($leftAt && $rightAt) {
+            $leftTs = (int)$leftAt->getTimestamp();
+            $rightTs = (int)$rightAt->getTimestamp();
+            if ($leftTs !== $rightTs) {
+                return $leftTs <=> $rightTs;
+            }
+        } elseif ($leftAt || $rightAt) {
+            return $leftAt ? -1 : 1;
+        }
+
+        return (int)$left->id <=> (int)$right->id;
+    }
+
+    /**
+     * 根据课表与课程章节元数据解析代表章节。
+     *
+     * @param AppMemberSchedule|null $schedule
+     * @param array{chapterCount:int, firstChapter:?AppCourseChapter, chapterMap:array<int, AppCourseChapter>} $chapterMeta
+     * @return AppCourseChapter|null
+     */
+    private function resolveRepresentativeChapter(?AppMemberSchedule $schedule, array $chapterMeta): ?AppCourseChapter
+    {
+        if ($schedule && $schedule->chapter) {
+            return $schedule->chapter;
+        }
+
+        if ($schedule) {
+            $chapterId = (int)($schedule->chapter_id ?? 0);
+            if ($chapterId > 0 && isset($chapterMeta['chapterMap'][$chapterId])) {
+                return $chapterMeta['chapterMap'][$chapterId];
+            }
+        }
+
+        return $chapterMeta['firstChapter'] ?? null;
+    }
+
+    /**
+     * 构建三接口共享的课程卡片字段。
+     *
+     * 字段来源：
+     * - id/title/cover：app_course_base；
+     * - overlayText：课程类型文案 + 课程章节总数；
+     * - timeText/statusText：课程第一章节 chapter_start_time；
+     * - actionText：代表章节学习状态 + 章节标题。
+     *
+     * @param AppCourseBase $course
+     * @param array{chapterCount:int, firstChapter:?AppCourseChapter, chapterMap:array<int, AppCourseChapter>} $chapterMeta
+     * @param AppMemberSchedule|null $representativeSchedule
+     * @param AppCourseChapter|null $representativeChapter
+     * @param Carbon $now
      * @return array<string, mixed>
      */
-    private function formatScheduleSectionItem(AppMemberSchedule $schedule, string $sectionType): array
-    {
-        $isLiveSchedule = $this->isLiveSchedule($schedule);
-        $chapter = $schedule->chapter;
-        $course = $schedule->course;
-        $liveRoom = $schedule->liveRoom;
-
-        $chapterTitle = $chapter ? (string)($chapter->chapter_title ?? '') : '';
-        if ($chapterTitle === '' && $course) {
-            $chapterTitle = (string)($course->course_title ?? '');
-        }
-
-        $chapterCover = $chapter ? (string)($chapter->cover_image ?? '') : '';
-        if ($chapterCover === '' && $course) {
-            $chapterCover = (string)($course->cover_image ?? '');
-        }
-
-        $actionText = '去学习';
-        if ($sectionType === 'finished') {
-            $actionText = '已结课';
-        } elseif ((int)$schedule->is_learned === 1) {
-            $actionText = '继续学';
-        }
-
-        $sortTs = 0;
-        if ($sectionType === 'recent') {
-            $sortTs = $schedule->learn_time ? (int)$schedule->learn_time->getTimestamp() : 0;
-        } elseif ($sectionType === 'pending') {
-            $scheduleAt = $this->resolveScheduleDateTime($schedule);
-            $sortTs = $scheduleAt ? (int)$scheduleAt->getTimestamp() : PHP_INT_MAX;
-        } else {
-            $endAt = $this->resolveScheduleEndAt($schedule);
-            $sortTs = $endAt ? (int)$endAt->getTimestamp() : 0;
-        }
+    private function buildCourseCardPayload(
+        AppCourseBase $course,
+        array $chapterMeta,
+        ?AppMemberSchedule $representativeSchedule,
+        ?AppCourseChapter $representativeChapter,
+        Carbon $now
+    ): array {
+        $firstChapter = $chapterMeta['firstChapter'] ?? null;
+        $timeText = $this->buildCourseTimeText($firstChapter);
 
         return [
-            'id' => $isLiveSchedule
-                ? (int)($schedule->room_id ?? 0)
-                : (int)($schedule->course_id ?? $schedule->chapter_id ?? $schedule->id),
-            'title' => $isLiveSchedule
-                ? ($liveRoom ? (string)($liveRoom->room_title ?? '') : '')
-                : $chapterTitle,
-            'cover' => $isLiveSchedule
-                ? ($liveRoom ? (string)($liveRoom->room_cover ?? '') : '')
-                : $chapterCover,
-            'overlayText' => $this->buildScheduleOverlayText($schedule),
-            'actionText' => $actionText,
-            // 兼容旧字段基础上补充明确业务主键，便于前端平滑切换。
-            'scheduleId' => (int)($schedule->id ?? 0),
-            'courseId' => (int)($schedule->course_id ?? 0),
-            'chapterId' => $isLiveSchedule ? 0 : (int)($schedule->chapter_id ?? 0),
-            'liveId' => $isLiveSchedule ? (int)($schedule->room_id ?? 0) : 0,
-            'bizType' => $isLiveSchedule ? 'live' : 'chapter',
-            'bizId' => $isLiveSchedule
-                ? (int)($schedule->room_id ?? 0)
-                : (int)($schedule->chapter_id ?? 0),
-            '_sortTs' => $sortTs,
+            'id' => (int)($course->course_id ?? 0),
+            'title' => (string)($course->course_title ?? ''),
+            'cover' => (string)($course->cover_image ?? ''),
+            'overlayText' => $this->buildCourseOverlayText((int)($course->pay_type ?? 0), (int)($chapterMeta['chapterCount'] ?? 0)),
+            'timeText' => $timeText,
+            'statusText' => $timeText,
+            'actionText' => $this->buildCourseActionText($representativeSchedule, $representativeChapter, $now),
         ];
+    }
+
+    /**
+     * 构建学习页封面遮罩文案：课程类型-共N课。
+     *
+     * @param int $payType
+     * @param int $chapterCount
+     * @return string
+     */
+    private function buildCourseOverlayText(int $payType, int $chapterCount): string
+    {
+        $typeName = $this->resolveCoursePayTypeText($payType);
+        return $typeName . '-共' . max($chapterCount, 0) . '课';
+    }
+
+    /**
+     * 解析课程类型文案，未知值兜底“公开课”。
+     *
+     * @param int $payType
+     * @return string
+     */
+    private function resolveCoursePayTypeText(int $payType): string
+    {
+        $config = AppCourseBase::PAY_TYPE_CONFIG[$payType] ?? null;
+        if (is_array($config) && !empty($config['typeName'])) {
+            return (string)$config['typeName'];
+        }
+
+        return '公开课';
+    }
+
+    /**
+     * 构建 timeText/statusText 文案。
+     *
+     * @param AppCourseChapter|null $firstChapter
+     * @return string
+     */
+    private function buildCourseTimeText(?AppCourseChapter $firstChapter): string
+    {
+        if (!$firstChapter || !$firstChapter->chapter_start_time) {
+            return '';
+        }
+
+        return Carbon::make($firstChapter->chapter_start_time)
+            ->timezone('Asia/Shanghai')
+            ->format('Y.m.d H:i');
+    }
+
+    /**
+     * 构建 actionText：学习状态 + 章节描述。
+     *
+     * 格式：{状态}：第N章节：章节标题
+     *
+     * @param AppMemberSchedule|null $schedule
+     * @param AppCourseChapter|null $chapter
+     * @param Carbon $now
+     * @return string
+     */
+    private function buildCourseActionText(?AppMemberSchedule $schedule, ?AppCourseChapter $chapter, Carbon $now): string
+    {
+        $statusText = $this->resolveCourseActionStatus($schedule, $chapter, $now);
+
+        $chapterNo = $chapter ? (int)($chapter->chapter_no ?? 0) : 0;
+        $chapterNoText = $chapterNo > 0 ? ('第' . $chapterNo . '章节') : '章节';
+        $chapterTitle = $chapter ? trim((string)($chapter->chapter_title ?? '')) : '';
+        if ($chapterTitle === '') {
+            $chapterTitle = '待安排章节';
+        }
+
+        return $statusText . '：' . $chapterNoText . '：' . $chapterTitle;
+    }
+
+    /**
+     * 解析 actionText 的学习状态文案。
+     *
+     * 优先级：
+     * 1. 章节结束时间已过 => 已学完；
+     * 2. is_learned=0 => 开始学；
+     * 3. is_learned=1 => 继续学习。
+     *
+     * @param AppMemberSchedule|null $schedule
+     * @param AppCourseChapter|null $chapter
+     * @param Carbon $now
+     * @return string
+     */
+    private function resolveCourseActionStatus(?AppMemberSchedule $schedule, ?AppCourseChapter $chapter, Carbon $now): string
+    {
+        if ($chapter && $chapter->chapter_end_time) {
+            $chapterEndAt = Carbon::make($chapter->chapter_end_time)->timezone('Asia/Shanghai');
+            if ($now->gt($chapterEndAt)) {
+                return '已学完';
+            }
+        }
+
+        if ($schedule && (int)$schedule->is_learned === 1) {
+            return '继续学习';
+        }
+
+        return '开始学';
+    }
+
+    /**
+     * 组装 sections 场景的课程卡片，并补齐兼容字段。
+     *
+     * @param AppCourseBase $course
+     * @param array{chapterCount:int, firstChapter:?AppCourseChapter, chapterMap:array<int, AppCourseChapter>} $chapterMeta
+     * @param AppMemberSchedule|null $representativeSchedule
+     * @param AppCourseChapter|null $representativeChapter
+     * @param Carbon $now
+     * @return array<string, mixed>
+     */
+    private function buildSectionItem(
+        AppCourseBase $course,
+        array $chapterMeta,
+        ?AppMemberSchedule $representativeSchedule,
+        ?AppCourseChapter $representativeChapter,
+        Carbon $now
+    ): array {
+        $item = $this->buildCourseCardPayload(
+            $course,
+            $chapterMeta,
+            $representativeSchedule,
+            $representativeChapter,
+            $now
+        );
+
+        return array_merge($item, [
+            'scheduleId' => $representativeSchedule ? (int)($representativeSchedule->id ?? 0) : 0,
+            'courseId' => (int)($course->course_id ?? 0),
+            'chapterId' => $representativeSchedule ? (int)($representativeSchedule->chapter_id ?? 0) : 0,
+            'liveId' => 0,
+            'bizType' => 'chapter',
+            'bizId' => $representativeSchedule ? (int)($representativeSchedule->chapter_id ?? 0) : 0,
+        ]);
+    }
+
+    /**
+     * 计算 sections 各分组排序时间戳。
+     *
+     * @param Collection<int, AppMemberSchedule> $courseSchedules
+     * @param string $sectionType recent|pending|finished
+     * @param Carbon $now
+     * @return int
+     */
+    private function calculateSectionSortTs(Collection $courseSchedules, string $sectionType, Carbon $now): int
+    {
+        if ($sectionType === 'recent') {
+            return (int)$courseSchedules
+                ->filter(function (AppMemberSchedule $schedule) {
+                    return (int)$schedule->is_learned === 1 && $schedule->learn_time;
+                })
+                ->map(function (AppMemberSchedule $schedule) {
+                    return (int)$schedule->learn_time->getTimestamp();
+                })
+                ->max();
+        }
+
+        if ($sectionType === 'pending') {
+            return (int)$courseSchedules
+                ->filter(function (AppMemberSchedule $schedule) {
+                    return (int)$schedule->is_learned === 0;
+                })
+                ->map(function (AppMemberSchedule $schedule) {
+                    $scheduleAt = $this->resolveScheduleDateTime($schedule);
+                    return $scheduleAt ? (int)$scheduleAt->getTimestamp() : PHP_INT_MAX;
+                })
+                ->min();
+        }
+
+        return (int)$courseSchedules
+            ->filter(function (AppMemberSchedule $schedule) use ($now) {
+                return $this->isChapterScheduleFinished($schedule, $now);
+            })
+            ->map(function (AppMemberSchedule $schedule) {
+                if (!$schedule->chapter || !$schedule->chapter->chapter_end_time) {
+                    return 0;
+                }
+
+                return (int)Carbon::make($schedule->chapter->chapter_end_time)
+                    ->timezone('Asia/Shanghai')
+                    ->getTimestamp();
+            })
+            ->max();
+    }
+
+    /**
+     * 判断章节课表是否已结课（仅看 chapter_end_time）。
+     *
+     * @param AppMemberSchedule $schedule
+     * @param Carbon $now
+     * @return bool
+     */
+    private function isChapterScheduleFinished(AppMemberSchedule $schedule, Carbon $now): bool
+    {
+        if (!$schedule->chapter || !$schedule->chapter->chapter_end_time) {
+            return false;
+        }
+
+        $chapterEndAt = Carbon::make($schedule->chapter->chapter_end_time)->timezone('Asia/Shanghai');
+        return $now->gt($chapterEndAt);
     }
 
     /**
@@ -449,14 +1090,13 @@ class StudyCourseService
         usort($items, function (array $left, array $right) use ($desc) {
             $leftSort = (int)($left['_sortTs'] ?? 0);
             $rightSort = (int)($right['_sortTs'] ?? 0);
-
-            if ($leftSort === $rightSort) {
-                $leftId = (int)($left['scheduleId'] ?? 0);
-                $rightId = (int)($right['scheduleId'] ?? 0);
-                return $desc ? ($rightId <=> $leftId) : ($leftId <=> $rightId);
+            if ($leftSort !== $rightSort) {
+                return $desc ? ($rightSort <=> $leftSort) : ($leftSort <=> $rightSort);
             }
 
-            return $desc ? ($rightSort <=> $leftSort) : ($leftSort <=> $rightSort);
+            $leftId = (int)($left['id'] ?? 0);
+            $rightId = (int)($right['id'] ?? 0);
+            return $desc ? ($rightId <=> $leftId) : ($leftId <=> $rightId);
         });
 
         return array_map(function (array $item) {
@@ -466,76 +1106,7 @@ class StudyCourseService
     }
 
     /**
-     * 判断课表是否已结课。
-     *
-     * @param AppMemberSchedule $schedule
-     * @param Carbon $now
-     * @return bool
-     */
-    private function isScheduleFinished(AppMemberSchedule $schedule, Carbon $now): bool
-    {
-        $endAt = $this->resolveScheduleEndAt($schedule);
-        if (!$endAt) {
-            return false;
-        }
-
-        return $now->gt($endAt);
-    }
-
-    /**
-     * 解析课表结束时间（章节/直播双口径）。
-     *
-     * @param AppMemberSchedule $schedule
-     * @return Carbon|null
-     */
-    private function resolveScheduleEndAt(AppMemberSchedule $schedule): ?Carbon
-    {
-        if ($this->isLiveSchedule($schedule)) {
-            return $this->resolveLiveScheduleEndAt($schedule);
-        }
-
-        if (!$schedule->chapter || !$schedule->chapter->chapter_end_time) {
-            return null;
-        }
-
-        return Carbon::make($schedule->chapter->chapter_end_time)->timezone('Asia/Shanghai');
-    }
-
-    /**
-     * 解析直播课表结束时间。
-     *
-     * 兜底优先级：
-     * 1. scheduled_end_time；
-     * 2. scheduled_start_time；
-     * 3. schedule_date 当天 23:59:59。
-     *
-     * @param AppMemberSchedule $schedule
-     * @return Carbon|null
-     */
-    private function resolveLiveScheduleEndAt(AppMemberSchedule $schedule): ?Carbon
-    {
-        $liveRoom = $schedule->liveRoom;
-        if (!$liveRoom) {
-            return null;
-        }
-
-        if ($liveRoom->scheduled_end_time) {
-            return Carbon::make($liveRoom->scheduled_end_time)->timezone('Asia/Shanghai');
-        }
-
-        if ($liveRoom->scheduled_start_time) {
-            return Carbon::make($liveRoom->scheduled_start_time)->timezone('Asia/Shanghai');
-        }
-
-        if (!$schedule->schedule_date) {
-            return null;
-        }
-
-        return Carbon::make($schedule->schedule_date)->timezone('Asia/Shanghai')->endOfDay();
-    }
-
-    /**
-     * 解析课表开始时间（用于排序）。
+     * 解析课表开始时间（用于排序/选代表章节）。
      *
      * @param AppMemberSchedule $schedule
      * @return Carbon|null
@@ -550,107 +1121,6 @@ class StudyCourseService
         $timeText = $schedule->schedule_time ? (string)$schedule->schedule_time : '00:00:00';
 
         return Carbon::parse($dateText . ' ' . $timeText, 'Asia/Shanghai');
-    }
-
-    /**
-     * 构建封面 overlay 时间文案。
-     *
-     * @param AppMemberSchedule $schedule
-     * @return string
-     */
-    private function buildScheduleOverlayText(AppMemberSchedule $schedule): string
-    {
-        if (!$schedule->schedule_date) {
-            return '';
-        }
-
-        $dateText = $schedule->schedule_date->format('n月j日');
-        $timeText = $schedule->schedule_time ? substr((string)$schedule->schedule_time, 0, 5) : '';
-        if ($timeText === '') {
-            return $dateText;
-        }
-
-        return $dateText . ' ' . $timeText;
-    }
-
-    /**
-     * 获取筛选后的课程列表（分页）
-     *
-     * @param int $memberId
-     * @param int|null $categoryId 课程分类ID
-     * @param int|null $payType 课程付费类型
-     * @param int $page
-     * @param int $pageSize
-     * @return array
-     */
-    public function getFilteredCourseList(int $memberId, $categoryId, $payType, int $page, int $pageSize): array
-    {
-        $query = AppMemberCourse::byMember($memberId)
-            ->notExpired()
-            ->select([
-                'id', 'course_id', 'progress', 'learned_chapters', 'total_chapters',
-                'is_completed', 'last_learn_time', 'enroll_time',
-            ]);
-
-        // 按课程分类筛选
-        if ($categoryId) {
-            $query->whereHas('course', function ($q) use ($categoryId) {
-                $q->where('category_id', (int)$categoryId);
-            });
-        }
-
-        // 按付费类型筛选
-        if ($payType) {
-            $query->whereHas('course', function ($q) use ($payType) {
-                $q->where('pay_type', (int)$payType);
-            });
-        }
-
-        $query->with(['course:course_id,course_title,cover_image,play_type,pay_type'])
-            ->orderByRaw('last_learn_time DESC NULLS LAST')
-            ->orderBy('enroll_time', 'desc');
-
-        $paginator = $query->paginate($pageSize, ['*'], 'page', $page);
-
-        // 预加载下一节未学课表（用于直播课 statusText）
-        $memberCourseIds = [];
-        foreach ($paginator->items() as $mc) {
-            $memberCourseIds[] = $mc->id;
-        }
-
-        $nextSchedules = [];
-        if (!empty($memberCourseIds)) {
-            // 列表页仍按章节课表取“下一节”，避免直播预约数据干扰课程进度展示。
-            $schedules = AppMemberSchedule::whereIn('member_course_id', $memberCourseIds)
-                ->chapterBiz()
-                ->where('is_learned', 0)
-                ->where('schedule_date', '>=', date('Y-m-d'))
-                ->orderBy('schedule_date')
-                ->orderBy('schedule_time')
-                ->get()
-                ->groupBy('member_course_id');
-
-            foreach ($schedules as $mcId => $group) {
-                $nextSchedules[$mcId] = $group->first();
-            }
-        }
-
-        $list = [];
-        foreach ($paginator->items() as $mc) {
-            $course = $mc->course;
-            if (!$course) {
-                continue;
-            }
-            $nextSchedule = isset($nextSchedules[$mc->id]) ? $nextSchedules[$mc->id] : null;
-            $list[] = $this->formatCourseListItem($mc, $course, $nextSchedule);
-        }
-
-        return [
-            'list' => $list,
-            'total' => $paginator->total(),
-            'page' => $paginator->currentPage(),
-            'pageSize' => $paginator->perPage(),
-        ];
     }
 
     /**
@@ -1187,105 +1657,4 @@ class StudyCourseService
 
         return strlen($scheduleTime) >= 5 ? substr($scheduleTime, 0, 5) : $scheduleTime;
     }
-
-
-    /**
-     * 格式化总览课程项
-     *
-     * @param AppMemberCourse $mc
-     * @param AppCourseBase $course
-     * @param AppMemberSchedule|null $nextSchedule 下一节未学课表
-     * @return array
-     */
-    private function formatCourseOverviewItem(AppMemberCourse $mc, AppCourseBase $course, $nextSchedule = null): array
-    {
-        // overlayText：优先显示下一节开课时间，否则显示付费类型
-        $overlayText = '';
-        if ($nextSchedule && $nextSchedule->schedule_date) {
-            $dateStr = $nextSchedule->schedule_date->format('n月j日');
-            $timeStr = $nextSchedule->schedule_time ? substr($nextSchedule->schedule_time, 0, 5) : '';
-            $overlayText = $timeStr ? ($dateStr . ' ' . $timeStr) : $dateStr;
-        } else {
-            $payTypeConfig = isset(AppCourseBase::PAY_TYPE_CONFIG[$course->pay_type])
-                ? AppCourseBase::PAY_TYPE_CONFIG[$course->pay_type]
-                : null;
-            if ($payTypeConfig) {
-                $overlayText = $payTypeConfig['typeName'];
-            }
-        }
-
-        $actionText = '去学习';
-        if ($mc->is_completed) {
-            $actionText = '已结课';
-        } elseif ($mc->last_learn_time) {
-            $actionText = '继续学';
-        }
-
-        return [
-            'id' => $mc->course_id,
-            'title' => $course->course_title,
-            'cover' => $course->cover_image,
-            'overlayText' => $overlayText,
-            'actionText' => $actionText,
-        ];
-    }
-
-    /**
-     * 格式化筛选列表课程项
-     *
-     * @param AppMemberCourse $mc
-     * @param AppCourseBase $course
-     * @param AppMemberSchedule|null $nextSchedule 下一节未学课表
-     * @return array
-     */
-    private function formatCourseListItem(AppMemberCourse $mc, AppCourseBase $course, $nextSchedule = null): array
-    {
-        $overlayText = '';
-        $payTypeConfig = isset(AppCourseBase::PAY_TYPE_CONFIG[$course->pay_type])
-            ? AppCourseBase::PAY_TYPE_CONFIG[$course->pay_type]
-            : null;
-        if ($payTypeConfig) {
-            $overlayText = $payTypeConfig['typeName'];
-        }
-
-        // 时间文案（直播课显示下一节开课时间）
-        $timeText = '';
-        if ($nextSchedule && $nextSchedule->schedule_date) {
-            $dateStr = $nextSchedule->schedule_date->format('Y.m.d');
-            $timeStr = $nextSchedule->schedule_time ? substr($nextSchedule->schedule_time, 0, 5) : '';
-            $timeText = $timeStr ? ($dateStr . ' ' . $timeStr) : $dateStr;
-        }
-
-        // 状态文案
-        $statusText = '';
-        if ($mc->is_completed) {
-            $statusText = '已结课';
-        } elseif ($nextSchedule && $nextSchedule->schedule_date) {
-            $dateStr = $nextSchedule->schedule_date->format('Y.m.d');
-            $timeStr = $nextSchedule->schedule_time ? substr($nextSchedule->schedule_time, 0, 5) : '';
-            $statusText = $timeStr ? ($dateStr . ' ' . $timeStr . ' 开课') : ($dateStr . ' 开课');
-        } elseif ($mc->progress > 0) {
-            $statusText = '已学' . (int)$mc->progress . '%';
-        } else {
-            $statusText = '未学习';
-        }
-
-        $actionText = '去学习';
-        if ($mc->is_completed) {
-            $actionText = '已结课';
-        } elseif ($mc->last_learn_time) {
-            $actionText = '继续学';
-        }
-
-        return [
-            'id' => $mc->course_id,
-            'title' => $course->course_title,
-            'cover' => $course->cover_image,
-            'overlayText' => $overlayText,
-            'timeText' => $timeText,
-            'statusText' => $statusText,
-            'actionText' => $actionText,
-        ];
-    }
-
 }

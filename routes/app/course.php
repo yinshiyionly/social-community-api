@@ -121,6 +121,9 @@ Route::prefix('v1/study/course')->group(function () {
         // 学习中心课程详情（头部信息 + 每日计划 + 当前计划项）
         Route::get('/detail', [StudyCourseController::class, 'detail']);
 
+        // 章节学习上报（驱动课表 is_learned 流转）
+        Route::post('/learn', [StudyCourseController::class, 'learn']);
+
         // 今日学习任务
         Route::get('/today-tasks', [StudyCourseController::class, 'todayTasks']);
 

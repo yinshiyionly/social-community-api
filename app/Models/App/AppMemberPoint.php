@@ -5,6 +5,7 @@ namespace App\Models\App;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 /**
  * 用户积分账户表
@@ -49,6 +50,30 @@ class AppMemberPoint extends Model
     ];
 
     /**
+     * 模型事件注册。
+     *
+     * 设计约束：
+     * 1. `app_member_base.points` 作为 App 展示镜像字段，必须与 `available_points` 保持一致；
+     * 2. 任一同步失败都抛异常，让上层事务回滚，避免产生新的双表不一致。
+     *
+     * @return void
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (self $point): void {
+            $point->syncMemberBasePointsOrFail((int)$point->available_points);
+        });
+
+        static::restored(function (self $point): void {
+            $point->syncMemberBasePointsOrFail((int)$point->available_points);
+        });
+
+        static::deleted(function (self $point): void {
+            $point->syncMemberBasePointsOrFail(0);
+        });
+    }
+
+    /**
      * 关联用户
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
@@ -69,15 +94,18 @@ class AppMemberPoint extends Model
         $point = self::where('member_id', $memberId)->first();
 
         if (!$point) {
-            $point = self::create([
-                'member_id' => $memberId,
-                'total_points' => 0,
-                'used_points' => 0,
-                'available_points' => 0,
-                'frozen_points' => 0,
-                'expired_points' => 0,
-                'level_points' => 0,
-            ]);
+            // 创建积分账户时用事务包裹，确保镜像同步失败可整体回滚。
+            $point = DB::transaction(function () use ($memberId) {
+                return self::create([
+                    'member_id' => $memberId,
+                    'total_points' => 0,
+                    'used_points' => 0,
+                    'available_points' => 0,
+                    'frozen_points' => 0,
+                    'expired_points' => 0,
+                    'level_points' => 0,
+                ]);
+            });
         }
 
         return $point;
@@ -171,5 +199,26 @@ class AppMemberPoint extends Model
     public function hasEnoughPoints(int $points): bool
     {
         return $this->available_points >= $points;
+    }
+
+    /**
+     * 将可用积分同步到会员基础表镜像字段。
+     *
+     * 关键规则：
+     * 1. 仅同步 `app_member_base.points`，不改动其他会员字段；
+     * 2. 未命中会员记录或写入失败一律抛异常，由调用链决定回滚。
+     *
+     * @param int $points
+     * @return void
+     */
+    public function syncMemberBasePointsOrFail(int $points): void
+    {
+        $affected = AppMemberBase::query()
+            ->where('member_id', $this->member_id)
+            ->update(['points' => $points]);
+
+        if ($affected <= 0) {
+            throw new \RuntimeException('同步会员积分镜像字段失败');
+        }
     }
 }

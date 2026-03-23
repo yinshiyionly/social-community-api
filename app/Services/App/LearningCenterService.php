@@ -385,7 +385,7 @@ class LearningCenterService
         $item = [
             'id'           => $schedule->id,
             'type'         => 'course',
-            'time'         => $schedule->schedule_time ? $schedule->schedule_time : '',
+            'time'         => $schedule->schedule_time ? Carbon::make($schedule->schedule_time)->format('H:i') : '',
             'title'        => $chapter ? $chapter->chapter_title : '',
             'cover'        => $course ? $course->cover_image : '',
             'progressText' => $progressText,

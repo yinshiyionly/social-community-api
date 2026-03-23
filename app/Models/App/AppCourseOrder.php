@@ -2,13 +2,14 @@
 
 namespace App\Models\App;
 
+use App\Models\Traits\HasTosUrl;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AppCourseOrder extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasTosUrl;
 
     protected $table = 'app_course_order';
     protected $primaryKey = 'order_id';
@@ -203,5 +204,27 @@ class AppCourseOrder extends Model
         ];
 
         return $map[$this->pay_status] ?? '未知';
+    }
+
+    /**
+     * 拼接 TOS URL 绝对路径
+     *
+     * @param $value
+     * @return string|null
+     */
+    public function getCourseCoverAttribute($value): ?string
+    {
+        return $this->getTosUrl($value);
+    }
+
+    /**
+     * 提取 TOS URL 相对路径
+     *
+     * @param $value
+     * @return void
+     */
+    public function setCourseCoverAttribute($value): void
+    {
+        $this->attributes['course_cover'] = $this->extractTosPath($value);
     }
 }

@@ -4,6 +4,7 @@ namespace App\Services\App;
 
 use App\Jobs\App\ProcessPointEarnJob;
 use App\Jobs\App\ProcessPointConsumeJob;
+use App\Models\App\AppCheckinRecord;
 use App\Models\App\AppMemberGrowthTask;
 use App\Models\App\AppMemberPoint;
 use App\Models\App\AppMemberTaskRecord;
@@ -104,6 +105,11 @@ class PointService
     /**
      * 处理日常任务积分获取
      *
+     * 关键规则：
+     * 1. 非签到任务沿用 `app_member_point_task.point_value`；
+     * 2. `daily_checkin` 必须按签到记录快照发放，避免与签到配置出现双口径；
+     * 3. 签到记录缺失或奖励值无效时仅返回未执行，不做积分入账。
+     *
      * @param int $memberId
      * @param AppPointTask $task
      * @param string|null $bizId
@@ -132,6 +138,13 @@ class PointService
             }
         }
 
+        // 每日签到积分读取签到记录快照，其余任务沿用任务配置积分。
+        $pointValueResult = $this->resolveDailyTaskPointValue($memberId, $task, $bizId);
+        if (!$pointValueResult['success']) {
+            return ['success' => false, 'message' => $pointValueResult['message']];
+        }
+        $pointValue = $pointValueResult['point_value'];
+
         DB::beginTransaction();
         try {
             // 获取或创建积分账户
@@ -139,7 +152,7 @@ class PointService
             $beforePoints = $pointAccount->available_points;
 
             // 增加积分
-            $pointAccount->addPoints($task->point_value);
+            $pointAccount->addPoints($pointValue);
 
             // 创建任务完成记录
             AppMemberTaskRecord::create([
@@ -147,7 +160,7 @@ class PointService
                 'task_id' => $task->task_id,
                 'task_code' => $task->task_code,
                 'task_type' => $task->task_type,
-                'point_value' => $task->point_value,
+                'point_value' => $pointValue,
                 'complete_date' => date('Y-m-d'),
                 'complete_count' => $todayCount + 1,
                 'biz_id' => $bizId,
@@ -157,7 +170,7 @@ class PointService
             $this->createPointLog([
                 'member_id' => $memberId,
                 'change_type' => AppMemberPointLog::CHANGE_TYPE_EARN,
-                'change_value' => $task->point_value,
+                'change_value' => $pointValue,
                 'before_points' => $beforePoints,
                 'after_points' => $pointAccount->available_points,
                 'source_type' => AppMemberPointLog::SOURCE_TYPE_TASK,
@@ -174,7 +187,7 @@ class PointService
                 'success' => true,
                 'message' => '积分获取成功',
                 'data' => [
-                    'point_value' => $task->point_value,
+                    'point_value' => $pointValue,
                     'available_points' => $pointAccount->available_points,
                 ],
             ];
@@ -872,6 +885,72 @@ class PointService
         }
 
         return ['can_complete' => true, 'reason' => ''];
+    }
+
+    /**
+     * 解析日常任务本次应发放的积分值。
+     *
+     * 关键规则：
+     * 1. 仅 `daily_checkin` 走签到快照，使用 `biz_id=Y-m-d` 定位签到记录；
+     * 2. 签到记录缺失或奖励值异常时不发积分，返回未执行；
+     * 3. 其他日常任务直接复用任务配置积分。
+     *
+     * @param int $memberId
+     * @param AppPointTask $task
+     * @param string|null $bizId
+     * @return array{success:bool, point_value?:int, message?:string}
+     */
+    protected function resolveDailyTaskPointValue(int $memberId, AppPointTask $task, ?string $bizId): array
+    {
+        if ($task->task_code !== 'daily_checkin') {
+            return [
+                'success' => true,
+                'point_value' => (int)$task->point_value,
+            ];
+        }
+
+        // 每日签到依赖签到日期作为幂等业务键，缺失时无法定位签到快照。
+        if (!$bizId) {
+            Log::warning('签到积分任务缺少业务日期，已跳过发放', [
+                'member_id' => $memberId,
+                'task_code' => $task->task_code,
+                'biz_id' => $bizId,
+            ]);
+
+            return ['success' => false, 'message' => '签到积分任务未执行：签到记录不可用'];
+        }
+
+        $checkinRecord = AppCheckinRecord::byMember($memberId)
+            ->byDate($bizId)
+            ->first();
+
+        if (!$checkinRecord) {
+            Log::warning('签到积分任务未找到签到记录，已跳过发放', [
+                'member_id' => $memberId,
+                'task_code' => $task->task_code,
+                'biz_id' => $bizId,
+            ]);
+
+            return ['success' => false, 'message' => '签到积分任务未执行：签到记录不存在'];
+        }
+
+        $pointValue = (int)$checkinRecord->reward_value + (int)$checkinRecord->extra_reward_value;
+        if ($pointValue <= 0) {
+            Log::warning('签到积分任务奖励值无效，已跳过发放', [
+                'member_id' => $memberId,
+                'task_code' => $task->task_code,
+                'biz_id' => $bizId,
+                'reward_value' => $checkinRecord->reward_value,
+                'extra_reward_value' => $checkinRecord->extra_reward_value,
+            ]);
+
+            return ['success' => false, 'message' => '签到积分任务未执行：签到奖励配置无效'];
+        }
+
+        return [
+            'success' => true,
+            'point_value' => $pointValue,
+        ];
     }
 
     /**

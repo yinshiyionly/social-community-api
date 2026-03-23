@@ -229,6 +229,15 @@ return [
                 'memory' => 64,
                 'tries' => 3,
                 'timeout' => 120
+            ],
+            // App模块-积分服务
+            'app-point' => [
+                'connection' => 'redis',
+                'queue' => ['app-point'],
+                'maxProcesses' => 2,
+                'memory' => 64,
+                'tries' => 3,
+                'timeout' => 120
             ]
         ],
 
@@ -277,6 +286,15 @@ return [
                 'memory' => 64,
                 'tries' => 3,
                 'timeout' => 120
+            ],
+            // App模块-积分服务
+            'app-point' => [
+                'connection' => 'redis',
+                'queue' => ['app-point'],
+                'maxProcesses' => 4,
+                'memory' => 64,
+                'tries' => 3,
+                'timeout' => 120
             ]
         ],
 
@@ -321,6 +339,15 @@ return [
             'system-message' => [
                 'connection' => 'redis',
                 'queue' => ['system-message'],
+                'maxProcesses' => 2,
+                'memory' => 64,
+                'tries' => 3,
+                'timeout' => 120
+            ],
+            // App模块-积分服务
+            'app-point' => [
+                'connection' => 'redis',
+                'queue' => ['app-point'],
                 'maxProcesses' => 2,
                 'memory' => 64,
                 'tries' => 3,

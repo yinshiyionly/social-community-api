@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\App\CheckinController;
 use App\Http\Controllers\App\TaskController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,4 +16,7 @@ Route::prefix('v1/task')->middleware('app.auth')->group(function () {
 
     // 学分明细（分页）
     Route::get('/score/detail', [TaskController::class, 'scoreDetail']);
+
+    // 执行签到
+    Route::get('/sign-in', [CheckinController::class, 'checkin']);
 });

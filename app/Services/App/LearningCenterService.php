@@ -18,41 +18,50 @@ class LearningCenterService
     /**
      * 生成用户课表
      *
-     * 根据课程的上架章节和解锁规则，为用户生成 app_member_schedule 记录。
-     * 使用事务包裹，异常时自动回滚并记录日志。
+     * 根据课程上架章节全量重建用户章节课表。
+     *
+     * 关键规则：
+     * 1. 先物理清理该用户该课程下的章节课表（含软删记录），避免唯一索引冲突与历史脏数据残留；
+     * 2. 再按章节 unlock_type 重新计算 schedule_date/schedule_time；
+     * 3. unlock_time 维持历史口径（仍记录 chapter_start_time），避免扩大本次改造影响面。
      *
      * @param int $memberId 用户ID
      * @param int $courseId 课程ID
      * @param int $memberCourseId 用户课程记录ID
-     * @param \DateTime $enrollDate 报名日期
+     * @param \DateTime $enrollDate 报名日期（兼容保留参数，当前排课规则不直接使用）
      * @return void
      * @throws \Exception
      */
     public function generateSchedule(int $memberId, int $courseId, int $memberCourseId, \DateTime $enrollDate): void
     {
-        $chapters = AppCourseChapter::byCourse($courseId)
-            ->online()
-            ->orderBy('sort_order')
-            ->get();
-
-        if ($chapters->isEmpty()) {
-            return;
-        }
-
-        $today = date('Y-m-d');
-
         try {
-            DB::transaction(function () use ($memberId, $courseId, $memberCourseId, $enrollDate, $chapters, $today) {
+            DB::transaction(function () use ($memberId, $courseId, $memberCourseId) {
+                // 每次发课都先清理该用户该课程的章节课表（含软删），确保按最新规则重建且不触发唯一键冲突。
+                AppMemberSchedule::withTrashed()
+                    ->where('member_id', $memberId)
+                    ->where('course_id', $courseId)
+                    ->where('biz_type', AppMemberSchedule::BIZ_TYPE_CHAPTER)
+                    ->forceDelete();
+
+                $chapters = AppCourseChapter::byCourse($courseId)
+                    ->online()
+                    ->orderBy('sort_order')
+                    ->orderBy('chapter_id')
+                    ->get();
+
+                if ($chapters->isEmpty()) {
+                    return;
+                }
+
+                $today = date('Y-m-d');
+
                 foreach ($chapters as $chapter) {
-                    $scheduleDate = $chapter->calculateUnlockDate(
-                        !empty($chapter->chapter_start_time)
-                            ? Carbon::make($chapter->chapter_start_time)->toDateTime()
-                            : $enrollDate
-                    );
-                    if (!$scheduleDate) {
+                    $scheduleAt = $this->resolveScheduleAtByUnlockType($chapter);
+                    if (!$scheduleAt) {
                         continue;
                     }
 
+                    $scheduleDate = $scheduleAt->format('Y-m-d');
                     $isUnlocked = $scheduleDate <= $today ? 1 : 0;
 
                     AppMemberSchedule::create([
@@ -62,7 +71,8 @@ class LearningCenterService
                         'chapter_id'       => $chapter->chapter_id,
                         'member_course_id' => $memberCourseId,
                         'schedule_date'    => $scheduleDate,
-                        'schedule_time'    => $chapter->unlock_time,
+                        // 课表时间统一保留到分钟，秒位固定写 00，避免前端展示出现秒级抖动。
+                        'schedule_time'    => $scheduleAt->format('H:i:00'),
                         'is_unlocked'      => $isUnlocked,
                         'unlock_time'      => Carbon::make($chapter->chapter_start_time)->toDateTimeString()
                         // 'unlock_time'      => $isUnlocked ? now() : null,
@@ -78,6 +88,53 @@ class LearningCenterService
             ]);
             throw $e;
         }
+    }
+
+    /**
+     * 按章节解锁规则计算课表时间点。
+     *
+     * 规则约束：
+     * 1. unlock_type=1：直接使用 chapter_start_time；
+     * 2. unlock_type=2：使用 chapter_start_time + unlock_days；
+     * 3. unlock_type=3：使用 unlock_date + chapter_start_time 的时分（秒固定为 00）。
+     *
+     * @param AppCourseChapter $chapter
+     * @return Carbon|null
+     */
+    private function resolveScheduleAtByUnlockType(AppCourseChapter $chapter): ?Carbon
+    {
+        $chapterStartAt = Carbon::make($chapter->chapter_start_time);
+        if (!$chapterStartAt) {
+            return null;
+        }
+
+        // 统一将章节开始时间对齐到分钟，保证后续 schedule_time 落库口径一致。
+        $chapterStartAt = $chapterStartAt->copy()->startOfMinute();
+
+        if ((int)$chapter->unlock_type === AppCourseChapter::UNLOCK_TYPE_IMMEDIATE) {
+            return $chapterStartAt;
+        }
+
+        if ((int)$chapter->unlock_type === AppCourseChapter::UNLOCK_TYPE_DAYS) {
+            $unlockDays = max(0, (int)$chapter->unlock_days);
+            return $chapterStartAt->copy()->addDays($unlockDays);
+        }
+
+        if ((int)$chapter->unlock_type === AppCourseChapter::UNLOCK_TYPE_DATE) {
+            $unlockDate = Carbon::make($chapter->unlock_date);
+            if (!$unlockDate) {
+                return null;
+            }
+
+            // 按日期解锁时仅替换“日期”，时分沿用 chapter_start_time，满足课表展示时段一致性。
+            return $unlockDate->copy()->setTime(
+                (int)$chapterStartAt->format('H'),
+                (int)$chapterStartAt->format('i'),
+                0
+            );
+        }
+
+        return null;
     }
 
     /**

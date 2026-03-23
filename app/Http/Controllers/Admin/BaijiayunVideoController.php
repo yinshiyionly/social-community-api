@@ -196,29 +196,36 @@ class BaijiayunVideoController extends Controller
     }
 
     /**
-     * 删除视频（支持批量）
+     * 删除单个百家云视频（软删除）。
      *
-     * @param string $videoIds
+     * 关键规则：
+     * 1. 仅支持单个 videoId，路由层已限制为数字；
+     * 2. 删除前必须校验章节引用，已被使用的视频禁止删除；
+     * 3. 软删除返回影响行数为 0 时，视为视频不存在。
+     *
+     * 失败策略：
+     * - 参数非法、被引用、记录不存在均返回业务错误；
+     * - 异常场景记录日志后返回统一错误，避免暴露内部细节。
+     *
+     * @param int|string $videoId 视频 ID
      * @return \Illuminate\Http\JsonResponse
      */
-    public function destroy($videoIds)
+    public function destroy($videoId)
     {
         try {
-            $ids = array_map('intval', explode(',', (string)$videoIds));
-            $ids = array_values(array_filter(array_unique($ids), function ($id) {
-                return $id > 0;
-            }));
+            $videoId = (int)$videoId;
 
-            if (empty($ids)) {
+            // 仅允许正整数 ID，避免误删和空参数透传。
+            if ($videoId <= 0) {
                 return ApiResponse::error('参数错误');
             }
 
-            $usedVideoIds = $this->baijiayunVideoService->getUsedVideoIds($ids);
-            if (!empty($usedVideoIds)) {
+            // 已被章节引用的视频禁止删除，避免课程内容出现断链。
+            if ($this->baijiayunVideoService->isVideoUsed($videoId)) {
                 return ApiResponse::error('视频已被课程章节使用，无法删除');
             }
 
-            $deletedCount = $this->baijiayunVideoService->delete($ids);
+            $deletedCount = $this->baijiayunVideoService->delete($videoId);
             if ($deletedCount <= 0) {
                 return ApiResponse::error('删除失败，视频不存在');
             }
@@ -227,7 +234,7 @@ class BaijiayunVideoController extends Controller
         } catch (\Exception $e) {
             Log::error('删除百家云视频失败', [
                 'action' => 'destroy',
-                'video_ids' => $videoIds,
+                'video_id' => $videoId,
                 'error' => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');
@@ -294,4 +301,3 @@ class BaijiayunVideoController extends Controller
         return response()->json(['code' => 0]);
     }
 }
-

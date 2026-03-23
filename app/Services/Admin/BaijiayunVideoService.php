@@ -163,39 +163,29 @@ class BaijiayunVideoService
     }
 
     /**
-     * 删除视频（软删除）
+     * 删除单个视频（软删除）。
      *
-     * @param array $videoIds
-     * @return int
+     * @param int $videoId 视频 ID
+     * @return int 受影响行数，0 表示记录不存在或已删除
      */
-    public function delete(array $videoIds): int
+    public function delete(int $videoId): int
     {
         return AppVideoBaijiayun::query()
-            ->whereIn('video_id', $videoIds)
+            ->where('video_id', $videoId)
             ->delete();
     }
 
     /**
-     * 获取被章节使用的视频ID
+     * 判断视频是否已被课程章节引用。
      *
-     * @param array $videoIds
-     * @return array
+     * @param int $videoId 视频 ID
+     * @return bool true 表示已被使用，禁止删除
      */
-    public function getUsedVideoIds(array $videoIds): array
+    public function isVideoUsed(int $videoId): bool
     {
-        if (empty($videoIds)) {
-            return [];
-        }
-
         return DB::table('admin_video_chapter_content')
-            ->whereIn('video_id', $videoIds)
-            ->distinct()
-            ->pluck('video_id')
-            ->map(function ($videoId) {
-                return (int)$videoId;
-            })
-            ->values()
-            ->toArray();
+            ->where('video_id', $videoId)
+            ->exists();
     }
 
     /**
@@ -270,4 +260,3 @@ class BaijiayunVideoService
         }
     }
 }
-

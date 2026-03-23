@@ -37,8 +37,9 @@ Route::middleware('system.auth')->group(function () {
         Route::post('/', [BaijiayunVideoController::class, 'store']);
         // 更新
         Route::put('/', [BaijiayunVideoController::class, 'update']);
-        // 删除（支持批量）
-        Route::delete('/{videoIds}', [BaijiayunVideoController::class, 'destroy']);
+        // 删除（仅支持单个）
+        Route::delete('/{videoId}', [BaijiayunVideoController::class, 'destroy'])
+            ->where('videoId', '[0-9]+');
     });
 
     Route::prefix('/video/system')->group(function () {
@@ -58,4 +59,3 @@ Route::middleware('system.auth')->group(function () {
             ->where('videoId', '[0-9]+');
     });
 });
-

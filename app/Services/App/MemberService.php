@@ -33,11 +33,15 @@ class MemberService
         'following_count',
         'favorite_count',
         'like_count',
-        'points'
+        'points',
     ];
 
     /**
      * 获取用户主页信息
+     *
+     * 关键约束：
+     * 1. 会员基础信息从 `app_member_base` 读取；
+     * 2. 积分字段读取 `app_member_base.points`，该字段由积分账户增量同步维护。
      *
      * @param int $memberId 目标用户ID
      * @return AppMemberBase|null
@@ -267,6 +271,10 @@ class MemberService
 
     /**
      * 获取当前登录用户个人信息
+     *
+     * 关键约束：
+     * 1. 对外返回字段 `points` 保持不变；
+     * 2. `points` 的值来源于 `app_member_base.points`，由积分账户同步链路维护。
      *
      * @param int $memberId 用户ID
      * @return AppMemberBase|null

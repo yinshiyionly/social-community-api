@@ -10,7 +10,11 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class MemberProfileResource extends JsonResource
 {
     /**
-     * 转换资源为数组
+     * 转换资源为数组（用于个人主页展示）。
+     *
+     * 字段约定：
+     * 1. `score` 字段名保持兼容历史前端；
+     * 2. `score` 的值来自 `app_member_point.available_points`（由 Service 注入别名 `points`）。
      *
      * @param \Illuminate\Http\Request $request
      * @return array

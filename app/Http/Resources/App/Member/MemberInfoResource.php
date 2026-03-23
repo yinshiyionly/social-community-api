@@ -10,7 +10,12 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class MemberInfoResource extends JsonResource
 {
     /**
-     * 转换资源为数组
+     * 转换资源为数组（面向 App 端字段约定）。
+     *
+     * 字段约定：
+     * 1. 返回字段保持 camelCase；
+     * 2. `points` 字段值来自 `app_member_point.available_points`（由 Service 注入别名）；
+     * 3. 当积分账户不存在时，`points` 兜底返回 0。
      *
      * @param \Illuminate\Http\Request $request
      * @return array

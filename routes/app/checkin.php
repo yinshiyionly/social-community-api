@@ -9,7 +9,7 @@ use App\Http\Controllers\App\CheckinController;
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('v1/checkin')->middleware('app.jwt.auth')->group(function () {
+Route::prefix('v1/checkin')->middleware('app.auth')->group(function () {
     // 执行签到
     Route::post('', [CheckinController::class, 'checkin']);
 

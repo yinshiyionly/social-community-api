@@ -26,6 +26,16 @@ use Illuminate\Support\Facades\DB;
 class StudyCourseService
 {
     /**
+     * 课程卡片 statusText 计算场景：today-tasks。
+     */
+    private const STATUS_SCENE_TODAY = 'today';
+
+    /**
+     * 课程卡片 statusText 计算场景：sections/list。
+     */
+    private const STATUS_SCENE_GENERAL = 'general';
+
+    /**
      * 获取课程分类筛选项
      *
      * @return array
@@ -362,7 +372,8 @@ class StudyCourseService
                 $chapterMeta,
                 $representativeSchedule,
                 $representativeChapter,
-                $now
+                $now,
+                self::STATUS_SCENE_TODAY
             );
 
             $todayTasks[] = array_merge($card, [
@@ -547,7 +558,8 @@ class StudyCourseService
                 $chapterMeta,
                 $representativeSchedule,
                 $representativeChapter,
-                $now
+                $now,
+                self::STATUS_SCENE_GENERAL
             );
         }
 
@@ -847,7 +859,8 @@ class StudyCourseService
      * 字段来源：
      * - id/title/cover：app_course_base；
      * - overlayText：课程类型文案 + 课程章节总数；
-     * - timeText/statusText：课程第一章节 chapter_start_time；
+     * - timeText：课程第一章节 chapter_start_time；
+     * - statusText：按接口场景计算（today=开课状态，general=学习状态）；
      * - actionText：代表章节学习状态 + 章节标题。
      *
      * @param AppCourseBase $course
@@ -855,6 +868,7 @@ class StudyCourseService
      * @param AppMemberSchedule|null $representativeSchedule
      * @param AppCourseChapter|null $representativeChapter
      * @param Carbon $now
+     * @param string $statusScene self::STATUS_SCENE_TODAY|self::STATUS_SCENE_GENERAL
      * @return array<string, mixed>
      */
     private function buildCourseCardPayload(
@@ -862,7 +876,8 @@ class StudyCourseService
         array $chapterMeta,
         ?AppMemberSchedule $representativeSchedule,
         ?AppCourseChapter $representativeChapter,
-        Carbon $now
+        Carbon $now,
+        string $statusScene = self::STATUS_SCENE_GENERAL
     ): array {
         $firstChapter = $chapterMeta['firstChapter'] ?? null;
         $timeText = $this->buildCourseTimeText($firstChapter);
@@ -873,7 +888,12 @@ class StudyCourseService
             'cover' => (string)($course->cover_image ?? ''),
             'overlayText' => $this->buildCourseOverlayText((int)($course->pay_type ?? 0), (int)($chapterMeta['chapterCount'] ?? 0)),
             'timeText' => $timeText,
-            'statusText' => $timeText,
+            'statusText' => $this->resolveCourseStatusText(
+                $statusScene,
+                $representativeSchedule,
+                $representativeChapter,
+                $now
+            ),
             'actionText' => $this->buildCourseActionText($representativeSchedule, $representativeChapter, $now),
         ];
     }
@@ -908,7 +928,7 @@ class StudyCourseService
     }
 
     /**
-     * 构建 timeText/statusText 文案。
+     * 构建 timeText 文案。
      *
      * @param AppCourseChapter|null $firstChapter
      * @return string
@@ -936,7 +956,7 @@ class StudyCourseService
      */
     private function buildCourseActionText(?AppMemberSchedule $schedule, ?AppCourseChapter $chapter, Carbon $now): string
     {
-        $statusText = $this->resolveCourseActionStatus($schedule, $chapter, $now);
+        $statusText = $this->resolveGeneralCourseStatusText($schedule, $chapter, $now);
 
         $chapterNo = $chapter ? (int)($chapter->chapter_no ?? 0) : 0;
         $chapterNoText = $chapterNo > 0 ? ('第' . $chapterNo . '章节') : '章节';
@@ -949,19 +969,89 @@ class StudyCourseService
     }
 
     /**
-     * 解析 actionText 的学习状态文案。
+     * 按接口场景解析课程卡片 statusText。
+     *
+     * 场景说明：
+     * 1. today：待开课/上课中/已结课（基于章节起止时间）；
+     * 2. general：开始学/继续学习/已学完（基于 is_learned + 章节结束时间）。
+     *
+     * @param string $statusScene
+     * @param AppMemberSchedule|null $schedule
+     * @param AppCourseChapter|null $chapter
+     * @param Carbon $now
+     * @return string
+     */
+    private function resolveCourseStatusText(
+        string $statusScene,
+        ?AppMemberSchedule $schedule,
+        ?AppCourseChapter $chapter,
+        Carbon $now
+    ): string {
+        if ($statusScene === self::STATUS_SCENE_TODAY) {
+            return $this->resolveTodayCourseStatusText($chapter, $now);
+        }
+
+        return $this->resolveGeneralCourseStatusText($schedule, $chapter, $now);
+    }
+
+    /**
+     * 解析 today-tasks 场景状态文案。
+     *
+     * 判定规则：
+     * 1. now < chapter_start_time => 待开课；
+     * 2. chapter_start_time <= now <= chapter_end_time => 上课中；
+     * 3. now > chapter_end_time => 已结课；
+     * 4. 任一关键时间缺失时兜底待开课，避免返回空状态影响前端展示。
+     *
+     * @param AppCourseChapter|null $chapter
+     * @param Carbon $now
+     * @return string
+     */
+    private function resolveTodayCourseStatusText(?AppCourseChapter $chapter, Carbon $now): string
+    {
+        if (!$chapter || !$chapter->chapter_start_time || !$chapter->chapter_end_time) {
+            return '待开课';
+        }
+
+        $chapterStartAt = Carbon::make($chapter->chapter_start_time);
+        $chapterEndAt = Carbon::make($chapter->chapter_end_time);
+        if (!$chapterStartAt || !$chapterEndAt) {
+            // 章节时间异常时按“待开课”兜底，避免前端收到不确定状态。
+            return '待开课';
+        }
+
+        $chapterStartAt = $chapterStartAt->timezone('Asia/Shanghai');
+        $chapterEndAt = $chapterEndAt->timezone('Asia/Shanghai');
+
+        if ($now->lt($chapterStartAt)) {
+            return '待开课';
+        }
+
+        if ($now->gt($chapterEndAt)) {
+            return '已结课';
+        }
+
+        return '上课中';
+    }
+
+    /**
+     * 解析 sections/list 场景学习状态文案（actionText 同步复用此规则）。
      *
      * 优先级：
      * 1. 章节结束时间已过 => 已学完；
-     * 2. is_learned=0 => 开始学；
-     * 3. is_learned=1 => 继续学习。
+     * 2. is_learned=1 => 继续学习；
+     * 3. 其他情况 => 开始学。
      *
      * @param AppMemberSchedule|null $schedule
      * @param AppCourseChapter|null $chapter
      * @param Carbon $now
      * @return string
      */
-    private function resolveCourseActionStatus(?AppMemberSchedule $schedule, ?AppCourseChapter $chapter, Carbon $now): string
+    private function resolveGeneralCourseStatusText(
+        ?AppMemberSchedule $schedule,
+        ?AppCourseChapter $chapter,
+        Carbon $now
+    ): string
     {
         if ($chapter && $chapter->chapter_end_time) {
             $chapterEndAt = Carbon::make($chapter->chapter_end_time)->timezone('Asia/Shanghai');
@@ -999,7 +1089,8 @@ class StudyCourseService
             $chapterMeta,
             $representativeSchedule,
             $representativeChapter,
-            $now
+            $now,
+            self::STATUS_SCENE_GENERAL
         );
 
         return array_merge($item, [

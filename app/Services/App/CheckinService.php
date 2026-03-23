@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\Log;
  * 职责：
  * 1. 处理用户签到记录与连续签到统计；
  * 2. 输出签到状态、奖励配置与月度签到记录；
- * 3. 在签到成功后触发任务中心 `daily_checkin` 积分任务（异步，不阻塞主流程）。
+ * 3. 在签到成功后触发任务中心 `daily_checkin` 积分任务（异步，不阻塞主流程），
+ *    实际发放积分以签到记录快照（来源 `app_checkin_config`）为准。
  */
 class CheckinService
 {
@@ -78,7 +79,7 @@ class CheckinService
 
             DB::commit();
 
-            // 签到链路积分统一走任务中心配置，避免与连签奖励配置出现双口径。
+            // 签到成功后异步触发积分发放，具体积分值由签到记录快照决定。
             $this->triggerDailyCheckinPoint($memberId, $clientIp);
 
             Log::channel('job')->info('用户签到成功', [
@@ -231,7 +232,7 @@ class CheckinService
      * 关键约束：
      * 1. biz_id 使用 `Y-m-d`，同一用户同一天只会命中一次；
      * 2. 触发异常仅记录日志，不影响签到主流程成功返回；
-     * 3. 积分值以任务配置 `daily_checkin` 为准，不复用签到配置 reward_value。
+     * 3. 积分值以签到记录快照（`reward_value + extra_reward_value`）为准。
      *
      * @param int $memberId
      * @param string|null $clientIp

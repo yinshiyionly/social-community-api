@@ -840,7 +840,12 @@ class CourseOrderService
     }
 
     /**
-     * 发放课程（首次创建时生成课表并累加报名数）
+     * 发放课程（每次支付成功都重建章节课表）。
+     *
+     * 关键规则：
+     * 1. member_course 首次创建时才累加报名人数；
+     * 2. 无论首次购买还是重购，均按当前章节规则重建课表；
+     * 3. 课表重建在同一事务内执行，避免支付成功后权益数据不一致。
      *
      * @param AppCourseOrder $order
      * @throws \Exception
@@ -905,14 +910,15 @@ class CourseOrderService
             AppCourseBase::query()
                 ->where('course_id', $order->course_id)
                 ->increment('enroll_count');
-
-            $this->learningCenterService->generateSchedule(
-                (int)$order->member_id,
-                (int)$order->course_id,
-                (int)$memberCourse->id,
-                $enrollTime
-            );
         }
+
+        // 支付发课后统一重建章节课表，确保重购场景也能拿到最新章节排课。
+        $this->learningCenterService->generateSchedule(
+            (int)$order->member_id,
+            (int)$order->course_id,
+            (int)$memberCourse->id,
+            $enrollTime
+        );
     }
 
     /**

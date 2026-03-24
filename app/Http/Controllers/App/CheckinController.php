@@ -48,16 +48,22 @@ class CheckinController extends Controller
             $result = $this->checkinService->checkin($memberId, $clientIp, $deviceInfo);
 
             if (!$result['success']) {
-                return AppApiResponse::error($result['message']);
+                return AppApiResponse::success([
+                    'data' => [
+                        'message' => '今日已签到'
+                    ]
+                ]);
             }
 
             return AppApiResponse::success([
-                'data' => $result['data'],
-            ], $result['message']);
+                'data' => [
+                    'message' => '签到成功,加' . ($result['data']['reward_value'] ?? 0) . '分'
+                ]
+            ]);
         } catch (\Exception $e) {
             Log::error('签到失败', [
                 'member_id' => $memberId,
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
 
             return AppApiResponse::serverError();
@@ -83,7 +89,7 @@ class CheckinController extends Controller
         } catch (\Exception $e) {
             Log::error('获取签到状态失败', [
                 'member_id' => $memberId,
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
 
             return AppApiResponse::serverError();
@@ -109,7 +115,7 @@ class CheckinController extends Controller
         } catch (\Exception $e) {
             Log::error('获取签到奖励配置失败', [
                 'member_id' => $memberId,
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
 
             return AppApiResponse::serverError();
@@ -146,9 +152,9 @@ class CheckinController extends Controller
         } catch (\Exception $e) {
             Log::error('获取月度签到记录失败', [
                 'member_id' => $memberId,
-                'year' => $year,
-                'month' => $month,
-                'error' => $e->getMessage(),
+                'year'      => $year,
+                'month'     => $month,
+                'error'     => $e->getMessage(),
             ]);
 
             return AppApiResponse::serverError();

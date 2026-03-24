@@ -112,10 +112,10 @@ class CourseOrderService
         }
 
         $map = [
-            'unpaid' => AppCourseOrder::PAY_STATUS_PENDING,
-            'paid' => AppCourseOrder::PAY_STATUS_PAID,
+            'unpaid'   => AppCourseOrder::PAY_STATUS_PENDING,
+            'paid'     => AppCourseOrder::PAY_STATUS_PAID,
             'refunded' => AppCourseOrder::PAY_STATUS_REFUNDED,
-            'closed' => AppCourseOrder::PAY_STATUS_CLOSED,
+            'closed'   => AppCourseOrder::PAY_STATUS_CLOSED,
         ];
 
         return $map[strtolower(trim($status))] ?? null;
@@ -134,13 +134,14 @@ class CourseOrderService
      * @throws \Exception
      */
     public function createWechatAppOrder(
-        int $memberId,
-        int $courseId,
-        string $phone,
-        string $ageRange,
+        int     $memberId,
+        int     $courseId,
+        string  $phone,
+        string  $ageRange,
         ?string $clientIp = null,
         ?string $userAgent = null
-    ): array {
+    ): array
+    {
         $order = DB::transaction(function () use ($memberId, $courseId, $phone, $ageRange, $clientIp, $userAgent) {
             $member = AppMemberBase::query()
                 ->select(['member_id'])
@@ -206,37 +207,37 @@ class CourseOrderService
             }
 
             return AppCourseOrder::query()->create([
-                'order_no' => AppCourseOrder::generateOrderNo(),
-                'member_id' => $memberId,
-                'course_id' => $courseId,
-                'course_title' => $course->course_title,
-                'course_cover' => $course->cover_image,
-                'enroll_phone' => $phone,
+                'order_no'         => AppCourseOrder::generateOrderNo(),
+                'member_id'        => $memberId,
+                'course_id'        => $courseId,
+                'course_title'     => $course->course_title,
+                'course_cover'     => $course->cover_image,
+                'enroll_phone'     => $phone,
                 'enroll_age_range' => $ageRange,
-                'original_price' => $course->original_price,
-                'current_price' => $course->current_price,
-                'discount_amount' => 0,
-                'coupon_amount' => 0,
-                'point_deduct' => 0,
-                'point_amount' => 0,
-                'paid_amount' => $course->current_price,
-                'pay_status' => AppCourseOrder::PAY_STATUS_PENDING,
-                'pay_type' => AppCourseOrder::PAY_TYPE_WECHAT,
-                'expire_time' => now()->addMinutes(self::ORDER_EXPIRE_MINUTES),
-                'client_ip' => $clientIp,
-                'user_agent' => $userAgent,
+                'original_price'   => $course->original_price,
+                'current_price'    => $course->current_price,
+                'discount_amount'  => 0,
+                'coupon_amount'    => 0,
+                'point_deduct'     => 0,
+                'point_amount'     => 0,
+                'paid_amount'      => $course->current_price,
+                'pay_status'       => AppCourseOrder::PAY_STATUS_PENDING,
+                'pay_type'         => AppCourseOrder::PAY_TYPE_WECHAT,
+                'expire_time'      => now()->addMinutes(self::ORDER_EXPIRE_MINUTES),
+                'client_ip'        => $clientIp,
+                'user_agent'       => $userAgent,
             ]);
         });
 
         $wechatAppPayParams = $this->createWechatAppPayParams($order);
 
         return [
-            'provider' => 'wxpay',
-            'orderId' => $order->order_no,
-            'payStatus' => $this->formatPayStatus((int)$order->pay_status),
+            'provider'      => 'wxpay',
+            'orderId'       => $order->order_no,
+            'payStatus'     => $this->formatPayStatus((int)$order->pay_status),
             'payStatusCode' => (int)$order->pay_status,
-            'expireTime' => optional($order->expire_time)->format('Y-m-d H:i:s'),
-            'orderInfo' => $wechatAppPayParams,
+            'expireTime'    => optional($order->expire_time)->format('Y-m-d H:i:s'),
+            'orderInfo'     => $wechatAppPayParams,
         ];
     }
 
@@ -265,14 +266,14 @@ class CourseOrderService
         }
 
         return [
-            'orderNo' => $order->order_no,
-            'payStatus' => $this->formatPayStatus((int)$order->pay_status),
+            'orderNo'       => $order->order_no,
+            'payStatus'     => $this->formatPayStatus((int)$order->pay_status),
             'payStatusCode' => (int)$order->pay_status,
             'payStatusText' => $order->pay_status_text,
-            'payType' => $order->pay_type,
-            'paidAmount' => number_format((float)$order->paid_amount, 2, '.', ''),
-            'expireTime' => optional($order->expire_time)->format('Y-m-d H:i:s'),
-            'payTime' => optional($order->pay_time)->format('Y-m-d H:i:s'),
+            'payType'       => $order->pay_type,
+            'paidAmount'    => number_format((float)$order->paid_amount, 2, '.', ''),
+            'expireTime'    => optional($order->expire_time)->format('Y-m-d H:i:s'),
+            'payTime'       => optional($order->pay_time)->format('Y-m-d H:i:s'),
         ];
     }
 
@@ -354,7 +355,7 @@ class CourseOrderService
                     null,
                     [
                         'refund_error' => $e->getMessage(),
-                        'order_no' => $orderNo,
+                        'order_no'     => $orderNo,
                     ],
                     $clientIp,
                     '微信退款失败'
@@ -371,12 +372,12 @@ class CourseOrderService
     protected function buildRefundResult(AppCourseOrder $order): array
     {
         return [
-            'orderNo' => $order->order_no,
-            'payStatus' => $this->formatPayStatus((int)$order->pay_status),
+            'orderNo'       => $order->order_no,
+            'payStatus'     => $this->formatPayStatus((int)$order->pay_status),
             'payStatusCode' => (int)$order->pay_status,
-            'refundStatus' => (int)$order->refund_status,
-            'refundAmount' => number_format((float)$order->refund_amount, 2, '.', ''),
-            'refundTime' => optional($order->refund_time)->format('Y-m-d H:i:s'),
+            'refundStatus'  => (int)$order->refund_status,
+            'refundAmount'  => number_format((float)$order->refund_amount, 2, '.', ''),
+            'refundTime'    => optional($order->refund_time)->format('Y-m-d H:i:s'),
         ];
     }
 
@@ -400,9 +401,9 @@ class CourseOrderService
             $callbackData = $this->xmlToArray($rawXml);
         } catch (\Exception $e) {
             Log::warning('微信回调XML解析失败', [
-                'client_ip' => $clientIp,
+                'client_ip'  => $clientIp,
                 'raw_length' => strlen($rawXml),
-                'error' => $e->getMessage(),
+                'error'      => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -417,8 +418,8 @@ class CourseOrderService
         if (!$this->verifyWechatV2Sign($callbackData)) {
             Log::warning('微信回调验签失败', [
                 'client_ip' => $clientIp,
-                'order_no' => (string)($callbackData['out_trade_no'] ?? ''),
-                'notify' => $this->maskSensitiveWechatPayload($callbackData),
+                'order_no'  => (string)($callbackData['out_trade_no'] ?? ''),
+                'notify'    => $this->maskSensitiveWechatPayload($callbackData),
             ]);
             throw new \Exception('微信回调验签失败');
         }
@@ -438,12 +439,12 @@ class CourseOrderService
         }
 
         $notifyData = [
-            'out_trade_no' => $orderNo,
+            'out_trade_no'   => $orderNo,
             'transaction_id' => (string)($callbackData['transaction_id'] ?? ''),
-            'amount' => [
+            'amount'         => [
                 'total' => (int)($callbackData['total_fee'] ?? 0),
             ],
-            'raw' => $callbackData,
+            'raw'            => $callbackData,
         ];
 
         $this->markOrderPaidAndGrantCourse($notifyData, $clientIp);
@@ -549,7 +550,7 @@ class CourseOrderService
             // 仅在“待支付 -> 已支付”状态迁移成功时记录触发信息，事务提交后再发积分任务。
             $firstPurchaseTriggerPayload = [
                 'member_id' => (int)$order->member_id,
-                'order_no' => (string)$order->order_no,
+                'order_no'  => (string)$order->order_no,
                 'client_ip' => $clientIp,
             ];
         });
@@ -582,16 +583,16 @@ class CourseOrderService
         }
 
         $unifiedOrderPayload = [
-            'appid' => $config['app_id'],
-            'mch_id' => $config['mch_id'],
-            'nonce_str' => $this->generateNonceStr(),
-            'body' => $description,
-            'out_trade_no' => $order->order_no,
-            'total_fee' => $this->toFen($order->paid_amount),
+            'appid'            => $config['app_id'],
+            'mch_id'           => $config['mch_id'],
+            'nonce_str'        => $this->generateNonceStr(),
+            'body'             => $description,
+            'out_trade_no'     => $order->order_no,
+            'total_fee'        => $this->toFen($order->paid_amount),
             'spbill_create_ip' => $this->normalizeClientIp($order->client_ip),
-            'notify_url' => $config['notify_url'],
-            'trade_type' => 'APP',
-            'sign_type' => $config['sign_type'],
+            'notify_url'       => $config['notify_url'],
+            'trade_type'       => 'APP',
+            'sign_type'        => $config['sign_type'],
         ];
         $unifiedOrderPayload['sign'] = $this->buildWechatV2Sign($unifiedOrderPayload);
 
@@ -602,13 +603,13 @@ class CourseOrderService
             $response = Http::timeout(10)
                 ->withHeaders([
                     'Content-Type' => 'application/xml',
-                    'Accept' => 'application/xml',
+                    'Accept'       => 'application/xml',
                 ])
                 ->send('POST', $url, ['body' => $requestXml]);
         } catch (\Throwable $e) {
             Log::error('微信v2统一下单请求异常', [
                 'order_no' => $order->order_no,
-                'error' => $e->getMessage(),
+                'error'    => $e->getMessage(),
             ]);
             throw new \Exception('微信支付请求失败，请稍后重试');
         }
@@ -626,7 +627,7 @@ class CourseOrderService
         } catch (\Exception $e) {
             Log::warning('微信v2统一下单响应XML解析失败', [
                 'order_no' => $order->order_no,
-                'error' => $e->getMessage(),
+                'error'    => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -635,9 +636,9 @@ class CourseOrderService
         if ($returnCode !== 'SUCCESS') {
             $returnMsg = (string)($unifiedOrderResult['return_msg'] ?? '微信支付下单失败');
             Log::warning('微信v2统一下单通信失败', [
-                'order_no' => $order->order_no,
+                'order_no'    => $order->order_no,
                 'return_code' => $returnCode,
-                'return_msg' => $returnMsg,
+                'return_msg'  => $returnMsg,
             ]);
             throw new \Exception($returnMsg === '' ? '微信支付下单失败' : $returnMsg);
         }
@@ -654,9 +655,9 @@ class CourseOrderService
         if ($resultCode !== 'SUCCESS') {
             $errorMsg = (string)($unifiedOrderResult['err_code_des'] ?? $unifiedOrderResult['return_msg'] ?? '微信支付下单失败');
             Log::warning('微信v2统一下单业务失败', [
-                'order_no' => $order->order_no,
-                'result_code' => $resultCode,
-                'err_code' => (string)($unifiedOrderResult['err_code'] ?? ''),
+                'order_no'     => $order->order_no,
+                'result_code'  => $resultCode,
+                'err_code'     => (string)($unifiedOrderResult['err_code'] ?? ''),
                 'err_code_des' => $errorMsg,
             ]);
             throw new \Exception($errorMsg === '' ? '微信支付下单失败' : $errorMsg);
@@ -672,20 +673,20 @@ class CourseOrderService
         }
 
         $appPayParams = [
-            'appid' => $config['app_id'],
+            'appid'     => $config['app_id'],
             'partnerid' => $config['mch_id'],
-            'prepayid' => $prepayId,
-            'package' => 'Sign=WXPay',
-            'noncestr' => $this->generateNonceStr(),
+            'prepayid'  => $prepayId,
+            'package'   => 'Sign=WXPay',
+            'noncestr'  => $this->generateNonceStr(),
             'timestamp' => (string)time(),
         ];
 
         $appPayParams['sign'] = $this->buildWechatV2Sign([
-            'appid' => $appPayParams['appid'],
+            'appid'     => $appPayParams['appid'],
             'partnerid' => $appPayParams['partnerid'],
-            'prepayid' => $appPayParams['prepayid'],
-            'package' => $appPayParams['package'],
-            'noncestr' => $appPayParams['noncestr'],
+            'prepayid'  => $appPayParams['prepayid'],
+            'package'   => $appPayParams['package'],
+            'noncestr'  => $appPayParams['noncestr'],
             'timestamp' => $appPayParams['timestamp'],
         ]);
 
@@ -709,39 +710,40 @@ class CourseOrderService
         }
 
         $payload = [
-            'appid' => $config['app_id'],
-            'mch_id' => $config['mch_id'],
-            'nonce_str' => $this->generateNonceStr(),
-            'out_trade_no' => $order->order_no,
+            'appid'         => $config['app_id'],
+            'mch_id'        => $config['mch_id'],
+            'nonce_str'     => $this->generateNonceStr(),
+            'out_trade_no'  => $order->order_no,
             'out_refund_no' => $this->buildWechatRefundNo($order->order_no),
-            'total_fee' => $this->toFen($order->paid_amount),
-            'refund_fee' => $this->toFen($order->paid_amount),
-            'refund_desc' => $refundDesc,
-            'sign_type' => $config['sign_type'],
+            'total_fee'     => $this->toFen($order->paid_amount),
+            'refund_fee'    => $this->toFen($order->paid_amount),
+            'refund_desc'   => $refundDesc,
+            'sign_type'     => $config['sign_type'],
         ];
         $payload['sign'] = $this->buildWechatV2Sign($payload);
 
         $requestXml = $this->arrayToXml($payload);
         $url = $config['api_base_v2'] . '/secapi/pay/refund';
 
-        $certPath = $this->resolveWechatPemPath((string)$config['mch_public_cert_path_v2'], 'wechat_pay_cert');
-        $keyPath = $this->resolveWechatPemPath((string)$config['mch_secret_cert_v2'], 'wechat_pay_key');
+        // $certPath = $this->resolveWechatPemPath((string)$config['mch_public_cert_path_v2'], 'wechat_pay_cert');
+        // $keyPath = $this->resolveWechatPemPath((string)$config['mch_secret_cert_v2'], 'wechat_pay_key');
+
 
         try {
             $response = Http::timeout(15)
                 ->withOptions([
-                    'cert' => $certPath,
-                    'ssl_key' => $keyPath,
+                    'cert'    => storage_path($config['mch_secret_cert_v2']),
+                    'ssl_key' => storage_path($config['mch_public_cert_path_v2'])
                 ])
                 ->withHeaders([
                     'Content-Type' => 'application/xml',
-                    'Accept' => 'application/xml',
+                    'Accept'       => 'application/xml',
                 ])
                 ->send('POST', $url, ['body' => $requestXml]);
         } catch (\Throwable $e) {
             Log::error('微信v2退款请求异常', [
                 'order_no' => $order->order_no,
-                'error' => $e->getMessage(),
+                'error'    => $e->getMessage(),
             ]);
             throw new \Exception('微信退款请求失败，请稍后重试');
         }
@@ -759,7 +761,7 @@ class CourseOrderService
         } catch (\Exception $e) {
             Log::warning('微信v2退款响应XML解析失败', [
                 'order_no' => $order->order_no,
-                'error' => $e->getMessage(),
+                'error'    => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -768,9 +770,9 @@ class CourseOrderService
         if ($returnCode !== 'SUCCESS') {
             $returnMsg = (string)($result['return_msg'] ?? '微信退款失败');
             Log::warning('微信v2退款通信失败', [
-                'order_no' => $order->order_no,
+                'order_no'    => $order->order_no,
                 'return_code' => $returnCode,
-                'return_msg' => $returnMsg,
+                'return_msg'  => $returnMsg,
             ]);
             throw new \Exception($returnMsg === '' ? '微信退款失败' : $returnMsg);
         }
@@ -787,9 +789,9 @@ class CourseOrderService
         if ($resultCode !== 'SUCCESS') {
             $errorMsg = (string)($result['err_code_des'] ?? $result['return_msg'] ?? '微信退款失败');
             Log::warning('微信v2退款业务失败', [
-                'order_no' => $order->order_no,
-                'result_code' => $resultCode,
-                'err_code' => (string)($result['err_code'] ?? ''),
+                'order_no'     => $order->order_no,
+                'result_code'  => $resultCode,
+                'err_code'     => (string)($result['err_code'] ?? ''),
                 'err_code_des' => $errorMsg,
             ]);
             throw new \Exception($errorMsg === '' ? '微信退款失败' : $errorMsg);
@@ -831,10 +833,10 @@ class CourseOrderService
                 ->decrement('enroll_count');
         } catch (\Throwable $e) {
             Log::error('退款后回收课程权益失败', [
-                'order_no' => $order->order_no,
+                'order_no'  => $order->order_no,
                 'member_id' => $order->member_id,
                 'course_id' => $order->course_id,
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
         }
     }
@@ -877,17 +879,17 @@ class CourseOrderService
 
         if (!$memberCourse) {
             $memberCourse = AppMemberCourse::query()->create([
-                'member_id' => $order->member_id,
-                'course_id' => $order->course_id,
-                'order_no' => $order->order_no,
-                'source_type' => AppMemberCourse::SOURCE_TYPE_PURCHASE,
-                'enroll_phone' => $order->enroll_phone,
+                'member_id'        => $order->member_id,
+                'course_id'        => $order->course_id,
+                'order_no'         => $order->order_no,
+                'source_type'      => AppMemberCourse::SOURCE_TYPE_PURCHASE,
+                'enroll_phone'     => $order->enroll_phone,
                 'enroll_age_range' => $order->enroll_age_range,
-                'paid_amount' => $order->paid_amount,
-                'enroll_time' => $enrollTime,
-                'expire_time' => $expireTime,
-                'is_expired' => 0,
-                'total_chapters' => (int)$course->total_chapter,
+                'paid_amount'      => $order->paid_amount,
+                'enroll_time'      => $enrollTime,
+                'expire_time'      => $expireTime,
+                'is_expired'       => 0,
+                'total_chapters'   => (int)$course->total_chapter,
             ]);
             $isFirstCreate = true;
         } else {
@@ -933,12 +935,13 @@ class CourseOrderService
      */
     protected function createPayLog(
         AppCourseOrder $order,
-        int $payResult,
-        ?string $tradeNo,
-        array $response,
-        ?string $clientIp,
-        string $remark = ''
-    ): void {
+        int            $payResult,
+        ?string        $tradeNo,
+        array          $response,
+        ?string        $clientIp,
+        string         $remark = ''
+    ): void
+    {
         $payload = [
             'notify' => $this->maskSensitiveWechatPayload($response),
         ];
@@ -948,15 +951,15 @@ class CourseOrderService
         }
 
         AppCourseOrderPayLog::query()->create([
-            'order_no' => $order->order_no,
-            'member_id' => $order->member_id,
-            'pay_type' => AppCourseOrder::PAY_TYPE_WECHAT,
-            'pay_amount' => $order->paid_amount,
-            'trade_no' => $tradeNo,
-            'pay_result' => $payResult,
+            'order_no'     => $order->order_no,
+            'member_id'    => $order->member_id,
+            'pay_type'     => AppCourseOrder::PAY_TYPE_WECHAT,
+            'pay_amount'   => $order->paid_amount,
+            'trade_no'     => $tradeNo,
+            'pay_result'   => $payResult,
             'pay_response' => json_encode($payload, JSON_UNESCAPED_UNICODE),
-            'client_ip' => $clientIp,
-            'created_at' => now(),
+            'client_ip'    => $clientIp,
+            'created_at'   => now(),
         ]);
     }
 
@@ -976,7 +979,7 @@ class CourseOrderService
             Log::warning('微信回调失败且订单不存在', [
                 'order_no' => $orderNo,
                 'response' => $this->maskSensitiveWechatPayload($response),
-                'remark' => $remark,
+                'remark'   => $remark,
             ]);
             return;
         }
@@ -1047,14 +1050,14 @@ class CourseOrderService
         }
 
         return [
-            'app_id' => $appId,
-            'mch_id' => $mchId,
-            'mch_secret_key_v2' => $mchSecretKeyV2,
-            'mch_secret_cert_v2' => $mchSecretCertV2,
+            'app_id'                  => $appId,
+            'mch_id'                  => $mchId,
+            'mch_secret_key_v2'       => $mchSecretKeyV2,
+            'mch_secret_cert_v2'      => $mchSecretCertV2,
             'mch_public_cert_path_v2' => $mchPublicCertPathV2,
-            'notify_url' => $notifyUrl,
-            'sign_type' => $signType,
-            'api_base_v2' => $apiBaseV2,
+            'notify_url'              => $notifyUrl,
+            'sign_type'               => $signType,
+            'api_base_v2'             => $apiBaseV2,
         ];
     }
 
@@ -1175,7 +1178,7 @@ class CourseOrderService
     {
         return $this->arrayToXml([
             'return_code' => strtoupper($code),
-            'return_msg' => $msg,
+            'return_msg'  => $msg,
         ]);
     }
 
@@ -1279,8 +1282,8 @@ class CourseOrderService
             Log::error('触发首次购买积分任务失败', [
                 'member_id' => $memberId,
                 'task_code' => 'first_purchase',
-                'biz_id' => $orderNo,
-                'error' => $e->getMessage(),
+                'biz_id'    => $orderNo,
+                'error'     => $e->getMessage(),
             ]);
         }
     }
@@ -1305,10 +1308,10 @@ class CourseOrderService
     protected function formatPayStatus(int $payStatus): string
     {
         $map = [
-            AppCourseOrder::PAY_STATUS_PENDING => 'pending',
-            AppCourseOrder::PAY_STATUS_PAID => 'paid',
+            AppCourseOrder::PAY_STATUS_PENDING  => 'pending',
+            AppCourseOrder::PAY_STATUS_PAID     => 'paid',
             AppCourseOrder::PAY_STATUS_REFUNDED => 'refunded',
-            AppCourseOrder::PAY_STATUS_CLOSED => 'closed',
+            AppCourseOrder::PAY_STATUS_CLOSED   => 'closed',
         ];
 
         return $map[$payStatus] ?? 'unknown';

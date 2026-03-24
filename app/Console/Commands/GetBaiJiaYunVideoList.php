@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\LogTrait;
 use App\Models\App\AppVideoBaijiayun;
 use App\Services\BaijiayunLiveService;
 use Carbon\Carbon;
@@ -18,6 +19,8 @@ use Throwable;
  */
 class GetBaiJiaYunVideoList extends Command
 {
+    use LogTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -58,7 +61,7 @@ class GetBaiJiaYunVideoList extends Command
     public function handle()
     {
         $videoList = $this->getData();
-        $this->info('拉取完成，共获取视频 ' . count($videoList) . ' 条');
+        $this->infoLog('拉取完成，共获取视频 ' . count($videoList) . ' 条');
 
         // 拉取为空通常表示接口无数据或拉取过程中提前结束，直接返回。
         if (empty($videoList)) {
@@ -68,7 +71,7 @@ class GetBaiJiaYunVideoList extends Command
         // 入库结果是聚合统计，后续可用于告警阈值判断。
         $result = $this->syncToDatabase($videoList);
 
-        $this->info(sprintf(
+        $this->infoLog(sprintf(
             '入库完成：新增 %d 条，更新 %d 条，恢复 %d 条，跳过 %d 条，失败 %d 条，md5补拉失败 %d 条',
             $result['created'],
             $result['updated'],
@@ -82,11 +85,11 @@ class GetBaiJiaYunVideoList extends Command
         if (!empty($result['errors'])) {
             $maxErrorCount = 5;
             foreach (array_slice($result['errors'], 0, $maxErrorCount) as $errorMessage) {
-                $this->error($errorMessage);
+                $this->errorLog($errorMessage);
             }
 
             if (count($result['errors']) > $maxErrorCount) {
-                $this->error('其余错误已省略，请查看日志或重试');
+                $this->errorLog('其余错误已省略，请查看日志或重试');
             }
         }
 
@@ -131,7 +134,7 @@ class GetBaiJiaYunVideoList extends Command
             // 约定服务层已把 HTTP 失败和业务失败收敛为 success=false。
             $result = $service->videoGetVideoList($page, $pageSize);
             if (!($result['success'] ?? false)) {
-                $this->error(sprintf(
+                $this->errorLog(sprintf(
                     '第 %d 页拉取失败，错误码：%s，错误信息：%s',
                     $page,
                     $result['error_code'] ?? 'UNKNOWN',
@@ -146,12 +149,12 @@ class GetBaiJiaYunVideoList extends Command
 
             // 返回空页时提前结束，防止无效轮询。
             if (empty($list)) {
-                $this->warn("第 {$page} 页返回空数据，提前结束");
+                $this->warnLog("第 {$page} 页返回空数据，提前结束");
                 break;
             }
 
             $allVideos = array_merge($allVideos, $list);
-            $this->info("第 {$page} 页拉取成功，本页 " . count($list) . " 条，累计 " . count($allVideos) . "/{$total}");
+            $this->infoLog("第 {$page} 页拉取成功，本页 " . count($list) . " 条，累计 " . count($allVideos) . "/{$total}");
 
             // 终止条件：达到总数，或本页不足 pageSize（最后一页）
             if (($total > 0 && count($allVideos) >= $total) || count($list) < $pageSize) {
@@ -196,18 +199,18 @@ class GetBaiJiaYunVideoList extends Command
     protected function syncToDatabase(array $videoList): array
     {
         $result = [
-            'created' => 0,
-            'updated' => 0,
-            'restored' => 0,
-            'skipped' => 0,
-            'failed' => 0,
+            'created'          => 0,
+            'updated'          => 0,
+            'restored'         => 0,
+            'skipped'          => 0,
+            'failed'           => 0,
             'md5_fetch_failed' => 0,
-            'errors' => [],
+            'errors'           => [],
         ];
         $service = new BaijiayunLiveService();
 
         foreach ($videoList as $video) {
-            $videoId = (int) ($video['video_id'] ?? 0);
+            $videoId = (int)($video['video_id'] ?? 0);
             // video_id 是幂等键，缺失或非法时直接跳过。
             if ($videoId <= 0) {
                 $result['skipped']++;
@@ -315,22 +318,71 @@ class GetBaiJiaYunVideoList extends Command
      */
     protected function buildVideoPayload(array $video, ?string $fileMd5): array
     {
-        return [
-            'name' => isset($video['name']) ? (string) $video['name'] : '',
-            'status' => isset($video['status']) ? (int) $video['status'] : AppVideoBaijiayun::STATUS_UPLOADING,
-            'total_size' => isset($video['total_size']) ? (string) $video['total_size'] : '0',
-            'preface_url' => isset($video['preface_url']) && $video['preface_url'] !== ''
-                ? (string) $video['preface_url']
+        // 从百家云查询接口获取的视频库数据中没有 width 和 height
+        $data = [
+            'name'           => isset($video['name']) ? (string)$video['name'] : '',
+            'status'         => isset($video['status']) ? (int)$video['status'] : AppVideoBaijiayun::STATUS_UPLOADING,
+            'total_size'     => isset($video['total_size']) ? (string)$video['total_size'] : '0',
+            'preface_url'    => isset($video['preface_url']) && $video['preface_url'] !== ''
+                ? (string)$video['preface_url']
                 : null,
-            'play_url' => isset($video['play_url']) && $video['play_url'] !== ''
-                ? (string) $video['play_url']
+            'play_url'       => isset($video['play_url']) && $video['play_url'] !== ''
+                ? (string)$video['play_url']
                 : null,
-            'length' => isset($video['length']) ? (int) $video['length'] : 0,
-            'width' => isset($video['width']) ? (int) $video['width'] : 0,
-            'height' => isset($video['height']) ? (int) $video['height'] : 0,
-            'file_md5' => $fileMd5,
+            'length'         => isset($video['length']) ? (int)$video['length'] : 0,
+            'file_md5'       => $fileMd5,
             'publish_status' => isset($video['publish_status'])
-                ? (int) $video['publish_status']
+                ? (int)$video['publish_status']
+                : AppVideoBaijiayun::PUBLISH_STATUS_UNPUBLISHED,
+        ];
+
+        // 使用 getimagesize 从 preface_url 获取视频的宽高数据
+        if (!empty($data['preface_url'])) {
+            try {
+                $imageSize = getimagesize($data['preface_url']);
+                $data['width'] = $imageSize[0];
+                $data['height'] = $imageSize[1];
+                $msg = sprintf(
+                    "使用 getimagesize 获取封面宽高成功, name: %s, width: %s, height: %s",
+                    $data['name'],
+                    $data['width'],
+                    $data['height']
+                );
+                $this->infoLog($msg);
+            } catch (\Exception $e) {
+                $data['width'] = 0;
+                $data['height'] = 0;
+                $msg = sprintf(
+                    "使用 getimagesize 获取封面宽高失败, name: %s, 错误原因: %s",
+                    $data['name'],
+                    $e->getMessage()
+                );
+                $this->errorLog($msg);
+            }
+        } else {
+            $data['width'] = 0;
+            $data['height'] = 0;
+        }
+
+        return $data;
+
+
+        return [
+            'name'           => isset($video['name']) ? (string)$video['name'] : '',
+            'status'         => isset($video['status']) ? (int)$video['status'] : AppVideoBaijiayun::STATUS_UPLOADING,
+            'total_size'     => isset($video['total_size']) ? (string)$video['total_size'] : '0',
+            'preface_url'    => isset($video['preface_url']) && $video['preface_url'] !== ''
+                ? (string)$video['preface_url']
+                : null,
+            'play_url'       => isset($video['play_url']) && $video['play_url'] !== ''
+                ? (string)$video['play_url']
+                : null,
+            'length'         => isset($video['length']) ? (int)$video['length'] : 0,
+            'width'          => isset($video['width']) ? (int)$video['width'] : 0,
+            'height'         => isset($video['height']) ? (int)$video['height'] : 0,
+            'file_md5'       => $fileMd5,
+            'publish_status' => isset($video['publish_status'])
+                ? (int)$video['publish_status']
                 : AppVideoBaijiayun::PUBLISH_STATUS_UNPUBLISHED,
         ];
     }
@@ -351,12 +403,13 @@ class GetBaiJiaYunVideoList extends Command
      * @return string|null
      */
     protected function resolveFileMd5(
-        int $videoId,
-        array $video,
-        ?AppVideoBaijiayun $record,
+        int                  $videoId,
+        array                $video,
+        ?AppVideoBaijiayun   $record,
         BaijiayunLiveService $service,
-        array &$result
-    ): ?string {
+        array                &$result
+    ): ?string
+    {
         $listFileMd5 = $this->normalizeFileMd5($video['file_md5'] ?? null);
         if ($listFileMd5 !== null) {
             return $listFileMd5;
@@ -401,9 +454,9 @@ class GetBaiJiaYunVideoList extends Command
         $videoInfoData = is_array($data['video_info'] ?? null) ? $data['video_info'] : [];
         $fileMd5 = $this->normalizeFileMd5(
             $data['file_md5']
-                ?? $videoData['file_md5']
-                ?? $videoInfoData['file_md5']
-                ?? null
+            ?? $videoData['file_md5']
+               ?? $videoInfoData['file_md5']
+                  ?? null
         );
 
         if ($fileMd5 === null) {

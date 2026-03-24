@@ -124,11 +124,16 @@ class BaijiayunVideoService
     }
 
     /**
-     * 更新视频
+     * 更新百家云视频的名称与发布状态。
      *
-     * @param int $videoId
-     * @param array $data
-     * @return bool
+     * 关键规则：
+     * 1. 仅允许更新 `name` 与 `publish_status`，避免误改转码元数据；
+     * 2. `videoId` 不存在时返回 false，由上层输出统一业务错误。
+     * 3. name 变更时尝试同步百家云名称，第三方调用失败仅记录日志，不中断本地更新。
+     *
+     * @param int $videoId 视频 ID
+     * @param array<string, mixed> $data 允许键：name、publishStatus
+     * @return bool true=更新成功或无字段变更；false=记录不存在
      */
     public function update(int $videoId, array $data): bool
     {
@@ -145,33 +150,29 @@ class BaijiayunVideoService
         if (array_key_exists('name', $data)) {
             $updateData['name'] = $data['name'];
         }
-        if (array_key_exists('status', $data)) {
-            $updateData['status'] = (int)$data['status'];
-        }
-        if (array_key_exists('totalSize', $data)) {
-            $updateData['total_size'] = (string)$data['totalSize'];
-        }
-        if (array_key_exists('prefaceUrl', $data)) {
-            $updateData['preface_url'] = $data['prefaceUrl'];
-        }
-        if (array_key_exists('playUrl', $data)) {
-            $updateData['play_url'] = $data['playUrl'];
-        }
-        if (array_key_exists('length', $data)) {
-            $updateData['length'] = (int)$data['length'];
-        }
-        if (array_key_exists('width', $data)) {
-            $updateData['width'] = (int)$data['width'];
-        }
-        if (array_key_exists('height', $data)) {
-            $updateData['height'] = (int)$data['height'];
-        }
+
         if (array_key_exists('publishStatus', $data)) {
             $updateData['publish_status'] = (int)$data['publishStatus'];
         }
 
         if (empty($updateData)) {
             return true;
+        }
+
+        if (array_key_exists('name', $updateData)) {
+            try {
+                // 百家云名称同步失败不阻断主流程，避免第三方抖动导致后台无法维护发布状态。
+                $service = new BaijiayunLiveService();
+                $service->videoUpdate($videoId, $updateData['name']);
+            } catch (\Exception $e) {
+                Log::error('更新百家云视频信息失败', [
+                    'video_id' => $videoId,
+                    'name'     => $updateData['name'],
+                    'msg'      => $e->getMessage(),
+                    'file'     => $e->getFile(),
+                    'line'     => $e->getLine()
+                ]);
+            }
         }
 
         return $video->update($updateData);

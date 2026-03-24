@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class BaijiayunVideoUpdateRequest extends FormRequest
 {
@@ -14,37 +15,28 @@ class BaijiayunVideoUpdateRequest extends FormRequest
     public function rules()
     {
         return [
-            'videoId' => 'required|integer|min:1',
-            'name' => 'sometimes|string|max:255',
-            'status' => 'sometimes|integer|in:10,20,30,31,32,100',
-            'totalSize' => 'sometimes|string|max:50',
-            'prefaceUrl' => 'sometimes|nullable|string|max:1024',
-            'playUrl' => 'sometimes|nullable|string|max:512',
-            'length' => 'sometimes|integer|min:0',
-            'width' => 'sometimes|integer|min:0',
-            'height' => 'sometimes|integer|min:0',
-            'publishStatus' => 'sometimes|integer|in:0,1',
+            'videoId'       => [
+                'required',
+                'integer',
+                'min:1',
+                Rule::exists('app_video_baijiayun', 'video_id')->whereNull('deleted_at'),
+            ],
+            'name'          => 'required|string|max:255',
+            'publishStatus' => 'required|integer|in:0,1',
         ];
     }
 
     public function messages()
     {
         return [
-            'videoId.required' => '视频ID不能为空',
-            'videoId.integer' => '视频ID必须是整数',
-            'videoId.min' => '视频ID必须大于0',
-            'name.max' => '视频标题不能超过255个字符',
-            'status.in' => '状态值无效',
-            'totalSize.max' => '视频大小不能超过50个字符',
-            'prefaceUrl.max' => '封面地址不能超过1024个字符',
-            'playUrl.max' => '播放地址不能超过512个字符',
-            'length.integer' => '视频时长必须是整数',
-            'length.min' => '视频时长不能小于0',
-            'width.integer' => '视频宽度必须是整数',
-            'width.min' => '视频宽度不能小于0',
-            'height.integer' => '视频高度必须是整数',
-            'height.min' => '视频高度不能小于0',
-            'publishStatus.in' => '发布状态值无效',
+            'videoId.required'       => '视频ID不能为空',
+            'videoId.integer'        => '视频ID必须是整数',
+            'videoId.min'            => '视频ID必须大于0',
+            'videoId.exists'         => '视频不存在或已删除',
+            'name.required'          => '视频标题不能为空',
+            'name.max'               => '视频标题不能超过255个字符',
+            'publishStatus.required' => '发布状态值不能为空',
+            'publishStatus.in'       => '发布状态值无效',
         ];
     }
 }

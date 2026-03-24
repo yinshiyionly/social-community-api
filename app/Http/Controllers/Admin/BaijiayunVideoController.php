@@ -174,7 +174,23 @@ class BaijiayunVideoController extends Controller
     }
 
     /**
-     * 更新视频
+     * 更新百家云视频基础信息。
+     *
+     * 接口用途：
+     * - 管理端维护百家云视频名称与发布状态。
+     *
+     * 关键输入：
+     * - videoId：目标视频 ID，必须存在且未软删；
+     * - name：视频名称，最长 255 字符；
+     * - publishStatus：发布状态，0=未发布，1=已发布。
+     *
+     * 关键约束：
+     * - 仅允许修改 name/publish_status，其他字段即使传入也不会更新；
+     * - 并发场景下若记录在校验后被删除，返回“视频不存在”兜底错误。
+     *
+     * 失败分支：
+     * - 参数校验失败由全局异常处理统一返回首条校验错误；
+     * - 异常记录日志后返回通用错误，避免暴露内部实现细节。
      *
      * @param BaijiayunVideoUpdateRequest $request
      * @return \Illuminate\Http\JsonResponse
@@ -184,9 +200,12 @@ class BaijiayunVideoController extends Controller
         try {
             $data = $request->validated();
             $videoId = (int)$data['videoId'];
-            unset($data['videoId']);
+            $updateData = [
+                'name'          => $data['name'],
+                'publishStatus' => (int)$data['publishStatus'],
+            ];
 
-            $result = $this->baijiayunVideoService->update($videoId, $data);
+            $result = $this->baijiayunVideoService->update($videoId, $updateData);
 
             if (!$result) {
                 return ApiResponse::error('视频不存在');

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\LogTrait;
 use App\Models\App\AppPostBase;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -12,10 +13,12 @@ use Illuminate\Support\Facades\Log;
  */
 class RefreshPostSortScore extends Command
 {
+    use LogTrait;
+
     /**
      * @var string
      */
-    protected $signature = 'post:refresh-sort-score 
+    protected $signature = 'post:refresh-sort-score
                             {--chunk=500 : 每批处理数量}
                             {--all : 刷新所有帖子，否则只刷新近7天}';
 
@@ -46,14 +49,15 @@ class RefreshPostSortScore extends Command
      */
     public function handle()
     {
-        $chunkSize = (int) $this->option('chunk');
+        $chunkSize = (int)$this->option('chunk');
         $refreshAll = $this->option('all');
-
-        Log::channel('job')->info('开始刷新帖子排序分', [
-            'job' => self::class,
-            'chunk_size' => $chunkSize,
-            'refresh_all' => $refreshAll,
-        ]);
+        $msg = sprintf(
+            "开始刷新帖子排序分, job: %s, chunk_size: %s, refresh_all: %s",
+            self::class,
+            $chunkSize,
+            $refreshAll
+        );
+        $this->infoLog($msg);
 
         $query = AppPostBase::query()
             ->approved()
@@ -69,12 +73,12 @@ class RefreshPostSortScore extends Command
         $total = $query->count();
         $processed = 0;
 
-        $this->info("开始处理，共 {$total} 条帖子");
+        $this->infoLog("开始处理，共 {$total} 条帖子");
 
         $query->chunkById($chunkSize, function ($posts) use (&$processed, $total) {
             foreach ($posts as $post) {
                 $score = $this->calculateScore($post);
-                
+
                 DB::table('app_post_base')
                     ->where('post_id', $post->post_id)
                     ->update(['sort_score' => $score]);
@@ -82,16 +86,18 @@ class RefreshPostSortScore extends Command
                 $processed++;
             }
 
-            $this->info("已处理 {$processed}/{$total}");
+            $this->infoLog("已处理 {$processed}/{$total}");
         }, 'post_id');
 
-        Log::channel('job')->info('帖子排序分刷新完成', [
-            'job' => self::class,
-            'total' => $total,
-            'processed' => $processed,
-        ]);
+        $msg = sprintf(
+            "帖子排序分刷新完成, job: %s, total: %s, processed: %s",
+            self::class,
+            $total,
+            $processed
+        );
+        $this->infoLog($msg);
 
-        $this->info("处理完成，共更新 {$processed} 条");
+        $this->infoLog("处理完成，共更新 {$processed} 条");
 
         return 0;
     }
@@ -110,10 +116,10 @@ class RefreshPostSortScore extends Command
 
         // 互动加权分
         $interactionScore = ($stat ? $stat->like_count : 0) * self::WEIGHT_LIKE
-            + ($stat ? $stat->comment_count : 0) * self::WEIGHT_COMMENT
-            + ($stat ? $stat->share_count : 0) * self::WEIGHT_SHARE
-            + ($stat ? $stat->collection_count : 0) * self::WEIGHT_COLLECTION
-            + ($stat ? $stat->view_count : 0) * self::WEIGHT_VIEW;
+                            + ($stat ? $stat->comment_count : 0) * self::WEIGHT_COMMENT
+                            + ($stat ? $stat->share_count : 0) * self::WEIGHT_SHARE
+                            + ($stat ? $stat->collection_count : 0) * self::WEIGHT_COLLECTION
+                            + ($stat ? $stat->view_count : 0) * self::WEIGHT_VIEW;
 
         // 时间衰减（小时）
         $hoursAge = max(0, now()->diffInHours($post->created_at));

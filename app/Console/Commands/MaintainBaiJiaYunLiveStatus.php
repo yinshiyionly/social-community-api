@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\LogTrait;
 use App\Models\App\AppLiveRoom;
 use App\Services\BaijiayunLiveService;
 use Carbon\Carbon;
@@ -10,6 +11,8 @@ use Illuminate\Support\Facades\Log;
 
 class MaintainBaiJiaYunLiveStatus extends Command
 {
+    use LogTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -28,7 +31,7 @@ class MaintainBaiJiaYunLiveStatus extends Command
     {
         // 1. 获取本地数据
         $liveData = $this->getLocalData();
-        $this->info('查询完成，共获取直播间数据 ' . count($liveData) . ' 条');
+        $this->infoLog('查询完成，共获取直播间数据 ' . count($liveData) . ' 条');
 
         // 2. 无数据 提前返回
         if (empty($liveData)) {
@@ -39,7 +42,7 @@ class MaintainBaiJiaYunLiveStatus extends Command
         $result = $this->getLiveStatusByRemote($liveData);
 
 
-        $this->info(sprintf(
+        $this->infoLog(sprintf(
             '执行完成：成功 %d 条，失败 %d 条',
             $result[0],
             $result[1]
@@ -74,13 +77,15 @@ class MaintainBaiJiaYunLiveStatus extends Command
                     $successCnt++;
                 } catch (\Exception $e) {
                     $failCnt++;
-                    Log::channel('console')->error("更新直播间状态失败", [
-                        'third_party_room_id' => $liveItem['third_party_room_id'] ?? null,
-                        'room_title'          => $liveItem['room_title'] ?? null,
-                        'error'               => $e->getMessage(),
-                        'file'                => $e->getFile(),
-                        'line'                => $e->getLine()
-                    ]);
+                    $msg = sprintf(
+                        "更新直播间状态失败, 房间标题: %s, third_party_room_id: %s, 错误信息: %s, 错误文件: %s, 错误行号: %s",
+                        $liveItem['room_title'] ?? '',
+                        $liveItem['third_party_room_id'] ?? '',
+                        $e->getMessage(),
+                        $e->getFile(),
+                        $e->getLine()
+                    );
+                    $this->errorLog($msg);
                 }
             }
         }

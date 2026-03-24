@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\LogTrait;
 use App\Models\App\AppLivePlayback;
 use App\Models\App\AppLiveRoom;
 use App\Services\BaijiayunLiveService;
@@ -23,6 +24,8 @@ use Throwable;
  */
 class GetBaiJiaYunPlaybackList extends Command
 {
+    use LogTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -78,7 +81,7 @@ class GetBaiJiaYunPlaybackList extends Command
         $this->playbackTokenCache = [];
 
         $playbackList = $this->getData();
-        $this->info('拉取完成，共获取回放 ' . count($playbackList) . ' 条');
+        $this->infoLog('拉取完成，共获取回放 ' . count($playbackList) . ' 条');
 
         // 拉取为空通常表示接口无数据或拉取过程中提前结束，直接返回。
         if (empty($playbackList)) {
@@ -87,7 +90,7 @@ class GetBaiJiaYunPlaybackList extends Command
 
         $result = $this->syncToDatabase($playbackList);
 
-        $this->info(sprintf(
+        $this->infoLog(sprintf(
             '入库完成：新增 %d 条，更新 %d 条，恢复 %d 条，跳过 %d 条，失败 %d 条，房间未匹配 %d 条，token补拉成功 %d 条，token补拉失败 %d 条',
             $result['created'],
             $result['updated'],
@@ -103,11 +106,11 @@ class GetBaiJiaYunPlaybackList extends Command
         if (!empty($result['errors'])) {
             $maxErrorCount = 5;
             foreach (array_slice($result['errors'], 0, $maxErrorCount) as $errorMessage) {
-                $this->error($errorMessage);
+                $this->errorLog($errorMessage);
             }
 
             if (count($result['errors']) > $maxErrorCount) {
-                $this->error('其余错误已省略，请查看日志或重试');
+                $this->errorLog('其余错误已省略，请查看日志或重试');
             }
         }
 
@@ -138,7 +141,7 @@ class GetBaiJiaYunPlaybackList extends Command
             // 约定服务层已把 HTTP 失败和业务失败收敛为 success=false。
             $result = $service->playbackGetList($page, $pageSize);
             if (!($result['success'] ?? false)) {
-                $this->error(sprintf(
+                $this->errorLog(sprintf(
                     '第 %d 页拉取失败，错误码：%s，错误信息：%s',
                     $page,
                     $result['error_code'] ?? 'UNKNOWN',
@@ -152,12 +155,12 @@ class GetBaiJiaYunPlaybackList extends Command
 
             // 返回空页时提前结束，防止无效轮询。
             if (empty($list)) {
-                $this->warn("第 {$page} 页返回空数据，提前结束");
+                $this->warnLog("第 {$page} 页返回空数据，提前结束");
                 break;
             }
 
             $allPlaybacks = array_merge($allPlaybacks, $list);
-            $this->info("第 {$page} 页拉取成功，本页 " . count($list) . ' 条，累计 ' . count($allPlaybacks) . "/{$total}");
+            $this->infoLog("第 {$page} 页拉取成功，本页 " . count($list) . ' 条，累计 ' . count($allPlaybacks) . "/{$total}");
 
             // 终止条件：达到总数，或本页不足 pageSize（最后一页）。
             if (($total > 0 && count($allPlaybacks) >= $total) || count($list) < $pageSize) {
@@ -196,15 +199,15 @@ class GetBaiJiaYunPlaybackList extends Command
     protected function syncToDatabase(array $playbackList): array
     {
         $result = [
-            'created' => 0,
-            'updated' => 0,
-            'restored' => 0,
-            'skipped' => 0,
-            'failed' => 0,
-            'room_unmatched' => 0,
-            'token_fetched' => 0,
+            'created'            => 0,
+            'updated'            => 0,
+            'restored'           => 0,
+            'skipped'            => 0,
+            'failed'             => 0,
+            'room_unmatched'     => 0,
+            'token_fetched'      => 0,
             'token_fetch_failed' => 0,
-            'errors' => [],
+            'errors'             => [],
         ];
         $service = $this->createBaijiayunLiveService();
 
@@ -292,31 +295,32 @@ class GetBaiJiaYunPlaybackList extends Command
      * @return array<string, mixed>
      */
     protected function buildPlaybackPayload(
-        array $playback,
+        array  $playback,
         string $thirdPartyRoomId,
-        ?int $localRoomId,
+        ?int   $localRoomId,
         string $playerToken
-    ): array {
+    ): array
+    {
         return [
-            'room_id' => $localRoomId,
-            'third_party_room_id' => $thirdPartyRoomId,
-            'session_id' => isset($playback['session_id']) ? (int)$playback['session_id'] : 0,
-            'video_id' => isset($playback['video_id']) ? (int)$playback['video_id'] : 0,
-            'name' => isset($playback['name']) ? (string)$playback['name'] : '',
-            'status' => isset($playback['status']) ? (int)$playback['status'] : AppLivePlayback::STATUS_GENERATING,
-            'create_time' => $this->parseCreateTime($playback),
-            'length' => isset($playback['length']) ? (int)$playback['length'] : 0,
+            'room_id'              => $localRoomId,
+            'third_party_room_id'  => $thirdPartyRoomId,
+            'session_id'           => isset($playback['session_id']) ? (int)$playback['session_id'] : 0,
+            'video_id'             => isset($playback['video_id']) ? (int)$playback['video_id'] : 0,
+            'name'                 => isset($playback['name']) ? (string)$playback['name'] : '',
+            'status'               => isset($playback['status']) ? (int)$playback['status'] : AppLivePlayback::STATUS_GENERATING,
+            'create_time'          => $this->parseCreateTime($playback),
+            'length'               => isset($playback['length']) ? (int)$playback['length'] : 0,
             'total_transcode_size' => isset($playback['total_transcode_size']) ? (int)$playback['total_transcode_size'] : 0,
-            'play_times' => isset($playback['play_times']) ? (int)$playback['play_times'] : 0,
-            'play_url' => isset($playback['play_url']) ? (string)$playback['play_url'] : '',
-            'preface_url' => isset($playback['preface_url']) && $playback['preface_url'] !== ''
+            'play_times'           => isset($playback['play_times']) ? (int)$playback['play_times'] : 0,
+            'play_url'             => isset($playback['play_url']) ? (string)$playback['play_url'] : '',
+            'preface_url'          => isset($playback['preface_url']) && $playback['preface_url'] !== ''
                 ? (string)$playback['preface_url']
                 : null,
-            'player_token' => $playerToken,
-            'publish_status' => isset($playback['publish_status'])
+            'player_token'         => $playerToken,
+            'publish_status'       => isset($playback['publish_status'])
                 ? (int)$playback['publish_status']
                 : AppLivePlayback::PUBLISH_STATUS_UNSHIELDED,
-            'version' => isset($playback['version']) ? (int)$playback['version'] : 0,
+            'version'              => isset($playback['version']) ? (int)$playback['version'] : 0,
         ];
     }
 
@@ -336,12 +340,13 @@ class GetBaiJiaYunPlaybackList extends Command
      * @return string
      */
     protected function resolvePlaybackToken(
-        array $playback,
-        string $thirdPartyRoomId,
-        string $existingToken,
+        array                $playback,
+        string               $thirdPartyRoomId,
+        string               $existingToken,
         BaijiayunLiveService $service,
-        array &$result
-    ): string {
+        array                &$result
+    ): string
+    {
         $normalizedToken = $this->normalizePlayerToken($existingToken);
         if ($normalizedToken !== '') {
             return $normalizedToken;

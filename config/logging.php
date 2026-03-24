@@ -134,6 +134,12 @@ return [
             'path' => storage_path('logs/job/job.log'),
             'level' => 'info',
             'days' => 30
+        ],
+        'console' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/console/console.log'),
+            'level' => 'info',
+            'days' => 30
         ]
     ],
 

@@ -331,6 +331,23 @@ class BaijiayunLiveService
     }
 
     /**
+     * 更新视频信息
+     * @see https://dev.baijiayun.com/wiki/detail/4#-h5-15
+     *
+     * @param $videoId
+     * @param $name
+     * @return array
+     */
+    public function videoUpdate($videoId, $name)
+    {
+        $params = [
+            'video_id' => $videoId,
+            'name' => $name
+        ];
+        return $this->sendRequest('openapi/video/update', $params);
+    }
+
+    /**
      * 设置转码回调地址（点播和回放）
      * @see https://dev.baijiayun.com/wiki/detail/4#-h62-63
      *

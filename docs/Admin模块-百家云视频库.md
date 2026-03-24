@@ -317,21 +317,16 @@ Authorization: Bearer {token}
 
 - 方法：`PUT`
 - 路径：`/api/admin/video/baijiayun`
+- 说明：
+    - 仅允许更新视频名称与发布状态；
 
 #### Body 参数（JSON）
 
-| 参数            | 类型           | 必填 | 说明                          |
-|---------------|--------------|----|-----------------------------|
-| videoId       | number       | 是  | 视频 ID，`>= 1`                |
-| name          | string       | 否  | 视频标题，最长 `255` 字符            |
-| status        | number       | 否  | 转码状态：`10/20/30/31/32/100`   |
-| totalSize     | string       | 否  | 视频大小（字节字符串），最长 `50` 字符      |
-| prefaceUrl    | string\|null | 否  | 封面地址，最长 `1024` 字符，可传 `null` |
-| playUrl       | string\|null | 否  | 播放地址，最长 `512` 字符，可传 `null`  |
-| length        | number       | 否  | 时长（秒），`>= 0`                |
-| width         | number       | 否  | 视频宽度，`>= 0`                 |
-| height        | number       | 否  | 视频高度，`>= 0`                 |
-| publishStatus | number       | 否  | 发布状态：`0` 未发布，`1` 已发布        |
+| 参数            | 类型     | 必填 | 说明                                  |
+|---------------|--------|----|-------------------------------------|
+| videoId       | number | 是  | 视频 ID，`>= 1`，且必须存在（未软删）            |
+| name          | string | 是  | 视频标题，最长 `255` 字符                    |
+| publishStatus | number | 是  | 发布状态：`0` 未发布，`1` 已发布               |
 
 #### 请求示例 JSON
 
@@ -339,9 +334,7 @@ Authorization: Bearer {token}
 {
     "videoId": 123456,
     "name": "百家云新增视频（修订版）",
-    "status": 100,
-    "publishStatus": 1,
-    "length": 320
+    "publishStatus": 1
 }
 ```
 
@@ -355,12 +348,22 @@ Authorization: Bearer {token}
 }
 ```
 
-#### 响应示例 JSON（失败）
+#### 响应示例 JSON（失败：参数校验，videoId 不存在）
 
 ```json
 {
     "code": 6000,
-    "msg": "视频不存在",
+    "msg": "视频不存在或已删除",
+    "data": []
+}
+```
+
+#### 响应示例 JSON（失败：参数校验，publishStatus 非法）
+
+```json
+{
+    "code": 6000,
+    "msg": "发布状态值无效",
     "data": []
 }
 ```

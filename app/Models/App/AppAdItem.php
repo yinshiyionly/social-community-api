@@ -51,6 +51,7 @@ class AppAdItem extends Model
     // 跳转类型
     const TARGET_TYPE_EXTERNAL = 'external';
     const TARGET_TYPE_INTERNAL = 'internal';
+    const TARGET_TYPE_LIVE = 'live';
     const TARGET_TYPE_NONE = 'none';
 
     // 状态常量

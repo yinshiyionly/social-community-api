@@ -53,7 +53,7 @@ class AdController extends Controller
     public function list(AdListRequest $request)
     {
         $spaceCode = $request->input('spaceCode');
-        $platform = (int) $request->input('platform', AppAdSpace::PLATFORM_ALL);
+        $platform = (int)$request->input('platform', AppAdSpace::PLATFORM_ALL);
 
         try {
             $adItems = $this->adService->getAdList($spaceCode, $platform);
@@ -61,10 +61,10 @@ class AdController extends Controller
             return ApiResponse::collection($adItems, AdPreviewItemResource::class, '查询成功');
         } catch (\Exception $e) {
             Log::error('获取 Admin 广告预览列表失败', [
-                'action' => 'list',
+                'action'     => 'list',
                 'space_code' => $spaceCode,
-                'platform' => $platform,
-                'error' => $e->getMessage(),
+                'platform'   => $platform,
+                'error'      => $e->getMessage(),
             ]);
 
             return ApiResponse::error('操作失败，请稍后重试');
@@ -92,18 +92,19 @@ class AdController extends Controller
                 ['label' => '启用', 'value' => AppAdSpace::STATUS_ENABLED],
                 ['label' => '禁用', 'value' => AppAdSpace::STATUS_DISABLED],
             ],
-            'adTypeOptions' => [
+            'adTypeOptions'      => [
                 ['label' => '图片', 'value' => AppAdItem::AD_TYPE_IMAGE],
                 /*['label' => '视频', 'value' => AppAdItem::AD_TYPE_VIDEO],
                 ['label' => '文本', 'value' => AppAdItem::AD_TYPE_TEXT],
                 ['label' => 'HTML', 'value' => AppAdItem::AD_TYPE_HTML],*/
             ],
-            'targetTypeOptions' => [
-                /*['label' => '外部链接', 'value' => AppAdItem::TARGET_TYPE_EXTERNAL],*/
+            'targetTypeOptions'  => [
+                ['label' => '外部链接', 'value' => AppAdItem::TARGET_TYPE_EXTERNAL],
                 ['label' => '内部页面', 'value' => AppAdItem::TARGET_TYPE_INTERNAL],
-                /*['label' => '不跳转', 'value' => AppAdItem::TARGET_TYPE_NONE],*/
+                ['label' => '直播', 'value' => AppAdItem::TARGET_TYPE_LIVE],
+                ['label' => '不跳转', 'value' => AppAdItem::TARGET_TYPE_NONE],
             ],
-            'adStatusOptions' => [
+            'adStatusOptions'    => [
                 ['label' => '上线', 'value' => AppAdItem::STATUS_ONLINE],
                 ['label' => '下线', 'value' => AppAdItem::STATUS_OFFLINE],
             ],

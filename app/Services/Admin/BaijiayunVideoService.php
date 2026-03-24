@@ -5,6 +5,7 @@ namespace App\Services\Admin;
 use App\Models\App\AppVideoBaijiayun;
 use App\Services\BaijiayunLiveService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -85,6 +86,19 @@ class BaijiayunVideoService
     }
 
     /**
+     * 检查 fileMd5 是否存在
+     *
+     * @param string $fileMd5
+     * @return bool
+     */
+    public function existsByFileMd5(string $fileMd5): bool
+    {
+        return AppVideoBaijiayun::query()
+            ->where('file_md5', $fileMd5)
+            ->exists();
+    }
+
+    /**
      * 创建视频
      *
      * @param array $data
@@ -93,15 +107,15 @@ class BaijiayunVideoService
     public function create(array $data): AppVideoBaijiayun
     {
         return AppVideoBaijiayun::query()->create([
-            'video_id' => (int)$data['videoId'],
-            'name' => $data['name'],
-            'status' => isset($data['status']) ? (int)$data['status'] : AppVideoBaijiayun::STATUS_UPLOADING,
-            'total_size' => isset($data['totalSize']) ? (string)$data['totalSize'] : '0',
-            'preface_url' => $data['prefaceUrl'] ?? null,
-            'play_url' => $data['playUrl'] ?? null,
-            'length' => isset($data['length']) ? (int)$data['length'] : 0,
-            'width' => isset($data['width']) ? (int)$data['width'] : 0,
-            'height' => isset($data['height']) ? (int)$data['height'] : 0,
+            'video_id'       => (int)$data['videoId'],
+            'name'           => $data['name'],
+            'status'         => isset($data['status']) ? (int)$data['status'] : AppVideoBaijiayun::STATUS_UPLOADING,
+            'total_size'     => isset($data['totalSize']) ? (string)$data['totalSize'] : '0',
+            'preface_url'    => $data['prefaceUrl'] ?? null,
+            'play_url'       => $data['playUrl'] ?? null,
+            'length'         => isset($data['length']) ? (int)$data['length'] : 0,
+            'width'          => isset($data['width']) ? (int)$data['width'] : 0,
+            'height'         => isset($data['height']) ? (int)$data['height'] : 0,
             'publish_status' => isset($data['publishStatus'])
                 ? (int)$data['publishStatus']
                 : AppVideoBaijiayun::PUBLISH_STATUS_UNPUBLISHED,
@@ -194,19 +208,20 @@ class BaijiayunVideoService
      * @param $file
      * @param $fileName
      * @param $fileSizeBytes
-     * @return array|\Illuminate\Http\JsonResponse
+     * @param $fileMd5
+     * @return array|JsonResponse
      * @throws \Exception
      */
-    public function uploadVideo($file, $fileName, $fileSizeBytes)
+    public function uploadVideo($file, $fileName, $fileSizeBytes, $fileMd5)
     {
         // 1. 获取百家云-点播视频上传地址
         $service = new BaijiayunLiveService();
         $params = [
-            'fileName' => $fileName ?? '', // 文件名
-            'definition' => 2, // 目标清晰度(16:标清 1:高清 2:超清 4:720p 8:1080p 多种清晰度用英文逗号分隔)
+            'fileName'      => $fileName ?? '', // 文件名
+            'definition'    => 2, // 目标清晰度(16:标清 1:高清 2:超清 4:720p 8:1080p 多种清晰度用英文逗号分隔)
             'audioWithView' => 0, // 是否作为音频处理 0：否 1：是
-            'format' => 'mp4', // 转码格式（1:mp4 2:flv 4:m3u8 多种格式用英文逗号分隔）默认是3种格式都转
-            'callbackUrl' => env('APP_URL') . '/api/admin/video/baijiayun/callback',
+            'format'        => 'mp4', // 转码格式（1:mp4 2:flv 4:m3u8 多种格式用英文逗号分隔）默认是3种格式都转
+            'callbackUrl'   => env('APP_URL') . '/api/admin/video/baijiayun/callback',
         ];
         // 2. 调用百家云服务获取文件上传地址
         $getUploadUrlResult = $service->videoGetUploadUrl($params);
@@ -235,23 +250,24 @@ class BaijiayunVideoService
         if (isset($responseData['code']) && $responseData['code'] == 1) {
             // 返回视频ID、上传结果和文件信息
             $resultData = [
-                'video_id' => $uploadInfo['video_id'],
-                'name' => $fileName,
+                'video_id'   => $uploadInfo['video_id'],
+                'name'       => $fileName,
                 "total_size" => $fileSizeBytes,
-                'status' => '10', // 10:上传成功
+                'status'     => '10', // 10:上传成功
             ];
             $videoService = new BaijiayunVideoService();
             $videoService->create([
-                'videoId' => $uploadInfo['video_id'],
-                'name' => $fileName,
-                'status' => AppVideoBaijiayun::STATUS_UPLOADING,
-                'totalSize' => $fileSizeBytes,
-                'prefaceUrl' => null,
-                'playUrl' => null,
-                'length' => 0,
-                'width' => 0,
-                'height' => 0,
+                'videoId'       => $uploadInfo['video_id'],
+                'name'          => $fileName,
+                'status'        => AppVideoBaijiayun::STATUS_UPLOADING,
+                'totalSize'     => $fileSizeBytes,
+                'prefaceUrl'    => null,
+                'playUrl'       => null,
+                'length'        => 0,
+                'width'         => 0,
+                'height'        => 0,
                 'publishStatus' => AppVideoBaijiayun::PUBLISH_STATUS_UNPUBLISHED,
+                'file_md5'      => $fileMd5
             ]);
             return $resultData;
         } else {

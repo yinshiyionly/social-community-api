@@ -38,9 +38,9 @@ class BaijiayunVideoController extends Controller
     public function constants()
     {
         $data = [
-            'statusOptions' => AppVideoBaijiayun::getStatusOptions(),
+            'statusOptions'        => AppVideoBaijiayun::getStatusOptions(),
             'publishStatusOptions' => AppVideoBaijiayun::getPublishStatusOptions(),
-            'sourceOptions' => [
+            'sourceOptions'        => [
                 [
                     'label' => '百家云',
                     'value' => AppVideoBaijiayun::SOURCE_BAIJIAYUN,
@@ -60,12 +60,12 @@ class BaijiayunVideoController extends Controller
     public function list(Request $request)
     {
         $filters = [
-            'videoId' => $request->input('videoId'),
-            'name' => $request->input('name'),
-            'status' => $request->input('status'),
+            'videoId'       => $request->input('videoId'),
+            'name'          => $request->input('name'),
+            'status'        => $request->input('status'),
             'publishStatus' => $request->input('publishStatus'),
-            'beginTime' => $request->input('beginTime'),
-            'endTime' => $request->input('endTime'),
+            'beginTime'     => $request->input('beginTime'),
+            'endTime'       => $request->input('endTime'),
         ];
 
         $pageNum = (int)$request->input('pageNum', 1);
@@ -103,12 +103,12 @@ class BaijiayunVideoController extends Controller
     {
         // 验证参数
         $validator = Validator::make($request->all(), [
-            'file' => 'required|file|max:1024000', // 只允许mp4格式，最大1000MB
+            'file'      => 'required|file|max:1024000', // 只允许mp4格式，最大1000MB
             'file_name' => 'nullable|string|max:255',
         ], [
             'file.required' => '请选择要上传的文件',
             // 'file.mimes' => '只支持MP4格式的视频文件',
-            'file.max' => '文件大小不能超过1000MB',
+            'file.max'      => '文件大小不能超过1000MB',
         ]);
 
         if ($validator->fails()) {
@@ -119,13 +119,21 @@ class BaijiayunVideoController extends Controller
             // 1. 获取上传文件
             $file = $request->file('file');
 
-            // 2. 获取文件大小（字节）
+            // 2. 获取文件 md5
+            $fileMd5 = md5_file($file->getRealPath());
+
+            // 3. 检测该文件是否存在数据库-以md5
+            if ($this->baijiayunVideoService->existsByFileMd5($fileMd5)) {
+                return ApiResponse::error('该点播视频视频已存在, 请勿重复上传');
+            }
+
+            // 4. 获取文件大小（字节）
             $fileSizeBytes = $file->getSize();
-            // 3. 如果没有提供文件名，则使用原始文件名
+            // 5. 如果没有提供文件名，则使用原始文件名
             $fileName = $request->file_name ?? $file->getClientOriginalName();
 
-            // 4. 上传视频
-            $this->baijiayunVideoService->uploadVideo($file, $fileName, $fileSizeBytes);
+            // 6. 上传视频
+            $this->baijiayunVideoService->uploadVideo($file, $fileName, $fileSizeBytes, $fileMd5);
 
             return ApiResponse::success();
         } catch (\Exception $e) {
@@ -159,7 +167,7 @@ class BaijiayunVideoController extends Controller
         } catch (\Exception $e) {
             Log::error('新增百家云视频失败', [
                 'action' => 'store',
-                'error' => $e->getMessage(),
+                'error'  => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');
         }
@@ -187,9 +195,9 @@ class BaijiayunVideoController extends Controller
             return ApiResponse::success([], '修改成功');
         } catch (\Exception $e) {
             Log::error('更新百家云视频失败', [
-                'action' => 'update',
+                'action'   => 'update',
                 'video_id' => $request->input('videoId'),
-                'error' => $e->getMessage(),
+                'error'    => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');
         }
@@ -233,9 +241,9 @@ class BaijiayunVideoController extends Controller
             return ApiResponse::success([], '删除成功');
         } catch (\Exception $e) {
             Log::error('删除百家云视频失败', [
-                'action' => 'destroy',
+                'action'   => 'destroy',
                 'video_id' => $videoId,
-                'error' => $e->getMessage(),
+                'error'    => $e->getMessage(),
             ]);
             return ApiResponse::error('操作失败，请稍后重试');
         }
@@ -281,11 +289,11 @@ class BaijiayunVideoController extends Controller
                     $playToken['data']['token']
                 );
                 $update = [
-                    'play_url' => $playUrl,
+                    'play_url'    => $playUrl,
                     'preface_url' => $params['preface_url'] ?? '',
-                    'total_size' => $params['total_size'] ?? 0,
-                    'status' => $params['status'] ?? 20,
-                    'length' => $params['length'] ?? 0,
+                    'total_size'  => $params['total_size'] ?? 0,
+                    'status'      => $params['status'] ?? 20,
+                    'length'      => $params['length'] ?? 0,
                     // TODO 后面启用 md5
                     // 'file_md5' => $params['file_md5'] ?? ''
                 ];

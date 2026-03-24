@@ -31,10 +31,10 @@ Route::middleware('system.auth')->group(function () {
         // 详情
         Route::get('/{videoId}', [BaijiayunVideoController::class, 'show'])
             ->where('videoId', '[0-9]+');
-        // 上传
-        Route::post('/upload', [BaijiayunVideoController::class, 'uploadVideo']);
         // 创建
-        Route::post('/', [BaijiayunVideoController::class, 'store']);
+        Route::post('/', [BaijiayunVideoController::class, 'uploadVideo']);
+        // 创建
+        // Route::post('/', [BaijiayunVideoController::class, 'store']);
         // 更新
         Route::put('/', [BaijiayunVideoController::class, 'update']);
         // 删除（仅支持单个）

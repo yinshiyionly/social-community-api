@@ -82,7 +82,7 @@ class CheckinService
             // 签到成功后异步触发积分发放，具体积分值由签到记录快照决定。
             $this->triggerDailyCheckinPoint($memberId, $clientIp);
 
-            Log::channel('job')->info('用户签到成功', [
+            Log::channel('daily')->info('用户签到成功', [
                 'member_id' => $memberId,
                 'continuous_days' => $continuousDays,
                 'reward_value' => $rewardValue,

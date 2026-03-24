@@ -613,7 +613,7 @@ class MessageService
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::channel('job')->error('标记消息已读失败', [
+            Log::channel('daily')->error('标记消息已读失败', [
                 'member_id' => $memberId,
                 'type' => $type,
                 'error' => $e->getMessage(),

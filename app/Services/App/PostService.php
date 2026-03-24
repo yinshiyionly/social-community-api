@@ -547,7 +547,7 @@ class PostService
         try {
             CleanupDeletedPostRelationsJob::dispatch($postId, $postType, $memberId);
         } catch (\Throwable $e) {
-            Log::channel('job')->error('投递帖子关联清理任务失败', [
+            Log::channel('daily')->error('投递帖子关联清理任务失败', [
                 'post_id' => $postId,
                 'post_type' => $postType,
                 'operator_member_id' => $memberId,

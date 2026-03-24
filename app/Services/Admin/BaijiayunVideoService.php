@@ -119,6 +119,7 @@ class BaijiayunVideoService
             'publish_status' => isset($data['publishStatus'])
                 ? (int)$data['publishStatus']
                 : AppVideoBaijiayun::PUBLISH_STATUS_UNPUBLISHED,
+            'file_md5'       => isset($data['fileMd5']) ? (string)$data['fileMd5'] : null
         ]);
     }
 
@@ -267,7 +268,7 @@ class BaijiayunVideoService
                 'width'         => 0,
                 'height'        => 0,
                 'publishStatus' => AppVideoBaijiayun::PUBLISH_STATUS_UNPUBLISHED,
-                'file_md5'      => $fileMd5
+                'fileMd5'       => $fileMd5
             ]);
             return $resultData;
         } else {

@@ -24,6 +24,8 @@ class CourseRefundListRequest extends FormRequest
             'courseTitle' => 'nullable|string|max:200',
             'payType' => 'nullable|integer|in:1,2,3,4',
             'refundStatus' => 'nullable|integer|in:1,2,3',
+            'refundReviewStatus' => 'nullable|integer|in:0,1,2',
+            'refundMode' => 'nullable|integer|in:1,2',
             'beginTime' => 'nullable|date',
             'endTime' => 'nullable|date',
         ];
@@ -47,9 +49,10 @@ class CourseRefundListRequest extends FormRequest
             'courseTitle.max' => '课程标题长度不能超过200位',
             'payType.in' => '支付方式值无效',
             'refundStatus.in' => '退款状态值无效',
+            'refundReviewStatus.in' => '退款审核状态值无效',
+            'refundMode.in' => '退款模式值无效',
             'beginTime.date' => '开始时间格式无效',
             'endTime.date' => '结束时间格式无效',
         ];
     }
 }
-

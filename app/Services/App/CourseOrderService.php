@@ -3,6 +3,7 @@
 namespace App\Services\App;
 
 use App\Models\App\AppCourseBase;
+use App\Models\App\AppCourseChapter;
 use App\Models\App\AppCourseOrder;
 use App\Models\App\AppCourseOrderPayLog;
 use App\Models\App\AppMemberBase;
@@ -491,7 +492,7 @@ class CourseOrderService
                     null,
                     [
                         'refund_error' => $e->getMessage(),
-                        'order_no' => $orderNo,
+                        'order_no'     => $orderNo,
                     ],
                     $clientIp,
                     '微信退款执行失败'
@@ -513,21 +514,21 @@ class CourseOrderService
             : (int)$order->refund_review_status;
 
         return [
-            'orderNo'       => $order->order_no,
-            'payStatus'     => $this->formatPayStatus((int)$order->pay_status),
-            'payStatusCode' => (int)$order->pay_status,
-            'refundStatus'  => $refundStatus,
-            'refundReviewStatus' => $refundReviewStatus,
-            'refundReviewStatusText' => $refundReviewStatus === null ? '' : $order->refund_review_status_text,
-            'refundMode' => $order->refund_mode !== null ? (int)$order->refund_mode : null,
-            'refundModeText' => $order->refund_mode ? $order->refund_mode_text : '',
-            'refundAmount'  => number_format((float)$order->refund_amount, 2, '.', ''),
-            'refundReason' => $order->refund_reason,
-            'refundApplyTime' => optional($order->refund_apply_time)->format('Y-m-d H:i:s'),
-            'refundReviewTime' => optional($order->refund_review_time)->format('Y-m-d H:i:s'),
-            'refundRejectReason' => $order->refund_reject_reason,
+            'orderNo'                 => $order->order_no,
+            'payStatus'               => $this->formatPayStatus((int)$order->pay_status),
+            'payStatusCode'           => (int)$order->pay_status,
+            'refundStatus'            => $refundStatus,
+            'refundReviewStatus'      => $refundReviewStatus,
+            'refundReviewStatusText'  => $refundReviewStatus === null ? '' : $order->refund_review_status_text,
+            'refundMode'              => $order->refund_mode !== null ? (int)$order->refund_mode : null,
+            'refundModeText'          => $order->refund_mode ? $order->refund_mode_text : '',
+            'refundAmount'            => number_format((float)$order->refund_amount, 2, '.', ''),
+            'refundReason'            => $order->refund_reason,
+            'refundApplyTime'         => optional($order->refund_apply_time)->format('Y-m-d H:i:s'),
+            'refundReviewTime'        => optional($order->refund_review_time)->format('Y-m-d H:i:s'),
+            'refundRejectReason'      => $order->refund_reject_reason,
             'refundExecuteFailReason' => $order->refund_execute_fail_reason,
-            'refundTime'    => optional($order->refund_time)->format('Y-m-d H:i:s'),
+            'refundTime'              => optional($order->refund_time)->format('Y-m-d H:i:s'),
         ];
     }
 
@@ -1006,6 +1007,11 @@ class CourseOrderService
     {
         $course = AppCourseBase::query()
             ->select(['course_id', 'valid_days', 'total_chapter'])
+            ->withCount([
+                'chapters' => function ($q) {
+                    $q->where('status', AppCourseChapter::STATUS_ONLINE);
+                }
+            ])
             ->where('course_id', $order->course_id)
             ->first();
 
@@ -1014,10 +1020,10 @@ class CourseOrderService
         }
 
         $enrollTime = now();
-        $expireTime = null;
+        /*$expireTime = null;
         if ((int)$course->valid_days > 0) {
             $expireTime = $enrollTime->copy()->addDays((int)$course->valid_days);
-        }
+        }*/
 
         $memberCourse = AppMemberCourse::withTrashed()
             ->where('member_id', $order->member_id)
@@ -1037,9 +1043,9 @@ class CourseOrderService
                 'enroll_age_range' => $order->enroll_age_range,
                 'paid_amount'      => $order->paid_amount,
                 'enroll_time'      => $enrollTime,
-                'expire_time'      => $expireTime,
+                // 'expire_time'      => $expireTime,
                 'is_expired'       => 0,
-                'total_chapters'   => (int)$course->total_chapter,
+                'total_chapters'   => (int)$course->chapters_count,
             ]);
             $isFirstCreate = true;
         } else {
@@ -1053,8 +1059,9 @@ class CourseOrderService
             $memberCourse->enroll_age_range = $order->enroll_age_range;
             $memberCourse->paid_amount = $order->paid_amount;
             $memberCourse->enroll_time = $enrollTime;
-            $memberCourse->expire_time = $expireTime;
+            // $memberCourse->expire_time = $expireTime;
             $memberCourse->is_expired = 0;
+            $memberCourse->total_chapters = (int)$course->chapters_count;
             $memberCourse->save();
         }
 

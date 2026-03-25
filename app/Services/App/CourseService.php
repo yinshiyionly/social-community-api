@@ -468,7 +468,7 @@ class CourseService
                 'paid_amount'      => 0,
                 'enroll_time'      => $enrollTime,
                 // 'expire_time'      => $expireTime,
-                'total_chapters'   => $course->chapters_count,
+                'total_chapters'   => (int)$course->chapters_count,
             ]);
 
             // 更新课程报名人数

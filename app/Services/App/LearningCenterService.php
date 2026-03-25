@@ -22,20 +22,21 @@ class LearningCenterService
      *
      * 关键规则：
      * 1. 先物理清理该用户该课程下的章节课表（含软删记录），避免唯一索引冲突与历史脏数据残留；
-     * 2. 再按章节 unlock_type 重新计算 schedule_date/schedule_time；
-     * 3. unlock_time 维持历史口径（仍记录 chapter_start_time），避免扩大本次改造影响面。
+     * 2. 再按章节 chapter_start_time 的相对天数间隔平移到报名日期；
+     * 3. unlock_type/unlock_days/unlock_date 在入课表阶段统一忽略；
+     * 4. unlock_time 维持历史口径（仍记录 chapter_start_time），避免扩大本次改造影响面。
      *
      * @param int $memberId 用户ID
      * @param int $courseId 课程ID
      * @param int $memberCourseId 用户课程记录ID
-     * @param \DateTime $enrollDate 报名日期（兼容保留参数，当前排课规则不直接使用）
+     * @param \DateTime $enrollDate 报名日期（作为章节日期平移基准）
      * @return void
      * @throws \Exception
      */
     public function generateSchedule(int $memberId, int $courseId, int $memberCourseId, \DateTime $enrollDate): void
     {
         try {
-            DB::transaction(function () use ($memberId, $courseId, $memberCourseId) {
+            DB::transaction(function () use ($memberId, $courseId, $memberCourseId, $enrollDate) {
                 // 每次发课都先清理该用户该课程的章节课表（含软删），确保按最新规则重建且不触发唯一键冲突。
                 AppMemberSchedule::withTrashed()
                     ->where('member_id', $memberId)
@@ -53,13 +54,22 @@ class LearningCenterService
                     return;
                 }
 
+                $enrollBaseDate = Carbon::make($enrollDate);
+                if (!$enrollBaseDate) {
+                    throw new \Exception('报名时间无效，无法生成课表');
+                }
+                $enrollBaseDate = $enrollBaseDate->copy()->startOfDay();
+
+                $baseChapterDate = $this->resolveEarliestChapterDate($chapters, $courseId);
                 $today = date('Y-m-d');
 
                 foreach ($chapters as $chapter) {
-                    $scheduleAt = $this->resolveScheduleAtByUnlockType($chapter);
-                    if (!$scheduleAt) {
-                        continue;
-                    }
+                    $chapterStartAt = $this->resolveChapterStartAtOrFail($chapter, $courseId);
+                    $scheduleAt = $this->resolveScheduleAtByRelativeDays(
+                        $chapterStartAt,
+                        $baseChapterDate,
+                        $enrollBaseDate
+                    );
 
                     $scheduleDate = $scheduleAt->format('Y-m-d');
                     $isUnlocked = $scheduleDate <= $today ? 1 : 0;
@@ -74,7 +84,7 @@ class LearningCenterService
                         // 课表时间统一保留到分钟，秒位固定写 00，避免前端展示出现秒级抖动。
                         'schedule_time'    => $scheduleAt->format('H:i:00'),
                         'is_unlocked'      => $isUnlocked,
-                        'unlock_time'      => Carbon::make($chapter->chapter_start_time)->toDateTimeString()
+                        'unlock_time'      => $chapterStartAt->toDateTimeString()
                         // 'unlock_time'      => $isUnlocked ? now() : null,
                     ]);
                 }
@@ -91,50 +101,76 @@ class LearningCenterService
     }
 
     /**
-     * 按章节解锁规则计算课表时间点。
+     * 计算课程章节最早日期（用于相对天数平移基准）。
      *
-     * 规则约束：
-     * 1. unlock_type=1：直接使用 chapter_start_time；
-     * 2. unlock_type=2：使用 chapter_start_time + unlock_days；
-     * 3. unlock_type=3：使用 unlock_date + chapter_start_time 的时分（秒固定为 00）。
+     * @param Collection<int, AppCourseChapter> $chapters
+     * @param int $courseId 课程ID（用于错误日志）
+     * @return Carbon
+     * @throws \Exception
+     */
+    private function resolveEarliestChapterDate(Collection $chapters, int $courseId): Carbon
+    {
+        $baseDate = null;
+
+        foreach ($chapters as $chapter) {
+            $chapterStartAt = $this->resolveChapterStartAtOrFail($chapter, $courseId);
+            $chapterDate = $chapterStartAt->copy()->startOfDay();
+
+            if ($baseDate === null || $chapterDate->lt($baseDate)) {
+                $baseDate = $chapterDate;
+            }
+        }
+
+        // 理论上到达这里时 baseDate 一定存在，额外兜底避免后续空指针。
+        if (!$baseDate) {
+            throw new \Exception('课程缺少可排课章节，无法生成课表');
+        }
+
+        return $baseDate;
+    }
+
+    /**
+     * 解析章节开始时间，缺失时直接失败回滚整次排课。
      *
      * @param AppCourseChapter $chapter
-     * @return Carbon|null
+     * @param int $courseId 课程ID（用于异常上下文）
+     * @return Carbon
+     * @throws \Exception
      */
-    private function resolveScheduleAtByUnlockType(AppCourseChapter $chapter): ?Carbon
+    private function resolveChapterStartAtOrFail(AppCourseChapter $chapter, int $courseId): Carbon
     {
         $chapterStartAt = Carbon::make($chapter->chapter_start_time);
         if (!$chapterStartAt) {
-            return null;
+            throw new \Exception(sprintf(
+                '章节开始时间缺失，无法生成课表：course_id=%d, chapter_id=%d',
+                $courseId,
+                (int)$chapter->chapter_id
+            ));
         }
 
-        // 统一将章节开始时间对齐到分钟，保证后续 schedule_time 落库口径一致。
-        $chapterStartAt = $chapterStartAt->copy()->startOfMinute();
+        return $chapterStartAt->copy()->startOfMinute();
+    }
 
-        if ((int)$chapter->unlock_type === AppCourseChapter::UNLOCK_TYPE_IMMEDIATE) {
-            return $chapterStartAt;
-        }
+    /**
+     * 按“章节原始日期相对间隔”将课表平移到报名日期。
+     *
+     * @param Carbon $chapterStartAt 当前章节开始时间（已对齐到分钟）
+     * @param Carbon $baseChapterDate 全课程最早章节日期（00:00:00）
+     * @param Carbon $enrollBaseDate 报名日期（00:00:00）
+     * @return Carbon
+     */
+    private function resolveScheduleAtByRelativeDays(
+        Carbon $chapterStartAt,
+        Carbon $baseChapterDate,
+        Carbon $enrollBaseDate
+    ): Carbon {
+        $chapterDate = $chapterStartAt->copy()->startOfDay();
+        $offsetDays = $baseChapterDate->diffInDays($chapterDate, false);
 
-        if ((int)$chapter->unlock_type === AppCourseChapter::UNLOCK_TYPE_DAYS) {
-            $unlockDays = max(0, (int)$chapter->unlock_days);
-            return $chapterStartAt->copy()->addDays($unlockDays);
-        }
-
-        if ((int)$chapter->unlock_type === AppCourseChapter::UNLOCK_TYPE_DATE) {
-            $unlockDate = Carbon::make($chapter->unlock_date);
-            if (!$unlockDate) {
-                return null;
-            }
-
-            // 按日期解锁时仅替换“日期”，时分沿用 chapter_start_time，满足课表展示时段一致性。
-            return $unlockDate->copy()->setTime(
-                (int)$chapterStartAt->format('H'),
-                (int)$chapterStartAt->format('i'),
-                0
-            );
-        }
-
-        return null;
+        // 仅平移“日期”部分，章节原始时分沿用 chapter_start_time。
+        return $enrollBaseDate->copy()
+            ->addDays($offsetDays)
+            ->setTime((int)$chapterStartAt->format('H'), (int)$chapterStartAt->format('i'), 0);
     }
 
     /**

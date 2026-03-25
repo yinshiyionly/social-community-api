@@ -359,39 +359,48 @@ class StudyCourseService
                 'learn_time',
             ])
             ->with([
-                'course:course_id,course_title,cover_image,pay_type',
-                'chapter:chapter_id,course_id,chapter_title,chapter_subtitle,chapter_start_time,chapter_end_time',
+                'course:course_id,course_title',
+                'chapter:chapter_id,course_id,chapter_title,chapter_subtitle',
             ])
             ->where('schedule_date', $today)
             ->orderBy('schedule_date')
             ->orderBy('schedule_time')
             ->orderBy('id')
-            ->limit(3)
+            ->limit(2)
             ->get()
             ->toArray();
         $result = [];
         foreach ($data as $item) {
             $result[] = [
-                'id'         => $item['course_id'] ?? null,
-                'time'       => Carbon::make($item['schedule_time'])->format('H:i'),
-                'title'      => $item['course']['course_title'] ?? null,
-                'subtitle'   => sprintf(
+                'id'           => $item['course_id'] ?? null,
+                'time'         => Carbon::make($item['schedule_time'])->format('H:i'),
+                'title'        => $item['course']['course_title'] ?? null,
+                'subtitle'     => sprintf(
                     "%s: %s",
                     Carbon::make($item['schedule_date'])->format('m月d日'),
                     $item['chapter']['chapter_title'] ?? null
                 ),
-                'statusText' => Carbon::make($item['schedule_time'])->gt(Carbon::now()) ? '待开课' : '去学习',
+                'statusText'   => Carbon::make($item['schedule_time'])->gt(Carbon::now()) ? '待开课' : '去学习',
+                'courseId'     => $item['course_id'] ?? null,
+                'chapterId'    => $item['chapter_id'] ?? null,
+                'scheduleDate' => $item['schedule_date'] ?? null,
+                'scheduleId'   => $item['id'] ?? null
             ];
         }
         return $result;
 
         // 前端文档定义格式
         return [
-            "id"         => 1,
-            "time"       => "19:00",
-            "title"      => "节气养正公开课",
-            "subtitle"   => "小寒养生计划",
-            "statusText" => "待开课"
+            'id'           => 1,
+            'time'         => '19:00',
+            'title'        => '节气养正公开课',
+            'subtitle'     => '小寒养生计划',
+            'statusText'   => '待开课',
+            // 第二版增加字段
+            'courseId'     => 1,
+            'chapterId'    => 1,
+            'scheduleDate' => '2026-03-25',
+            'scheduleId'   => 1
         ];
 
     }

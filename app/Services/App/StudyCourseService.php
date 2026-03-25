@@ -21,7 +21,8 @@ use Illuminate\Support\Facades\DB;
  * 1. 提供学习中心课程筛选、分组与列表查询；
  * 2. 聚合学习中心课程详情（课程头部 + 每日计划 tabs + 当日章节/作业项）；
  * 3. 提供章节学习上报流转（课表/章节进度/课程汇总）；
- * 4. 统一章节进度与作业状态文案，避免控制器重复拼装业务规则。
+ * 4. 提供录播章节进度上报与续播点查询（hh:mm:ss 转秒入库）；
+ * 5. 统一章节进度与作业状态文案，避免控制器重复拼装业务规则。
  */
 class StudyCourseService
 {
@@ -1031,7 +1032,7 @@ class StudyCourseService
             return '已结课';
         }
 
-        return '上课中';
+        return '继续学';
     }
 
     /**
@@ -1732,6 +1733,370 @@ class StudyCourseService
         return $date->timezone('Asia/Shanghai')
             ->addDays($deadlineDays)
             ->endOfDay();
+    }
+
+    /**
+     * 上报章节播放进度并返回最新快照。
+     *
+     * 规则：
+     * 1. currentPosition 入参使用 hh:mm:ss，服务端转换为秒值后再入库；
+     * 2. 同章节重复上报时，learned_duration 仅按历史最大值推进，防止拖动回看导致进度回退；
+     * 3. 达到完课阈值后自动流转章节课表 is_learned，并同步课程汇总快照。
+     *
+     * @param int $memberId
+     * @param int $courseId
+     * @param int $chapterId
+     * @param string $currentPosition
+     * @return array{courseId:int,chapterId:int,lastPosition:int,progress:float,isCompleted:int,isLearned:int,learnTime:?string}
+     */
+    public function reportChapterProgress(
+        int $memberId,
+        int $courseId,
+        int $chapterId,
+        string $currentPosition
+    ): array {
+        $currentPositionSeconds = $this->parsePositionTextToSeconds($currentPosition);
+        $now = Carbon::now('Asia/Shanghai');
+
+        return DB::transaction(function () use ($memberId, $courseId, $chapterId, $currentPositionSeconds, $now) {
+            $context = $this->resolveStudyChapterLearnContext($memberId, $courseId, $chapterId, true);
+
+            /** @var AppMemberCourse $memberCourse */
+            $memberCourse = $context['memberCourse'];
+            /** @var AppCourseChapter $chapter */
+            $chapter = $context['chapter'];
+            /** @var AppMemberSchedule $schedule */
+            $schedule = $context['schedule'];
+
+            $chapterProgress = $this->lockOrCreateChapterProgress($memberId, $courseId, $chapterId, $chapter, $now);
+
+            $chapterDuration = max(0, (int)$chapter->duration);
+            $storedTotalDuration = max(0, (int)$chapterProgress->total_duration);
+            $totalDuration = max($chapterDuration, $storedTotalDuration);
+            $normalizedPosition = $this->normalizeProgressPosition($currentPositionSeconds, $totalDuration);
+            $learnedDuration = max((int)$chapterProgress->learned_duration, $normalizedPosition);
+            $progressPct = $totalDuration > 0
+                ? round(min(100, ($learnedDuration / $totalDuration) * 100), 2)
+                : 0.0;
+
+            $chapterProgress->total_duration = $totalDuration;
+            $chapterProgress->last_position = $normalizedPosition;
+            $chapterProgress->learned_duration = $learnedDuration;
+            $chapterProgress->progress = $progressPct;
+            $chapterProgress->view_count = max(0, (int)$chapterProgress->view_count) + 1;
+            if (!$chapterProgress->first_view_time) {
+                $chapterProgress->first_view_time = $now->copy();
+            }
+            $chapterProgress->last_view_time = $now->copy();
+
+            $alreadyCompleted = (int)$chapterProgress->is_completed === 1;
+            $completeThreshold = $this->resolveChapterCompleteThreshold($totalDuration, (int)$chapter->min_learn_time);
+            $reachCompleteThreshold = $completeThreshold > 0 && $learnedDuration >= $completeThreshold;
+
+            if (!$alreadyCompleted && $reachCompleteThreshold) {
+                $chapterProgress->is_completed = 1;
+                $chapterProgress->complete_time = $now->copy();
+                $alreadyCompleted = true;
+            }
+
+            $chapterProgress->save();
+
+            if ($alreadyCompleted) {
+                // 自动完课后统一刷新章节课表学习态，保证学习页状态和进度查询保持一致。
+                $schedule->is_learned = 1;
+                $schedule->learn_time = $now->copy();
+                $schedule->save();
+
+                $this->syncMemberCourseLearnSnapshot($memberCourse, $memberId, $courseId, $chapterId, $now);
+            } else {
+                $this->syncMemberCoursePlaybackSnapshot($memberCourse, $chapterId, $normalizedPosition, $now);
+            }
+
+            return $this->buildChapterProgressPayload($courseId, $chapterId, $schedule, $chapterProgress);
+        });
+    }
+
+    /**
+     * 查询章节播放进度快照。
+     *
+     * @param int $memberId
+     * @param int $courseId
+     * @param int $chapterId
+     * @return array{courseId:int,chapterId:int,lastPosition:int,progress:float,isCompleted:int,isLearned:int,learnTime:?string}
+     */
+    public function getChapterProgress(int $memberId, int $courseId, int $chapterId): array
+    {
+        $context = $this->resolveStudyChapterLearnContext($memberId, $courseId, $chapterId, false);
+
+        /** @var AppMemberSchedule $schedule */
+        $schedule = $context['schedule'];
+
+        $chapterProgress = AppMemberChapterProgress::query()
+            ->byMember($memberId)
+            ->where('chapter_id', $chapterId)
+            ->first();
+
+        return $this->buildChapterProgressPayload($courseId, $chapterId, $schedule, $chapterProgress);
+    }
+
+    /**
+     * 统一解析课程/章节/课表学习上下文。
+     *
+     * 校验顺序：
+     * 1. 用户课程归属；
+     * 2. 课程播放类型（仅录播支持进度）；
+     * 3. 章节存在性与归属关系；
+     * 4. 用户章节课表存在且已解锁。
+     *
+     * @param int $memberId
+     * @param int $courseId
+     * @param int $chapterId
+     * @param bool $lockForUpdate
+     * @return array{memberCourse:AppMemberCourse,chapter:AppCourseChapter,schedule:AppMemberSchedule}
+     */
+    private function resolveStudyChapterLearnContext(
+        int $memberId,
+        int $courseId,
+        int $chapterId,
+        bool $lockForUpdate
+    ): array {
+        $memberCourseQuery = AppMemberCourse::query()
+            ->byMember($memberId)
+            ->notExpired()
+            ->where('course_id', $courseId);
+
+        if ($lockForUpdate) {
+            $memberCourseQuery->lockForUpdate();
+        }
+
+        $memberCourse = $memberCourseQuery->first();
+        if (!$memberCourse) {
+            throw new \DomainException('course_not_owned');
+        }
+
+        $course = AppCourseBase::query()
+            ->select(['course_id', 'play_type'])
+            ->where('course_id', $courseId)
+            ->first();
+
+        if (!$course) {
+            throw new \DomainException('course_not_found');
+        }
+
+        if ((int)$course->play_type !== AppCourseBase::PLAY_TYPE_VIDEO) {
+            throw new \DomainException('non_video_course');
+        }
+
+        $chapter = AppCourseChapter::query()
+            ->select(['chapter_id', 'course_id', 'duration', 'min_learn_time'])
+            ->where('course_id', $courseId)
+            ->where('chapter_id', $chapterId)
+            ->first();
+
+        if (!$chapter) {
+            throw new \DomainException('chapter_not_found');
+        }
+
+        $scheduleQuery = AppMemberSchedule::query()
+            ->byMember($memberId)
+            ->chapterBiz()
+            ->where('course_id', $courseId)
+            ->where('chapter_id', $chapterId);
+
+        if ($lockForUpdate) {
+            $scheduleQuery->lockForUpdate();
+        }
+
+        $schedule = $scheduleQuery->first();
+        if (!$schedule) {
+            throw new \DomainException('schedule_not_found');
+        }
+
+        if ((int)$schedule->is_unlocked !== 1) {
+            throw new \DomainException('schedule_not_unlocked');
+        }
+
+        return [
+            'memberCourse' => $memberCourse,
+            'chapter' => $chapter,
+            'schedule' => $schedule,
+        ];
+    }
+
+    /**
+     * 锁定或创建章节进度记录。
+     *
+     * @param int $memberId
+     * @param int $courseId
+     * @param int $chapterId
+     * @param AppCourseChapter $chapter
+     * @param Carbon $now
+     * @return AppMemberChapterProgress
+     */
+    private function lockOrCreateChapterProgress(
+        int $memberId,
+        int $courseId,
+        int $chapterId,
+        AppCourseChapter $chapter,
+        Carbon $now
+    ): AppMemberChapterProgress {
+        $chapterProgress = AppMemberChapterProgress::query()
+            ->byMember($memberId)
+            ->where('chapter_id', $chapterId)
+            ->lockForUpdate()
+            ->first();
+
+        if ($chapterProgress) {
+            return $chapterProgress;
+        }
+
+        // 并发首次上报时使用 insertOrIgnore，避免唯一键(member_id,chapter_id)冲突导致事务失败。
+        DB::table('app_member_chapter_progress')->insertOrIgnore([
+            'member_id' => $memberId,
+            'course_id' => $courseId,
+            'chapter_id' => $chapterId,
+            'learned_duration' => 0,
+            'total_duration' => max(0, (int)$chapter->duration),
+            'progress' => 0,
+            'last_position' => 0,
+            'is_completed' => 0,
+            'view_count' => 0,
+            'first_view_time' => $now->copy(),
+            'last_view_time' => $now->copy(),
+            'created_at' => $now->copy(),
+            'updated_at' => $now->copy(),
+        ]);
+
+        $chapterProgress = AppMemberChapterProgress::query()
+            ->byMember($memberId)
+            ->where('chapter_id', $chapterId)
+            ->lockForUpdate()
+            ->first();
+
+        if (!$chapterProgress) {
+            throw new \DomainException('progress_init_failed');
+        }
+
+        return $chapterProgress;
+    }
+
+    /**
+     * 解析播放器上报的 hh:mm:ss 文本为秒值。
+     *
+     * @param string $positionText
+     * @return int
+     */
+    private function parsePositionTextToSeconds(string $positionText): int
+    {
+        $value = trim($positionText);
+        if (!preg_match('/^\d{2}:\d{2}:\d{2}$/', $value)) {
+            throw new \DomainException('position_format_invalid');
+        }
+
+        $parts = array_map('intval', explode(':', $value));
+        $hours = (int)($parts[0] ?? 0);
+        $minutes = (int)($parts[1] ?? 0);
+        $seconds = (int)($parts[2] ?? 0);
+
+        if ($minutes >= 60 || $seconds >= 60) {
+            throw new \DomainException('position_format_invalid');
+        }
+
+        return ($hours * 3600) + ($minutes * 60) + $seconds;
+    }
+
+    /**
+     * 归一化播放位置。
+     *
+     * @param int $position
+     * @param int $totalDuration
+     * @return int
+     */
+    private function normalizeProgressPosition(int $position, int $totalDuration): int
+    {
+        $normalized = max(0, $position);
+        if ($totalDuration > 0) {
+            return min($normalized, $totalDuration);
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * 解析章节自动完课阈值（秒）。
+     *
+     * 规则：
+     * 1. min_learn_time > 0 时优先使用；
+     * 2. 若同时有 total_duration，则阈值上限裁剪到 total_duration，避免出现无法达标；
+     * 3. min_learn_time 无效时回退 total_duration 的 90%。
+     *
+     * @param int $totalDuration
+     * @param int $minLearnTime
+     * @return int
+     */
+    private function resolveChapterCompleteThreshold(int $totalDuration, int $minLearnTime): int
+    {
+        $duration = max(0, $totalDuration);
+        $minLearn = max(0, $minLearnTime);
+
+        if ($minLearn > 0) {
+            return $duration > 0 ? min($minLearn, $duration) : $minLearn;
+        }
+
+        if ($duration <= 0) {
+            return 0;
+        }
+
+        return (int)ceil($duration * 0.9);
+    }
+
+    /**
+     * 同步用户课程的播放锚点快照。
+     *
+     * @param AppMemberCourse $memberCourse
+     * @param int $chapterId
+     * @param int $position
+     * @param Carbon $now
+     * @return void
+     */
+    private function syncMemberCoursePlaybackSnapshot(
+        AppMemberCourse $memberCourse,
+        int $chapterId,
+        int $position,
+        Carbon $now
+    ): void {
+        $memberCourse->last_chapter_id = $chapterId;
+        $memberCourse->last_position = $position;
+        $memberCourse->last_learn_time = $now->copy();
+        $memberCourse->save();
+    }
+
+    /**
+     * 构建章节进度响应快照。
+     *
+     * @param int $courseId
+     * @param int $chapterId
+     * @param AppMemberSchedule $schedule
+     * @param AppMemberChapterProgress|null $chapterProgress
+     * @return array{courseId:int,chapterId:int,lastPosition:int,progress:float,isCompleted:int,isLearned:int,learnTime:?string}
+     */
+    private function buildChapterProgressPayload(
+        int $courseId,
+        int $chapterId,
+        AppMemberSchedule $schedule,
+        ?AppMemberChapterProgress $chapterProgress
+    ): array {
+        return [
+            'courseId' => $courseId,
+            'chapterId' => $chapterId,
+            'lastPosition' => $chapterProgress ? (int)$chapterProgress->last_position : 0,
+            'progress' => $chapterProgress ? round((float)$chapterProgress->progress, 2) : 0.0,
+            'isCompleted' => $chapterProgress ? (int)$chapterProgress->is_completed : 0,
+            'isLearned' => (int)$schedule->is_learned,
+            'learnTime' => $schedule->learn_time
+                ? $schedule->learn_time->format('Y-m-d H:i:s')
+                : null,
+        ];
     }
 
     /**

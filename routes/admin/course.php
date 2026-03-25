@@ -53,8 +53,18 @@ Route::middleware('system.auth')->group(function () {
         Route::post('/copy', [CourseController::class, 'copy']);
         // 订单列表
         Route::get('/order/list', [CourseOrderController::class, 'orderList']);
+        // 订单详情
+        Route::get('/order/detail', [CourseOrderController::class, 'orderDetail']);
         // 退款列表
         Route::get('/refund/list', [CourseOrderController::class, 'refundList']);
+        // 退款详情
+        Route::get('/refund/detail', [CourseOrderController::class, 'refundDetail']);
+        // 后台发起退款申请（代客户）
+        Route::post('/refund/apply', [CourseOrderController::class, 'applyRefund']);
+        // 退款审核（通过/拒绝）
+        Route::put('/refund/audit', [CourseOrderController::class, 'auditRefund']);
+        // 退款执行（调用微信）
+        Route::post('/refund/execute', [CourseOrderController::class, 'executeRefund']);
 
         // 下拉框列表
         Route::get('/optionselect', [CourseController::class, 'optionselect']);

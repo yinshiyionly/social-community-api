@@ -1,0 +1,181 @@
+<?php
+
+namespace App\Http\Resources\Admin;
+
+use App\Models\App\AppCourseOrder;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+/**
+ * 课程订单详情资源。
+ *
+ * 字段约定：
+ * 1. 按课程信息、支付信息、退款信息、审核执行信息四块输出，降低前端拼装成本；
+ * 2. 退款相关字段兼容“申请中/已拒绝/已退款”全流程，避免前端分支猜测；
+ * 3. 时间字段统一格式为 Y-m-d H:i:s，空值返回 null。
+ */
+class CourseOrderDetailResource extends JsonResource
+{
+    /**
+     * @param \Illuminate\Http\Request $request
+     * @return array<string, mixed>
+     */
+    public function toArray($request)
+    {
+        $payType = $this->pay_type !== null ? (int)$this->pay_type : null;
+        $payStatus = $this->pay_status !== null ? (int)$this->pay_status : null;
+        $refundStatus = $this->refund_status !== null ? (int)$this->refund_status : null;
+        $refundReviewStatus = $refundStatus === AppCourseOrder::REFUND_STATUS_NONE
+            ? null
+            : ($this->refund_review_status !== null ? (int)$this->refund_review_status : null);
+        $refundMode = $refundStatus === AppCourseOrder::REFUND_STATUS_NONE
+            ? null
+            : ($this->refund_mode !== null ? (int)$this->refund_mode : null);
+
+        return [
+            'orderId' => (int)$this->order_id,
+            'orderNo' => $this->order_no,
+            'memberId' => $this->member_id !== null ? (int)$this->member_id : null,
+            'memberPhone' => $this->member_phone,
+            'memberNickname' => $this->member_nickname,
+            'createdAt' => $this->formatDateTime($this->created_at),
+            'course' => [
+                'courseId' => $this->course_id !== null ? (int)$this->course_id : null,
+                'courseTitle' => $this->course_title,
+                'courseCover' => $this->course_cover,
+                'enrollPhone' => $this->enroll_phone,
+                'enrollAgeRange' => $this->enroll_age_range,
+            ],
+            'payment' => [
+                'paidAmount' => number_format((float)$this->paid_amount, 2, '.', ''),
+                'payType' => $payType,
+                'payTypeText' => $this->formatPayTypeText($payType),
+                'payStatus' => $payStatus,
+                'payStatusText' => $this->formatPayStatusText($payStatus),
+                'payTradeNo' => $this->pay_trade_no,
+                'payTime' => $this->formatDateTime($this->pay_time),
+                'expireTime' => $this->formatDateTime($this->expire_time),
+            ],
+            'refund' => [
+                'refundStatus' => $refundStatus,
+                'refundStatusText' => $this->formatRefundStatusText($refundStatus),
+                'refundReviewStatus' => $refundReviewStatus,
+                'refundReviewStatusText' => $refundReviewStatus === null ? '' : $this->formatRefundReviewStatusText($refundReviewStatus),
+                'refundMode' => $refundMode,
+                'refundModeText' => $this->formatRefundModeText($refundMode),
+                'refundAmount' => number_format((float)$this->refund_amount, 2, '.', ''),
+                'refundReason' => $this->refund_reason,
+                'refundApplyTime' => $this->formatDateTime($this->refund_apply_time),
+                'refundReviewTime' => $this->formatDateTime($this->refund_review_time),
+                'refundRejectReason' => $this->refund_reject_reason,
+                'refundExecuteFailReason' => $this->refund_execute_fail_reason,
+                'refundTime' => $this->formatDateTime($this->refund_time),
+            ],
+            'auditExecution' => [
+                'refundReviewBy' => $this->refund_review_by !== null ? (int)$this->refund_review_by : null,
+                'refundReviewByName' => $this->refund_review_user_name,
+                'refundExecuteBy' => $this->refund_execute_by !== null ? (int)$this->refund_execute_by : null,
+                'refundExecuteByName' => $this->refund_execute_user_name,
+            ],
+        ];
+    }
+
+    /**
+     * @param mixed $value
+     * @return string|null
+     */
+    protected function formatDateTime($value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d H:i:s');
+        }
+
+        $timestamp = strtotime((string)$value);
+
+        return $timestamp === false ? (string)$value : date('Y-m-d H:i:s', $timestamp);
+    }
+
+    /**
+     * @param int|null $payType
+     * @return string
+     */
+    protected function formatPayTypeText(?int $payType): string
+    {
+        $map = [
+            AppCourseOrder::PAY_TYPE_WECHAT => '微信',
+            AppCourseOrder::PAY_TYPE_ALIPAY => '支付宝',
+            AppCourseOrder::PAY_TYPE_BALANCE => '余额',
+            AppCourseOrder::PAY_TYPE_FREE => '免费',
+        ];
+
+        return $map[$payType] ?? '未知';
+    }
+
+    /**
+     * @param int|null $payStatus
+     * @return string
+     */
+    protected function formatPayStatusText(?int $payStatus): string
+    {
+        $map = [
+            AppCourseOrder::PAY_STATUS_PENDING => '待支付',
+            AppCourseOrder::PAY_STATUS_PAID => '已支付',
+            AppCourseOrder::PAY_STATUS_REFUNDED => '已退款',
+            AppCourseOrder::PAY_STATUS_CLOSED => '已关闭',
+        ];
+
+        return $map[$payStatus] ?? '未知';
+    }
+
+    /**
+     * @param int|null $refundStatus
+     * @return string
+     */
+    protected function formatRefundStatusText(?int $refundStatus): string
+    {
+        $map = [
+            AppCourseOrder::REFUND_STATUS_NONE => '无',
+            AppCourseOrder::REFUND_STATUS_APPLYING => '申请中',
+            AppCourseOrder::REFUND_STATUS_REFUNDED => '已退款',
+            AppCourseOrder::REFUND_STATUS_REJECTED => '已拒绝',
+        ];
+
+        return $map[$refundStatus] ?? '未知';
+    }
+
+    /**
+     * @param int|null $refundReviewStatus
+     * @return string
+     */
+    protected function formatRefundReviewStatusText(?int $refundReviewStatus): string
+    {
+        $map = [
+            AppCourseOrder::REFUND_REVIEW_STATUS_PENDING => '待审核',
+            AppCourseOrder::REFUND_REVIEW_STATUS_APPROVED => '已通过待执行',
+            AppCourseOrder::REFUND_REVIEW_STATUS_REJECTED => '已拒绝',
+        ];
+
+        return $map[$refundReviewStatus] ?? '未知';
+    }
+
+    /**
+     * @param int|null $refundMode
+     * @return string
+     */
+    protected function formatRefundModeText(?int $refundMode): string
+    {
+        if ($refundMode === null) {
+            return '';
+        }
+
+        $map = [
+            AppCourseOrder::REFUND_MODE_FULL => '全额退款',
+            AppCourseOrder::REFUND_MODE_PARTIAL => '部分退款',
+        ];
+
+        return $map[$refundMode] ?? '未知';
+    }
+}

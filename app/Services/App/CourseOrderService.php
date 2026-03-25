@@ -17,9 +17,9 @@ use Illuminate\Support\Facades\Log;
  * App 端课程订单服务。
  *
  * 职责：
- * 1. 处理课程订单创建、支付状态查询、退款与支付回调；
+ * 1. 处理课程订单创建、支付状态查询、退款申请与支付回调；
  * 2. 处理我的订单列表查询与订单状态映射；
- * 3. 处理支付成功后的课程发放、退款后的课程回收等副作用。
+ * 3. 处理支付成功后的课程发放，以及全额退款后的课程回收等副作用。
  */
 class CourseOrderService
 {
@@ -265,7 +265,7 @@ class CourseOrderService
             $order->refresh();
         }
 
-        return [
+        return array_merge([
             'orderNo'       => $order->order_no,
             'payStatus'     => $this->formatPayStatus((int)$order->pay_status),
             'payStatusCode' => (int)$order->pay_status,
@@ -274,20 +274,111 @@ class CourseOrderService
             'paidAmount'    => number_format((float)$order->paid_amount, 2, '.', ''),
             'expireTime'    => optional($order->expire_time)->format('Y-m-d H:i:s'),
             'payTime'       => optional($order->pay_time)->format('Y-m-d H:i:s'),
-        ];
+        ], $this->buildRefundResult($order));
     }
 
     /**
-     * 课程订单退款（微信 v2）
+     * 提交课程订单退款申请。
      *
+     * 关键规则：
+     * 1. 仅已支付且支付方式为微信的订单允许发起退款申请；
+     * 2. 退款申请仅负责写入申请状态，不直接调用微信退款；
+     * 3. 已拒绝订单允许再次申请，申请时会重置审核与执行阶段字段。
+     *
+     * @param int $memberId
+     * @param string $orderNo
+     * @param string $reason
+     * @param string|null $clientIp
+     * @return array
      * @throws \Exception
      */
-    public function refundWechatOrder(int $memberId, string $orderNo, string $reason = '', ?string $clientIp = null): array
+    public function applyRefund(int $memberId, string $orderNo, string $reason, ?string $clientIp = null): array
+    {
+        $reason = trim($reason);
+        if ($reason === '') {
+            throw new \Exception('退款原因不能为空');
+        }
+
+        return DB::transaction(function () use ($memberId, $orderNo, $reason, $clientIp) {
+            $order = AppCourseOrder::query()
+                ->where('member_id', $memberId)
+                ->where('order_no', $orderNo)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$order) {
+                throw new \Exception('订单不存在');
+            }
+
+            if ((int)$order->pay_type !== AppCourseOrder::PAY_TYPE_WECHAT) {
+                throw new \Exception('仅支持微信支付订单申请退款');
+            }
+
+            if ((int)$order->refund_status === AppCourseOrder::REFUND_STATUS_REFUNDED) {
+                throw new \Exception('当前订单已完成退款');
+            }
+
+            if ((int)$order->pay_status === AppCourseOrder::PAY_STATUS_REFUNDED) {
+                throw new \Exception('当前订单已退款');
+            }
+
+            if ((int)$order->pay_status !== AppCourseOrder::PAY_STATUS_PAID) {
+                throw new \Exception('当前订单状态不支持退款申请');
+            }
+
+            // 申请中（待审核/已通过待执行）均禁止重复申请，避免覆盖审核中的流程数据。
+            if (
+                (int)$order->refund_status === AppCourseOrder::REFUND_STATUS_APPLYING
+                && in_array(
+                    (int)$order->refund_review_status,
+                    [
+                        AppCourseOrder::REFUND_REVIEW_STATUS_PENDING,
+                        AppCourseOrder::REFUND_REVIEW_STATUS_APPROVED,
+                    ],
+                    true
+                )
+            ) {
+                throw new \Exception('退款申请已提交，请等待处理');
+            }
+
+            $order->refund_status = AppCourseOrder::REFUND_STATUS_APPLYING;
+            $order->refund_review_status = AppCourseOrder::REFUND_REVIEW_STATUS_PENDING;
+            $order->refund_mode = null;
+            $order->refund_amount = 0;
+            $order->refund_reason = $reason;
+            $order->refund_apply_time = now();
+            $order->refund_review_by = null;
+            $order->refund_review_time = null;
+            $order->refund_reject_reason = null;
+            $order->refund_execute_by = null;
+            $order->refund_execute_fail_reason = null;
+            $order->refund_time = null;
+            $order->client_ip = $clientIp ?: $order->client_ip;
+            $order->save();
+
+            return $this->buildRefundResult($order);
+        });
+    }
+
+    /**
+     * 后台执行已审核通过的退款申请。
+     *
+     * 关键规则：
+     * 1. 仅处理“申请中+已通过待执行”的退款单；
+     * 2. 全额退款成功后回收课程权益，部分退款成功后保留课程权益；
+     * 3. 执行失败仅记录失败原因并保持待执行状态，支持管理员重试。
+     *
+     * @param string $orderNo
+     * @param int|null $operatorId
+     * @param string|null $clientIp
+     * @return array
+     * @throws \Exception
+     */
+    public function executeApprovedRefundByAdmin(string $orderNo, ?int $operatorId = null, ?string $clientIp = null): array
     {
         try {
-            return DB::transaction(function () use ($memberId, $orderNo, $reason, $clientIp) {
+            return DB::transaction(function () use ($orderNo, $operatorId, $clientIp) {
                 $order = AppCourseOrder::query()
-                    ->where('member_id', $memberId)
                     ->where('order_no', $orderNo)
                     ->lockForUpdate()
                     ->first();
@@ -296,34 +387,59 @@ class CourseOrderService
                     throw new \Exception('订单不存在');
                 }
 
-                if ((int)$order->pay_status === AppCourseOrder::PAY_STATUS_REFUNDED) {
+                if ((int)$order->refund_status === AppCourseOrder::REFUND_STATUS_REFUNDED) {
                     return $this->buildRefundResult($order);
-                }
-
-                if ((int)$order->pay_status !== AppCourseOrder::PAY_STATUS_PAID) {
-                    throw new \Exception('当前订单状态不支持退款');
                 }
 
                 if ((int)$order->pay_type !== AppCourseOrder::PAY_TYPE_WECHAT) {
                     throw new \Exception('仅支持微信支付订单退款');
                 }
 
-                if ((int)$order->refund_status === AppCourseOrder::REFUND_STATUS_REFUNDED) {
-                    return $this->buildRefundResult($order);
+                if (
+                    (int)$order->refund_status !== AppCourseOrder::REFUND_STATUS_APPLYING
+                    || (int)$order->refund_review_status !== AppCourseOrder::REFUND_REVIEW_STATUS_APPROVED
+                ) {
+                    throw new \Exception('当前退款申请状态不支持执行');
                 }
 
-                $refundResult = $this->createWechatRefund($order, $reason);
-                $refundAmountFen = (int)($refundResult['refund_fee'] ?? 0);
+                if ((int)$order->pay_status !== AppCourseOrder::PAY_STATUS_PAID) {
+                    throw new \Exception('当前订单状态不支持退款执行');
+                }
+
+                $refundMode = (int)$order->refund_mode;
+                $refundAmountFen = $this->toFen($order->refund_amount);
                 $orderAmountFen = $this->toFen($order->paid_amount);
 
-                if ($refundAmountFen > 0 && $refundAmountFen !== $orderAmountFen) {
-                    throw new \Exception('微信退款金额与订单金额不一致');
+                if ($refundMode === AppCourseOrder::REFUND_MODE_FULL) {
+                    if ($refundAmountFen !== $orderAmountFen) {
+                        throw new \Exception('全额退款金额必须等于实付金额');
+                    }
+                } elseif ($refundMode === AppCourseOrder::REFUND_MODE_PARTIAL) {
+                    if ($refundAmountFen <= 0 || $refundAmountFen >= $orderAmountFen) {
+                        throw new \Exception('部分退款金额必须大于0且小于实付金额');
+                    }
+                } else {
+                    throw new \Exception('退款模式无效，请先完成审核');
                 }
 
-                $order->pay_status = AppCourseOrder::PAY_STATUS_REFUNDED;
+                $refundResult = $this->createWechatRefund(
+                    $order,
+                    $refundAmountFen,
+                    (string)($order->refund_reason ?? '')
+                );
+                $wechatRefundFen = (int)($refundResult['refund_fee'] ?? 0);
+
+                if ($wechatRefundFen > 0 && $wechatRefundFen !== $refundAmountFen) {
+                    throw new \Exception('微信退款金额与审核金额不一致');
+                }
+
+                if ($refundMode === AppCourseOrder::REFUND_MODE_FULL) {
+                    $order->pay_status = AppCourseOrder::PAY_STATUS_REFUNDED;
+                }
+
                 $order->refund_status = AppCourseOrder::REFUND_STATUS_REFUNDED;
-                $order->refund_amount = $order->paid_amount;
-                $order->refund_reason = $reason !== '' ? $reason : (string)($order->refund_reason ?? '');
+                $order->refund_execute_by = $operatorId ?: null;
+                $order->refund_execute_fail_reason = null;
                 $order->refund_time = now();
                 $order->save();
 
@@ -335,30 +451,50 @@ class CourseOrderService
                         'refund' => $refundResult,
                     ],
                     $clientIp,
-                    '微信退款成功'
+                    $refundMode === AppCourseOrder::REFUND_MODE_FULL ? '微信全额退款成功' : '微信部分退款成功'
                 );
 
-                $this->revokeCourseForRefund($order);
+                if ($refundMode === AppCourseOrder::REFUND_MODE_FULL) {
+                    $this->revokeCourseForRefund($order);
+                }
 
                 return $this->buildRefundResult($order);
             });
         } catch (\Exception $e) {
             $order = AppCourseOrder::query()
-                ->where('member_id', $memberId)
                 ->where('order_no', $orderNo)
                 ->first();
 
-            if ($order && (int)$order->pay_status === AppCourseOrder::PAY_STATUS_PAID) {
+            if (
+                $order
+                && (int)$order->refund_status === AppCourseOrder::REFUND_STATUS_APPLYING
+                && (int)$order->refund_review_status === AppCourseOrder::REFUND_REVIEW_STATUS_APPROVED
+            ) {
+                $errorMessage = (string)$e->getMessage();
+                if (function_exists('mb_substr')) {
+                    $errorMessage = mb_substr($errorMessage, 0, 500);
+                } elseif (strlen($errorMessage) > 500) {
+                    $errorMessage = substr($errorMessage, 0, 500);
+                }
+
+                $order->refund_execute_fail_reason = $errorMessage;
+                if ($operatorId) {
+                    $order->refund_execute_by = $operatorId;
+                }
+                $order->save();
+            }
+
+            if ($order) {
                 $this->createPayLog(
                     $order,
                     AppCourseOrderPayLog::PAY_RESULT_FAIL,
                     null,
                     [
                         'refund_error' => $e->getMessage(),
-                        'order_no'     => $orderNo,
+                        'order_no' => $orderNo,
                     ],
                     $clientIp,
-                    '微信退款失败'
+                    '微信退款执行失败'
                 );
             }
 
@@ -371,12 +507,26 @@ class CourseOrderService
      */
     protected function buildRefundResult(AppCourseOrder $order): array
     {
+        $refundStatus = (int)$order->refund_status;
+        $refundReviewStatus = $refundStatus === AppCourseOrder::REFUND_STATUS_NONE
+            ? null
+            : (int)$order->refund_review_status;
+
         return [
             'orderNo'       => $order->order_no,
             'payStatus'     => $this->formatPayStatus((int)$order->pay_status),
             'payStatusCode' => (int)$order->pay_status,
-            'refundStatus'  => (int)$order->refund_status,
+            'refundStatus'  => $refundStatus,
+            'refundReviewStatus' => $refundReviewStatus,
+            'refundReviewStatusText' => $refundReviewStatus === null ? '' : $order->refund_review_status_text,
+            'refundMode' => $order->refund_mode !== null ? (int)$order->refund_mode : null,
+            'refundModeText' => $order->refund_mode ? $order->refund_mode_text : '',
             'refundAmount'  => number_format((float)$order->refund_amount, 2, '.', ''),
+            'refundReason' => $order->refund_reason,
+            'refundApplyTime' => optional($order->refund_apply_time)->format('Y-m-d H:i:s'),
+            'refundReviewTime' => optional($order->refund_review_time)->format('Y-m-d H:i:s'),
+            'refundRejectReason' => $order->refund_reject_reason,
+            'refundExecuteFailReason' => $order->refund_execute_fail_reason,
             'refundTime'    => optional($order->refund_time)->format('Y-m-d H:i:s'),
         ];
     }
@@ -698,7 +848,7 @@ class CourseOrderService
      *
      * @throws \Exception
      */
-    protected function createWechatRefund(AppCourseOrder $order, string $reason = ''): array
+    protected function createWechatRefund(AppCourseOrder $order, int $refundAmountFen, string $reason = ''): array
     {
         $config = $this->buildWechatPayConfig();
 
@@ -716,7 +866,7 @@ class CourseOrderService
             'out_trade_no'  => $order->order_no,
             'out_refund_no' => $this->buildWechatRefundNo($order->order_no),
             'total_fee'     => $this->toFen($order->paid_amount),
-            'refund_fee'    => $this->toFen($order->paid_amount),
+            'refund_fee'    => $refundAmountFen,
             'refund_desc'   => $refundDesc,
             'sign_type'     => $config['sign_type'],
         ];

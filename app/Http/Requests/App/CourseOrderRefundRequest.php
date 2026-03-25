@@ -15,7 +15,7 @@ class CourseOrderRefundRequest extends FormRequest
     {
         return [
             'orderNo' => 'required|string|max:64',
-            'reason' => 'nullable|string|max:200',
+            'reason'  => 'required|string|max:200',
         ];
     }
 
@@ -23,8 +23,9 @@ class CourseOrderRefundRequest extends FormRequest
     {
         return [
             'orderNo.required' => '订单号不能为空',
-            'orderNo.max' => '订单号长度不能超过64位',
-            'reason.max' => '退款原因长度不能超过200位',
+            'orderNo.max'      => '订单号长度不能超过64位',
+            'reason.required'  => '退款原因不能为空',
+            'reason.max'       => '退款原因长度不能超过200位',
         ];
     }
 }

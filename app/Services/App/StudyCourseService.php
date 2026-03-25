@@ -375,7 +375,7 @@ class StudyCourseService
                 'id'         => $item['course_id'] ?? null,
                 'time'       => Carbon::make($item['schedule_time'])->format('H:i'),
                 'title'      => $item['course']['course_title'] ?? null,
-                'subTitle'   => sprintf(
+                'subtitle'   => sprintf(
                     "%s: %s",
                     Carbon::make($item['schedule_date'])->format('m月d日'),
                     $item['chapter']['chapter_title'] ?? null

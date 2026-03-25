@@ -37,11 +37,11 @@ class MessageService
         $total = $likeAndCollect + $comment + $follow + $system;
 
         return [
-            'total' => $total,
+            'total'          => $total,
             'likeAndCollect' => $likeAndCollect,
-            'comment' => $comment,
-            'follow' => $follow,
-            'system' => $system,
+            'comment'        => $comment,
+            'follow'         => $follow,
+            'system'         => $system,
         ];
     }
 
@@ -89,47 +89,47 @@ class MessageService
         // 消息分类图标（可通过配置覆盖）
         $icons = [
             'likeAndCollect' => 'app/like.png',
-            'comment' => 'app/comment.png',
-            'follow' => 'app/follow.png',
-            'secretary' => 'app/secretary.png',
+            'comment'        => 'app/comment.png',
+            'follow'         => 'app/follow.png',
+            'secretary'      => 'app/secretary.png',
         ];
 
         $categories = [
             [
-                'id' => 1,
-                'type' => '赞和收藏',
+                'id'     => 1,
+                'type'   => '赞和收藏',
                 'detail' => $latestLikeCollect ? $this->formatInteractionSummary($latestLikeCollect)['content'] : '',
-                'time' => $latestLikeCollect && $latestLikeCollect->created_at
+                'time'   => $latestLikeCollect && $latestLikeCollect->created_at
                     ? DatetimeHelper::relativeTime($latestLikeCollect->created_at) : '',
                 'avatar' => (new AppFileUploadService())->generateFileUrl($icons['likeAndCollect']),
-                'count' => $unreadCount->getLikeAndCollectCount(),
+                'count'  => $unreadCount->getLikeAndCollectCount(),
             ],
             [
-                'id' => 2,
-                'type' => '评论我的',
+                'id'     => 2,
+                'type'   => '评论我的',
                 'detail' => $latestComment ? $this->formatInteractionSummary($latestComment)['content'] : '',
-                'time' => $latestComment && $latestComment->created_at
+                'time'   => $latestComment && $latestComment->created_at
                     ? DatetimeHelper::relativeTime($latestComment->created_at) : '',
                 'avatar' => (new AppFileUploadService())->generateFileUrl($icons['comment']),
-                'count' => $unreadCount->comment_count,
+                'count'  => $unreadCount->comment_count,
             ],
             [
-                'id' => 3,
-                'type' => '小秘书',
+                'id'     => 3,
+                'type'   => '小秘书',
                 'detail' => $latestSecretary ? $this->formatSystemSummary($latestSecretary)['content'] : '',
-                'time' => $latestSecretary && $latestSecretary->created_at
+                'time'   => $latestSecretary && $latestSecretary->created_at
                     ? DatetimeHelper::relativeTime($latestSecretary->created_at) : '',
                 'avatar' => (new AppFileUploadService())->generateFileUrl($icons['secretary']),
-                'count' => AppMessageSystemUnread::getUnreadCount($memberId, $secretaryMemberId),
+                'count'  => AppMessageSystemUnread::getUnreadCount($memberId, $secretaryMemberId),
             ],
             [
-                'id' => 4,
-                'type' => '关注我的',
+                'id'     => 4,
+                'type'   => '关注我的',
                 'detail' => $latestFollow ? $this->formatFollowSummary($latestFollow)['content'] : '',
-                'time' => $latestFollow && $latestFollow->created_at
+                'time'   => $latestFollow && $latestFollow->created_at
                     ? DatetimeHelper::relativeTime($latestFollow->created_at) : '',
                 'avatar' => (new AppFileUploadService())->generateFileUrl($icons['follow']),
-                'count' => $unreadCount->follow_count,
+                'count'  => $unreadCount->follow_count,
             ]
         ];
 
@@ -139,9 +139,9 @@ class MessageService
         $list = array_slice($categories, $offset, $pageSize);
 
         return [
-            'list' => $list,
-            'total' => $total,
-            'page' => $page,
+            'list'     => $list,
+            'total'    => $total,
+            'page'     => $page,
             'pageSize' => $pageSize,
         ];
     }
@@ -180,15 +180,15 @@ class MessageService
             ->first();
 
         $list[] = [
-            'itemType' => 'interaction',
-            'type' => 'likeAndCollect',
-            'title' => '赞和收藏',
-            'avatar' => null,
-            'isOfficial' => 0,
+            'itemType'      => 'interaction',
+            'type'          => 'likeAndCollect',
+            'title'         => '赞和收藏',
+            'avatar'        => null,
+            'isOfficial'    => 0,
             'officialLabel' => '',
-            'unreadCount' => $unreadCount->getLikeAndCollectCount(),
+            'unreadCount'   => $unreadCount->getLikeAndCollectCount(),
             'latestContent' => $latestLikeCollect ? $this->formatInteractionSummary($latestLikeCollect)['content'] : '',
-            'latestTime' => $latestLikeCollect && $latestLikeCollect->created_at
+            'latestTime'    => $latestLikeCollect && $latestLikeCollect->created_at
                 ? $latestLikeCollect->created_at->format('Y-m-d H:i:s') : null,
         ];
 
@@ -200,15 +200,15 @@ class MessageService
             ->first();
 
         $list[] = [
-            'itemType' => 'interaction',
-            'type' => 'comment',
-            'title' => '评论我的',
-            'avatar' => null,
-            'isOfficial' => 0,
+            'itemType'      => 'interaction',
+            'type'          => 'comment',
+            'title'         => '评论我的',
+            'avatar'        => null,
+            'isOfficial'    => 0,
             'officialLabel' => '',
-            'unreadCount' => $unreadCount->comment_count,
+            'unreadCount'   => $unreadCount->comment_count,
             'latestContent' => $latestComment ? $this->formatInteractionSummary($latestComment)['content'] : '',
-            'latestTime' => $latestComment && $latestComment->created_at
+            'latestTime'    => $latestComment && $latestComment->created_at
                 ? $latestComment->created_at->format('Y-m-d H:i:s') : null,
         ];
 
@@ -222,15 +222,15 @@ class MessageService
             ->first();
 
         $list[] = [
-            'itemType' => 'interaction',
-            'type' => 'follow',
-            'title' => '关注我的',
-            'avatar' => null,
-            'isOfficial' => 0,
+            'itemType'      => 'interaction',
+            'type'          => 'follow',
+            'title'         => '关注我的',
+            'avatar'        => null,
+            'isOfficial'    => 0,
             'officialLabel' => '',
-            'unreadCount' => $unreadCount->follow_count,
+            'unreadCount'   => $unreadCount->follow_count,
             'latestContent' => $latestFollow ? $this->formatFollowSummary($latestFollow)['content'] : '',
-            'latestTime' => $latestFollow && $latestFollow->created_at
+            'latestTime'    => $latestFollow && $latestFollow->created_at
                 ? $latestFollow->created_at->format('Y-m-d H:i:s') : null,
         ];
 
@@ -307,16 +307,16 @@ class MessageService
             $summary = $this->formatSystemSummary($latestMessage);
 
             $items[] = [
-                'itemType' => 'official',
-                'type' => 'system',
-                'senderId' => $senderId,
-                'title' => $sender->nickname,
-                'avatar' => $sender->avatar,
-                'isOfficial' => $sender->is_official,
+                'itemType'      => 'official',
+                'type'          => 'system',
+                'senderId'      => $senderId,
+                'title'         => $sender->nickname,
+                'avatar'        => $sender->avatar,
+                'isOfficial'    => $sender->is_official,
                 'officialLabel' => $sender->official_label,
-                'unreadCount' => $unreadMap[$senderId] ?? 0,
+                'unreadCount'   => $unreadMap[$senderId] ?? 0,
                 'latestContent' => $summary['content'],
-                'latestTime' => $summary['time'],
+                'latestTime'    => $summary['time'],
             ];
         }
 
@@ -336,7 +336,7 @@ class MessageService
 
         return [
             'content' => $sender ? ($sender->nickname . MessageType::getTypeName($message->message_type) . '了您') : '',
-            'time' => $message->created_at ? $message->created_at->format('Y-m-d H:i:s') : null,
+            'time'    => $message->created_at ? $message->created_at->format('Y-m-d H:i:s') : null,
         ];
     }
 
@@ -352,7 +352,7 @@ class MessageService
 
         return [
             'content' => $sender ? ($sender->nickname . '关注了您') : '',
-            'time' => $message->created_at ? $message->created_at->format('Y-m-d H:i:s') : null,
+            'time'    => $message->created_at ? $message->created_at->format('Y-m-d H:i:s') : null,
         ];
     }
 
@@ -371,7 +371,7 @@ class MessageService
 
         return [
             'content' => $message->title . '：' . $content,
-            'time' => $message->created_at ? $message->created_at->format('Y-m-d H:i:s') : null,
+            'time'    => $message->created_at ? $message->created_at->format('Y-m-d H:i:s') : null,
         ];
     }
 
@@ -388,7 +388,10 @@ class MessageService
     {
         $query = AppMessageInteraction::byReceiver($memberId)
             ->likeAndCollect()
-            ->with(['sender', 'post'])
+            ->with([
+                'sender:member_id,nickname,avatar',
+                'post:post_id,post_type'
+            ])
             ->orderBy('message_id', 'desc');
 
         return $query->paginate($pageSize, ['*'], 'page', $pageNum);
@@ -406,7 +409,10 @@ class MessageService
     {
         $query = AppMessageInteraction::byReceiver($memberId)
             ->byType(MessageType::COMMENT)
-            ->with(['sender', 'post'])
+            ->with([
+                'sender:member_id,nickname,avatar',
+                'post:post_id,post_type'
+            ])
             ->orderBy('message_id', 'desc');
 
         return $query->paginate($pageSize, ['*'], 'page', $pageNum);
@@ -516,7 +522,7 @@ class MessageService
             Log::error('标记官方账号消息已读失败', [
                 'member_id' => $memberId,
                 'sender_id' => $senderId,
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -600,11 +606,11 @@ class MessageService
                         ->update(['is_read' => AppMessageSystem::READ_YES]);
                     // 清空所有未读数
                     AppMessageUnreadCount::where('member_id', $memberId)->update([
-                        'like_count' => 0,
+                        'like_count'    => 0,
                         'collect_count' => 0,
                         'comment_count' => 0,
-                        'follow_count' => 0,
-                        'system_count' => 0,
+                        'follow_count'  => 0,
+                        'system_count'  => 0,
                     ]);
                     AppMessageSystemUnread::clearAll($memberId);
                     break;
@@ -615,8 +621,8 @@ class MessageService
             DB::rollBack();
             Log::channel('daily')->error('标记消息已读失败', [
                 'member_id' => $memberId,
-                'type' => $type,
-                'error' => $e->getMessage(),
+                'type'      => $type,
+                'error'     => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -660,13 +666,13 @@ class MessageService
     ): void
     {
         self::createInteractionMessage([
-            'sender_id' => $senderId,
-            'receiver_id' => $receiverId,
-            'message_type' => MessageType::LIKE,
-            'target_id' => $targetId,
-            'target_type' => $targetType,
+            'sender_id'       => $senderId,
+            'receiver_id'     => $receiverId,
+            'message_type'    => MessageType::LIKE,
+            'target_id'       => $targetId,
+            'target_type'     => $targetType,
             'content_summary' => $contentSummary,
-            'cover_url' => $coverUrl,
+            'cover_url'       => $coverUrl,
         ]);
     }
 
@@ -691,13 +697,13 @@ class MessageService
     ): void
     {
         self::createInteractionMessage([
-            'sender_id' => $senderId,
-            'receiver_id' => $receiverId,
-            'message_type' => MessageType::COLLECT,
-            'target_id' => $targetId,
-            'target_type' => $targetType,
+            'sender_id'       => $senderId,
+            'receiver_id'     => $receiverId,
+            'message_type'    => MessageType::COLLECT,
+            'target_id'       => $targetId,
+            'target_type'     => $targetType,
             'content_summary' => $contentSummary,
-            'cover_url' => $coverUrl,
+            'cover_url'       => $coverUrl,
         ]);
     }
 
@@ -722,13 +728,13 @@ class MessageService
     ): void
     {
         self::createInteractionMessage([
-            'sender_id' => $senderId,
-            'receiver_id' => $receiverId,
-            'message_type' => MessageType::COMMENT,
-            'target_id' => $targetId,
-            'target_type' => $targetType,
+            'sender_id'       => $senderId,
+            'receiver_id'     => $receiverId,
+            'message_type'    => MessageType::COMMENT,
+            'target_id'       => $targetId,
+            'target_type'     => $targetType,
             'content_summary' => $contentSummary,
-            'cover_url' => $coverUrl,
+            'cover_url'       => $coverUrl,
         ]);
     }
 
@@ -742,13 +748,13 @@ class MessageService
     public static function createFollowMessage(int $senderId, int $receiverId): void
     {
         self::createInteractionMessage([
-            'sender_id' => $senderId,
-            'receiver_id' => $receiverId,
-            'message_type' => MessageType::FOLLOW,
-            'target_id' => null,
-            'target_type' => null,
+            'sender_id'       => $senderId,
+            'receiver_id'     => $receiverId,
+            'message_type'    => MessageType::FOLLOW,
+            'target_id'       => null,
+            'target_type'     => null,
             'content_summary' => null,
-            'cover_url' => null,
+            'cover_url'       => null,
         ]);
     }
 
@@ -771,14 +777,14 @@ class MessageService
     ): AppMessageSystem
     {
         $message = AppMessageSystem::create([
-            'sender_id' => $senderId,
+            'sender_id'   => $senderId,
             'receiver_id' => $receiverId,
-            'title' => $title,
-            'content' => $content,
-            'cover_url' => $options['cover_url'] ?? null,
-            'link_type' => $options['link_type'] ?? null,
-            'link_url' => $options['link_url'] ?? null,
-            'is_read' => AppMessageSystem::READ_NO,
+            'title'       => $title,
+            'content'     => $content,
+            'cover_url'   => $options['cover_url'] ?? null,
+            'link_type'   => $options['link_type'] ?? null,
+            'link_url'    => $options['link_url'] ?? null,
+            'is_read'     => AppMessageSystem::READ_NO,
         ]);
 
         // 更新未读数

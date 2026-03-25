@@ -21,22 +21,18 @@ class MessageCommentResource extends JsonResource
         $sender = $this->sender;
         $post = $this->post;
 
-        // 帖子封面
-        $postCover = null;
-        if ($post && !empty($post->cover) && isset($post->cover['url'])) {
-            $postCover = $post->cover['url'];
-        }
-
         return [
-            'id' => $this->target_id,
-            'nickname' => $sender ? $sender->nickname : '',
-            'avatar' => $sender ? $sender->avatar : '',
-            'title' => '评论了我的帖子',
-            'content' => $this->content_summary ?: '',
-            'postCover' => $postCover,
-            'time' => $this->created_at ? $this->formatRelativeTime($this->created_at) : '',
+            'id'         => $this->target_id,
+            'nickname'   => $sender ? $sender->nickname : '',
+            'avatar'     => $sender ? $sender->avatar : '',
+            'title'      => '评论了我的帖子',
+            'content'    => $this->content_summary ?: '',
+            'postCover'  => $this->cover_url,
+            // 后续在 app_message_interaction 数据表冗余 post_type 字段
+            'postType'   => $post['post_type'] ?? 1,
+            'time'       => $this->created_at ? $this->formatRelativeTime($this->created_at) : '',
             'actionText' => '回复',
-            'read' => $this->is_read === 1,
+            'read'       => $this->is_read === 1,
         ];
     }
 

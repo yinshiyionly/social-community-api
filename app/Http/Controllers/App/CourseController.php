@@ -413,7 +413,15 @@ class CourseController extends Controller
     }
 
     /**
-     * 课程订单退款
+     * 提交课程订单退款申请。
+     *
+     * 关键规则：
+     * 1. 该接口仅提交退款申请，不直接执行微信退款；
+     * 2. 退款原因为必填，提交后进入“申请中-待审核”状态；
+     * 3. 审核与执行由后台管理员完成，避免用户端绕过审核直接退款。
+     *
+     * @param CourseOrderRefundRequest $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function refund(CourseOrderRefundRequest $request)
     {
@@ -422,11 +430,11 @@ class CourseController extends Controller
         $reason = trim((string)$request->input('reason', ''));
 
         try {
-            $data = $this->courseOrderService->refundWechatOrder($memberId, $orderNo, $reason, $request->ip());
+            $data = $this->courseOrderService->applyRefund($memberId, $orderNo, $reason, $request->ip());
 
-            return AppApiResponse::success(['data' => $data], '退款成功');
+            return AppApiResponse::success(['data' => $data], '退款申请已提交');
         } catch (\Exception $e) {
-            Log::error('课程订单退款失败', [
+            Log::error('课程订单退款申请失败', [
                 'member_id' => $memberId,
                 'order_no' => $orderNo,
                 'error' => $e->getMessage(),

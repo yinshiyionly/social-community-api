@@ -32,6 +32,15 @@ class AppCourseOrder extends Model
     const REFUND_STATUS_REFUNDED = 2;   // 已退款
     const REFUND_STATUS_REJECTED = 3;   // 已拒绝
 
+    // 退款审核状态
+    const REFUND_REVIEW_STATUS_PENDING = 0;   // 待审核
+    const REFUND_REVIEW_STATUS_APPROVED = 1;  // 已通过待执行
+    const REFUND_REVIEW_STATUS_REJECTED = 2;  // 已拒绝
+
+    // 退款模式
+    const REFUND_MODE_FULL = 1;      // 全额退款
+    const REFUND_MODE_PARTIAL = 2;   // 部分退款
+
     // 佣金状态
     const COMMISSION_STATUS_PENDING = 0;   // 待结算
     const COMMISSION_STATUS_SETTLED = 1;   // 已结算
@@ -60,8 +69,16 @@ class AppCourseOrder extends Model
         'pay_time',
         'expire_time',
         'refund_status',
+        'refund_review_status',
+        'refund_mode',
         'refund_amount',
         'refund_reason',
+        'refund_apply_time',
+        'refund_review_by',
+        'refund_review_time',
+        'refund_reject_reason',
+        'refund_execute_by',
+        'refund_execute_fail_reason',
         'refund_time',
         'inviter_id',
         'commission_amount',
@@ -89,7 +106,13 @@ class AppCourseOrder extends Model
         'pay_time' => 'datetime',
         'expire_time' => 'datetime',
         'refund_status' => 'integer',
+        'refund_review_status' => 'integer',
+        'refund_mode' => 'integer',
         'refund_amount' => 'decimal:2',
+        'refund_apply_time' => 'datetime',
+        'refund_review_by' => 'integer',
+        'refund_review_time' => 'datetime',
+        'refund_execute_by' => 'integer',
         'refund_time' => 'datetime',
         'inviter_id' => 'integer',
         'commission_amount' => 'decimal:2',
@@ -204,6 +227,33 @@ class AppCourseOrder extends Model
         ];
 
         return $map[$this->pay_status] ?? '未知';
+    }
+
+    /**
+     * 获取退款审核状态文本
+     */
+    public function getRefundReviewStatusTextAttribute(): string
+    {
+        $map = [
+            self::REFUND_REVIEW_STATUS_PENDING => '待审核',
+            self::REFUND_REVIEW_STATUS_APPROVED => '已通过待执行',
+            self::REFUND_REVIEW_STATUS_REJECTED => '已拒绝',
+        ];
+
+        return $map[(int)$this->refund_review_status] ?? '未知';
+    }
+
+    /**
+     * 获取退款模式文本
+     */
+    public function getRefundModeTextAttribute(): string
+    {
+        $map = [
+            self::REFUND_MODE_FULL => '全额退款',
+            self::REFUND_MODE_PARTIAL => '部分退款',
+        ];
+
+        return $map[(int)$this->refund_mode] ?? '未知';
     }
 
     /**

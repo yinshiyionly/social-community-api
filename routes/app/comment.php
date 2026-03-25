@@ -9,7 +9,7 @@ use App\Http\Controllers\App\PostCommentController;
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('v1/comment')->group(function () {
+//Route::prefix('v1/comment')->group(function () {
     // 公开接口
     /*Route::middleware('app.auth.optional')->group(function () {
         // 获取帖子评论列表（游标分页）
@@ -23,14 +23,14 @@ Route::prefix('v1/comment')->group(function () {
     });*/
 
     // 需要登录的接口
-    Route::middleware('app.auth')->group(function () {
+    //Route::middleware('app.auth')->group(function () {
         // 发表评论
         // Route::post('post', [PostCommentController::class, 'store']);
         // 删除评论
-        Route::delete('post', [PostCommentController::class, 'destroy']);
+        // Route::delete('post', [PostCommentController::class, 'destroy']);
         // 点赞评论
         // Route::post('like', [PostCommentController::class, 'like']);
         // 取消点赞评论
         // Route::post('unlike', [PostCommentController::class, 'unlike']);
-    });
-});
+    //});
+//});

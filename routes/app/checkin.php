@@ -9,7 +9,7 @@ use App\Http\Controllers\App\CheckinController;
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('v1/checkin')->middleware('app.auth')->group(function () {
+/*Route::prefix('v1/checkin')->middleware('app.auth')->group(function () {
     // 执行签到
     Route::post('', [CheckinController::class, 'checkin']);
 
@@ -21,4 +21,4 @@ Route::prefix('v1/checkin')->middleware('app.auth')->group(function () {
 
     // 获取月度签到记录（日历展示）
     Route::get('monthly', [CheckinController::class, 'monthlyRecords']);
-});
+});*/

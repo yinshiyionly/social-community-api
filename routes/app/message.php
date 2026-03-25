@@ -10,14 +10,14 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('v1/message')->middleware('app.auth')->group(function () {
-    // 获取消息分类列表
+    // 获取消息分类列表-在用
     Route::get('/list', [MessageController::class, 'list']);
 
-    // 获取消息总列表（各分类概览）
-    Route::get('/overview', [MessageController::class, 'overview']);
+    // 获取消息总列表（各分类概览）-弃用
+    // Route::get('/overview', [MessageController::class, 'overview']);
 
-    // 获取消息未读数统计
-    Route::get('/unreadCount', [MessageController::class, 'unreadCount']);
+    // 获取消息未读数统计-弃用
+    // Route::get('/unreadCount', [MessageController::class, 'unreadCount']);
 
     // 获取赞和收藏消息列表
     // Route::get('/likeAndCollect', [MessageController::class, 'likeAndCollect']);
@@ -31,8 +31,8 @@ Route::prefix('v1/message')->middleware('app.auth')->group(function () {
     // Route::get('/follow', [MessageController::class, 'follow']);
     Route::get('/followMe', [MessageController::class, 'follow']);
 
-    // 获取系统消息列表
-    Route::get('/system', [MessageController::class, 'system']);
+    // 获取系统消息列表-弃用
+    // Route::get('/system', [MessageController::class, 'system']);
 
     // 获取小秘书消息列表
     Route::get('/secretary', [MessageController::class, 'secretary']);

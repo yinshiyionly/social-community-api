@@ -20,7 +20,8 @@ Route::prefix('v1/course')->group(function () {
 
     // 课程详情（可选登录，登录后返回是否已拥有）
     // Route::get('/detail', [CourseController::class, 'detail'])->middleware('app.jwt.optional');
-    Route::get('/detail', [CourseController::class, 'detail'])->middleware('app.auth.optional');
+    // 该接口弃用-由 /detail-legacy 和 /detail-chapters 分别实现
+    // Route::get('/detail', [CourseController::class, 'detail'])->middleware('app.auth.optional');
 
     // 判断课程是否存在在线章节（用于前端分流详情接口）
     Route::get('/has-chapters', [CourseController::class, 'hasChapters']);
@@ -55,11 +56,11 @@ Route::prefix('v1/course')->group(function () {
         // Route::post('/purchase', [CourseController::class, 'purchase']);
         Route::post('/enrollment/pay', [CourseController::class, 'purchase']);
 
-        // 订单状态查询
-        Route::get('/order/status', [CourseController::class, 'orderStatus']);
+        // 订单状态查询-未启用
+        // Route::get('/order/status', [CourseController::class, 'orderStatus']);
 
-        // 订单退款
-        Route::post('/order/refund', [CourseController::class, 'refund']);
+        // 订单退款-未启用
+        // Route::post('/order/refund', [CourseController::class, 'refund']);
     });
 });
 
@@ -81,16 +82,16 @@ Route::prefix('v1/order')->middleware('app.auth')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('app/learning')->middleware('app.auth')->group(function () {
-    // 我的课程列表
-    Route::get('/courses', [LearningCenterController::class, 'myCourses']);
+/*Route::prefix('app/learning')->middleware('app.auth')->group(function () {
+    // 我的课程列表-未启用
+    // Route::get('/courses', [LearningCenterController::class, 'myCourses']);
 
-    // 课表日视图
-    Route::get('/schedule', [LearningCenterController::class, 'dailySchedule']);
+    // 课表日视图-未启用
+    // Route::get('/schedule', [LearningCenterController::class, 'dailySchedule']);
 
-    // 课表周概览
-    Route::get('/week', [LearningCenterController::class, 'weekOverview']);
-});
+    // 课表周概览-未启用
+    // Route::get('/week', [LearningCenterController::class, 'weekOverview']);
+});*/
 
 /*
 |--------------------------------------------------------------------------
@@ -123,6 +124,12 @@ Route::prefix('v1/study/course')->group(function () {
 
         // 章节学习上报（驱动课表 is_learned 流转）
         Route::post('/learn', [StudyCourseController::class, 'learn']);
+
+        // 章节学习进度上报（录播续播点写入）
+        Route::post('/progress', [StudyCourseController::class, 'progressReport']);
+
+        // 章节学习进度查询（进入播放器前读取续播点）
+        Route::get('/progress', [StudyCourseController::class, 'progressDetail']);
 
         // 今日学习任务
         Route::get('/today-tasks', [StudyCourseController::class, 'todayTasks']);

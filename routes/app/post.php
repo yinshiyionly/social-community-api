@@ -29,22 +29,22 @@ Route::prefix('v1/post')->group(function () {
     Route::middleware('app.auth.optional')->group(function () {
         // 动态列表-普通分页-在用
         Route::get('feed', [PostController::class, 'page']);
-        // 动态列表（游标分页）
-        Route::get('list', [PostController::class, 'list']);
-        // 动态列表（普通分页）
-        Route::get('page', [PostController::class, 'page']);
-        // 视频流列表（游标分页）- 刷视频场景
-        Route::get('video/feed', [PostController::class, 'videoFeed']);
+        // 动态列表（游标分页）-弃用
+        // Route::get('list', [PostController::class, 'list']);
+        // 动态列表（普通分页）-弃用
+        // Route::get('page', [PostController::class, 'page']);
+        // 视频流列表（游标分页）- 刷视频场景-未启用
+        // Route::get('video/feed', [PostController::class, 'videoFeed']);
         // 动态详情（通用，v1）
         Route::get('detail', [PostController::class, 'detail']);
-        // 动态详情（兼容旧版路径参数）
-        Route::get('detail/{id}', [PostController::class, 'detailById']);
-        // 图文动态详情
-        Route::get('detail/imageText/{id}', [PostController::class, 'detailImageText']);
-        // 视频动态详情
-        Route::get('detail/video/{id}', [PostController::class, 'detailVideo']);
-        // 文章动态详情
-        Route::get('detail/article/{id}', [PostController::class, 'detailArticle']);
+        // 动态详情（兼容旧版路径参数）-弃用
+        // Route::get('detail/{id}', [PostController::class, 'detailById']);
+        // 图文动态详情-弃用
+        // Route::get('detail/imageText/{id}', [PostController::class, 'detailImageText']);
+        // 视频动态详情-弃用
+        // Route::get('detail/video/{id}', [PostController::class, 'detailVideo']);
+        // 文章动态详情-弃用
+        // Route::get('detail/article/{id}', [PostController::class, 'detailArticle']);
     });
 
     // 需要登录的接口
@@ -55,12 +55,12 @@ Route::prefix('v1/post')->group(function () {
         Route::post('store/video', [PostController::class, 'storeVideo']);
         // 发表文章动态
         Route::post('store/article', [PostController::class, 'storeArticle']);
-        // 更新图文动态（仅作者可更新）
-        Route::put('update/imageText', [PostController::class, 'updateImageText']);
-        // 更新视频动态（仅作者可更新）
-        Route::put('update/video', [PostController::class, 'updateVideo']);
-        // 更新文章动态（仅作者可更新）
-        Route::put('update/article', [PostController::class, 'updateArticle']);
+        // 更新图文动态（仅作者可更新）-未启用
+        // Route::put('update/imageText', [PostController::class, 'updateImageText']);
+        // 更新视频动态（仅作者可更新）-未启用
+        // Route::put('update/video', [PostController::class, 'updateVideo']);
+        // 更新文章动态（仅作者可更新）-未启用
+        // Route::put('update/article', [PostController::class, 'updateArticle']);
         // 删除帖子（仅作者可删除）
         Route::post('delete', [PostController::class, 'delete']);
         // 发表帖子（已废弃，建议使用新接口）

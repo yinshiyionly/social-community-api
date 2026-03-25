@@ -466,6 +466,291 @@ class StudyCourseService
         return $todayTasks;
     }
 
+    protected function formatCoursePayType($payType)
+    {
+        $list = [
+            AppCourseBase::PAY_TYPE_TRIAL    => '招生0元课',
+            AppCourseBase::PAY_TYPE_ADVANCED => '进阶课',
+            AppCourseBase::PAY_TYPE_HIGHER   => '高阶课',
+        ];
+        return $list[$payType] ?? '招生0元课';
+    }
+
+    protected function formatStatusText()
+    {
+
+    }
+
+    protected function formatActionText($data, $chapterTitle)
+    {
+        if (empty($data) || empty($data['learned_duration'])) {
+            return '开始学习: ' . $chapterTitle;
+        }
+        if ($data['learned_duration'] > 0) {
+            return '继续学习: ' . $chapterTitle;
+        }
+        if (isset($data['is_completed']) && $data['is_completed'] == 1) {
+            return '已学完: ' . $chapterTitle;
+        }
+        return '开始学习: ' . $chapterTitle;
+    }
+
+    public function newGetCourseSections(int $memberId)
+    {
+        $now = Carbon::now();
+        $today = $now->toDateString();
+
+        $result = [
+            'recentSection'   => ['title' => '最近学习', 'list' => []],
+            'pendingSection'  => ['title' => '待学习', 'list' => []],
+            'finishedSection' => ['title' => '已结课', 'list' => []],
+        ];
+
+        /**
+         * 公共查询字段
+         */
+        $baseSelect = [
+            'id',
+            'course_id',
+            'chapter_id',
+            'member_course_id',
+            'schedule_date',
+            'schedule_time',
+            'is_learned',
+            'learn_time',
+            'learned_duration',
+            'is_completed',
+        ];
+
+        $with = [
+            'course:course_id,course_title,cover_image,pay_type',
+            'chapter:chapter_id,course_id,chapter_title,chapter_subtitle,chapter_start_time,chapter_end_time',
+            'memberCourse:id,course_id,total_chapters',
+        ];
+
+        /**
+         * 1. 最近学习
+         * 条件：learn_time 不为空，按 learn_time 倒序，取最近 3 条
+         */
+        $data['recentSection']['list'] = AppMemberSchedule::query()
+            ->byMember($memberId)
+            ->chapterBiz()
+            ->select($baseSelect)
+            ->with($with)
+            ->whereNotNull('learn_time')
+            ->orderByDesc('learn_time')
+            ->orderByDesc('id')
+            ->limit(3)
+            ->get()
+            ->toArray();
+
+        /**
+         * 2. 待学习
+         * 条件：is_learned = 0，按 schedule_date/schedule_time 离当前最近排序，取 3 条
+         *
+         * 一般理解为：
+         * - 优先今天及未来的课
+         * - 如果没有未来课，再补过去未学习的课
+         */
+        $data['pendingSection']['list'] = AppMemberSchedule::query()
+            ->byMember($memberId)
+            ->chapterBiz()
+            ->select($baseSelect)
+            ->with($with)
+            ->where('is_learned', 0)
+            ->orderByRaw("
+        CASE
+            WHEN schedule_date >= ? THEN 0
+            ELSE 1
+        END ASC
+    ", [$today])
+            ->orderByRaw("
+        ABS(
+            EXTRACT(EPOCH FROM (
+                (schedule_date::timestamp + schedule_time) - ?
+            ))
+        ) ASC
+    ", [$now->toDateTimeString()])
+            ->orderBy('id')
+            ->limit(3)
+            ->get()
+            ->toArray();
+
+        /**
+         * 3. 已结课
+         * 条件：关联章节 chapter_end_time，且当前时间 > chapter_end_time
+         *
+         * 注意：
+         * 这里假设 chapter_end_time 是完整 datetime 字段
+         * 如果它只是 time 字段，需要按你的实际业务再拼日期
+         */
+        $data['finishedSection']['list'] = AppMemberSchedule::query()
+            ->byMember($memberId)
+            ->chapterBiz()
+            ->select($baseSelect)
+            ->with($with)
+            ->whereHas('chapter', function ($query) use ($now) {
+                $query->whereNotNull('chapter_end_time')
+                    ->where('chapter_end_time', '<', $now);
+            })
+            ->orderByDesc('schedule_date')
+            ->orderByDesc('schedule_time')
+            ->orderByDesc('id')
+            ->limit(3)
+            ->get()
+            ->toArray();
+
+
+        foreach ($data['recentSection']['list'] as $item) {
+            $result['recentSection']['list'][] = [
+                'id'           => $item['course_id'] ?? null,
+                'title'        => $item['course']['course_title'] ?? null,
+                'cover'        => $item['course']['cover_image'] ?? null,
+                'overlayText'  => sprintf(
+                    "%s-共%s课",
+                    $this->formatCoursePayType($item['course']['pay_type']),
+                    $item['member_course']['total_chapters'] ?? 0
+                ),
+                // 暂时不知道什么用
+                // 'timeText'     => $item['course']['course_title'] ?? null,
+                // statusText 可能是 待开营 、已结营、2026.1.30 10:00上课
+                'statusText'   => sprintf(
+                    "%s上课",
+                    Carbon::make($item['chapter']['chapter_start_time'])->timezone('Asia/Shanghai')->format('Y.m.d H:i')
+                ),
+                // actionText 可能是 开始学习：章节标题 继续学习：章节标题 已学完：章节标题
+                'actionText'   => $this->formatActionText($item ?? [], $item['chapter']['chapter_title'] ?? ''), 'scheduleId' => $item['id'] ?? null,
+                'courseId'     => $item['course_id'] ?? null,
+                'chapterId'    => $item['chapter_id'] ?? null,
+                'scheduleDate' => $item['schedule_date'] ?? null,
+            ];
+        }
+        foreach ($data['pendingSection']['list'] as $item) {
+            $result['pendingSection']['list'][] = [
+                'id'           => $item['course_id'] ?? null,
+                'title'        => $item['course']['course_title'] ?? null,
+                'cover'        => $item['course']['cover_image'] ?? null,
+                'overlayText'  => sprintf(
+                    "%s-共%s课",
+                    $this->formatCoursePayType($item['course']['pay_type']),
+                    $item['member_course']['total_chapters'] ?? 0
+                ),
+                // 暂时不知道什么用
+                // 'timeText'     => $item['course']['course_title'] ?? null,
+                // statusText 可能是 待开营 、已结营、2026.1.30 10:00上课
+                'statusText'   => sprintf(
+                    "%s上课",
+                    Carbon::make($item['chapter']['chapter_start_time'])->timezone('Asia/Shanghai')->format('Y.m.d H:i')
+                ),
+                // actionText 可能是 开始学习：章节标题 继续学习：章节标题 已学完：章节标题
+                'actionText'   => $this->formatActionText($item ?? [], $item['chapter']['chapter_title'] ?? ''),
+                'scheduleId'   => $item['id'] ?? null,
+                'courseId'     => $item['course_id'] ?? null,
+                'chapterId'    => $item['chapter_id'] ?? null,
+                'scheduleDate' => $item['schedule_date'] ?? null,
+            ];
+        }
+        foreach ($data['finishedSection']['list'] as $item) {
+            $result['finishedSection']['list'][] = [
+                'id'           => $item['course_id'] ?? null,
+                'title'        => $item['course']['course_title'] ?? null,
+                'cover'        => $item['course']['cover_image'] ?? null,
+                'overlayText'  => sprintf(
+                    "%s-共%s课",
+                    $this->formatCoursePayType($item['course']['pay_type']),
+                    $item['member_course']['total_chapters'] ?? 0
+                ),
+                // 暂时不知道什么用
+                // 'timeText'     => $item['course']['course_title'] ?? null,
+                // statusText 可能是 待开营 、已结营、2026.1.30 10:00上课
+                'statusText'   => sprintf(
+                    "%s上课",
+                    Carbon::make($item['chapter']['chapter_start_time'])->timezone('Asia/Shanghai')->format('Y.m.d H:i')
+                ),
+                // actionText 可能是 开始学习：章节标题 继续学习：章节标题 已学完：章节标题
+                'actionText'   => $this->formatActionText($item ?? [], $item['chapter']['chapter_title'] ?? ''), 'scheduleId' => $item['id'] ?? null,
+                'courseId'     => $item['course_id'] ?? null,
+                'chapterId'    => $item['chapter_id'] ?? null,
+                'scheduleDate' => $item['schedule_date'] ?? null,
+            ];
+        }
+
+        return $result;
+
+
+        // 每个类型取最近三条数据即可
+
+        // 1. 获取今日的日期
+        // 2. 在用户课表中查询今天的课程和章节数据
+        $data = AppMemberSchedule::query()
+            ->byMember($memberId)
+            ->chapterBiz()
+            ->select([
+                'id',
+                'course_id',
+                'chapter_id',
+                'schedule_date',
+                'schedule_time',
+                'is_learned',
+                'learn_time',
+            ])
+            ->with([
+                'course:course_id,course_title',
+                'chapter:chapter_id,course_id,chapter_title,chapter_subtitle',
+            ])
+            ->orderBy('schedule_date')
+            ->orderBy('schedule_time')
+            ->orderBy('id')
+            ->get()
+            ->toArray();
+        $result = [];
+        foreach ($data as $item) {
+            $result[] = [
+                'id'           => $item['course_id'] ?? null,
+                'time'         => Carbon::make($item['schedule_time'])->format('H:i'),
+                'title'        => $item['course']['course_title'] ?? null,
+                'subtitle'     => sprintf(
+                    "%s: %s",
+                    Carbon::make($item['schedule_date'])->format('m月d日'),
+                    $item['chapter']['chapter_title'] ?? null
+                ),
+                'statusText'   => Carbon::make($item['schedule_time'])->gt(Carbon::now()) ? '待开课' : '去学习',
+                'courseId'     => $item['course_id'] ?? null,
+                'chapterId'    => $item['chapter_id'] ?? null,
+                'scheduleDate' => $item['schedule_date'] ?? null,
+                'scheduleId'   => $item['id'] ?? null
+            ];
+        }
+
+        return $result;
+
+        [
+            'id'          => 100000013,
+            'title'       => '有章节-摄影课程主标题',
+            'cover'       => 'https://dev-hobby-app.tos-cn-beijing.volces.com/admin/image/20260313/cacd21a1-9349-4ea7-b57a-ed975979d547.png',
+            'overlayText' => '招生0元课-共12课',
+            'timeText'    => '2026.03.17 09:44',
+            'statusText'  => '已学完',
+            'actionText'  => '已学完：章节：第一章节',
+            'scheduleId'  => 128,
+            'courseId'    => 100000013,
+            'chapterId'   => 6,
+            'liveId'      => 0,
+            'bizType'     => 'chapter',
+            'bizId'       => 6
+        ];
+
+        // $schedules = $this->queryChapterSchedules($memberId, [], null, true);
+        if ($schedules->isEmpty()) {
+            return [
+                'recentSection'   => ['title' => '最近学习', 'list' => []],
+                'pendingSection'  => ['title' => '待学习', 'list' => []],
+                'finishedSection' => ['title' => '已结课', 'list' => []],
+            ];
+        }
+    }
+
+
     /**
      * 获取学习页分组数据（最近学习 / 待学习 / 已结课）。
      *

@@ -6,9 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\App\StudyCourseDetailRequest;
 use App\Http\Requests\App\StudyCourseLearnRequest;
 use App\Http\Requests\App\StudyCourseListRequest;
+use App\Http\Requests\App\StudyCourseProgressDetailRequest;
+use App\Http\Requests\App\StudyCourseProgressReportRequest;
 use App\Http\Resources\App\AppApiResponse;
 use App\Services\App\StudyCourseService;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -128,34 +131,112 @@ class StudyCourseController extends Controller
             $data = $this->studyCourseService->markChapterLearned($memberId, $courseId, $chapterId);
             return AppApiResponse::success(['data' => $data]);
         } catch (\DomainException $e) {
-            $errorType = (string)$e->getMessage();
-
-            if ($errorType === 'course_not_owned') {
-                return AppApiResponse::forbidden('您未拥有该课程');
-            }
-
-            if ($errorType === 'chapter_not_found') {
-                return AppApiResponse::dataNotFound('章节不存在');
-            }
-
-            if ($errorType === 'schedule_not_found') {
-                return AppApiResponse::dataNotFound('章节课表不存在');
-            }
-
-            if ($errorType === 'schedule_not_unlocked') {
-                return AppApiResponse::error('章节未解锁，暂不可学习');
-            }
-
-            Log::warning('章节学习上报业务异常（未知类型）', [
+            return $this->resolveStudyCourseDomainException(
+                (string)$e->getMessage(),
+                '章节学习上报业务异常（未知类型）',
+                [
+                    'member_id' => $memberId,
+                    'course_id' => $courseId,
+                    'chapter_id' => $chapterId,
+                ],
+                '学习上报失败'
+            );
+        } catch (\Exception $e) {
+            Log::error('章节学习上报失败', [
                 'member_id' => $memberId,
                 'course_id' => $courseId,
                 'chapter_id' => $chapterId,
-                'error_type' => $errorType,
+                'error' => $e->getMessage(),
             ]);
 
-            return AppApiResponse::error('学习上报失败');
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 上报章节播放进度（录播课）。
+     *
+     * 关键规则：
+     * 1. currentPosition 使用 hh:mm:ss 格式上报，服务端统一转换为秒值入库；
+     * 2. 仅录播课允许上报进度，直播/图文/音频课拒绝写入；
+     * 3. 达到章节完课阈值后自动流转章节课表 is_learned。
+     *
+     * @param StudyCourseProgressReportRequest $request
+     * @return JsonResponse
+     */
+    public function progressReport(StudyCourseProgressReportRequest $request): JsonResponse
+    {
+        $memberId = (int)$request->attributes->get('member_id');
+        $courseId = (int)$request->input('courseId');
+        $chapterId = (int)$request->input('chapterId');
+        $currentPosition = (string)$request->input('currentPosition');
+
+        try {
+            $data = $this->studyCourseService->reportChapterProgress(
+                $memberId,
+                $courseId,
+                $chapterId,
+                $currentPosition
+            );
+
+            return AppApiResponse::success(['data' => $data]);
+        } catch (\DomainException $e) {
+            return $this->resolveStudyCourseDomainException(
+                (string)$e->getMessage(),
+                '章节播放进度上报业务异常（未知类型）',
+                [
+                    'member_id' => $memberId,
+                    'course_id' => $courseId,
+                    'chapter_id' => $chapterId,
+                    'current_position' => $currentPosition,
+                ],
+                '学习进度上报失败'
+            );
         } catch (\Exception $e) {
-            Log::error('章节学习上报失败', [
+            Log::error('章节播放进度上报失败', [
+                'member_id' => $memberId,
+                'course_id' => $courseId,
+                'chapter_id' => $chapterId,
+                'current_position' => $currentPosition,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    /**
+     * 查询章节播放进度（录播课续播点）。
+     *
+     * 接口用途：
+     * - 播放器进入前读取用户上次观看位置，支持续播定位。
+     *
+     * @param StudyCourseProgressDetailRequest $request
+     * @return JsonResponse
+     */
+    public function progressDetail(StudyCourseProgressDetailRequest $request): JsonResponse
+    {
+        $memberId = (int)$request->attributes->get('member_id');
+        $courseId = (int)$request->input('courseId');
+        $chapterId = (int)$request->input('chapterId');
+
+        try {
+            $data = $this->studyCourseService->getChapterProgress($memberId, $courseId, $chapterId);
+
+            return AppApiResponse::success(['data' => $data]);
+        } catch (\DomainException $e) {
+            return $this->resolveStudyCourseDomainException(
+                (string)$e->getMessage(),
+                '章节播放进度查询业务异常（未知类型）',
+                [
+                    'member_id' => $memberId,
+                    'course_id' => $courseId,
+                    'chapter_id' => $chapterId,
+                ],
+                '学习进度查询失败'
+            );
+        } catch (\Exception $e) {
+            Log::error('章节播放进度查询失败', [
                 'member_id' => $memberId,
                 'course_id' => $courseId,
                 'chapter_id' => $chapterId,
@@ -201,6 +282,24 @@ class StudyCourseController extends Controller
         }
     }
 
+    public function newTodayTasks(Request $request)
+    {
+        $memberId = $request->attributes->get('member_id');
+
+        try {
+            $data = $this->studyCourseService->newGetTodayTasks($memberId);
+
+            return AppApiResponse::success(['data' => $data]);
+        } catch (\Exception $e) {
+            Log::error('获取今日学习任务失败', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
     /**
      * 获取学习页默认分组数据（最近学习 / 待学习 / 已结课）。
      *
@@ -224,6 +323,24 @@ class StudyCourseController extends Controller
 
         try {
             $data = $this->studyCourseService->getCourseSections($memberId);
+
+            return AppApiResponse::success(['data' => $data]);
+        } catch (\Exception $e) {
+            Log::error('获取学习页分组数据失败', [
+                'member_id' => $memberId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return AppApiResponse::serverError();
+        }
+    }
+
+    public function newSections(Request $request)
+    {
+        $memberId = $request->attributes->get('member_id');
+
+        try {
+            $data = $this->studyCourseService->newGetCourseSections($memberId);
 
             return AppApiResponse::success(['data' => $data]);
         } catch (\Exception $e) {
@@ -287,4 +404,53 @@ class StudyCourseController extends Controller
         }
     }
 
+    /**
+     * 统一映射学习页课程模块的业务异常响应。
+     *
+     * @param string $errorType
+     * @param string $logMessage
+     * @param array<string, mixed> $context
+     * @param string $fallbackMessage
+     * @return JsonResponse
+     */
+    private function resolveStudyCourseDomainException(
+        string $errorType,
+        string $logMessage,
+        array $context,
+        string $fallbackMessage
+    ): JsonResponse {
+        if ($errorType === 'course_not_owned') {
+            return AppApiResponse::forbidden('您未拥有该课程');
+        }
+
+        if ($errorType === 'course_not_found') {
+            return AppApiResponse::dataNotFound('课程不存在');
+        }
+
+        if ($errorType === 'chapter_not_found') {
+            return AppApiResponse::dataNotFound('章节不存在');
+        }
+
+        if ($errorType === 'schedule_not_found') {
+            return AppApiResponse::dataNotFound('章节课表不存在');
+        }
+
+        if ($errorType === 'schedule_not_unlocked') {
+            return AppApiResponse::error('章节未解锁，暂不可学习');
+        }
+
+        if ($errorType === 'non_video_course') {
+            return AppApiResponse::error('仅录播课支持学习进度');
+        }
+
+        if ($errorType === 'position_format_invalid') {
+            return AppApiResponse::error('currentPosition格式错误，请使用hh:mm:ss');
+        }
+
+        Log::warning($logMessage, array_merge($context, [
+            'error_type' => $errorType,
+        ]));
+
+        return AppApiResponse::error($fallbackMessage);
+    }
 }

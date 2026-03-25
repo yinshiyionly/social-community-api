@@ -134,8 +134,14 @@ Route::prefix('v1/study/course')->group(function () {
         // 今日学习任务
         Route::get('/today-tasks', [StudyCourseController::class, 'todayTasks']);
 
+        // 今日学习任务-新实现
+        Route::get('/new-today-tasks', [StudyCourseController::class, 'newTodayTasks']);
+
         // 学习页分组数据（最近学习 / 待学习 / 已结课）
         Route::get('/sections', [StudyCourseController::class, 'sections']);
+
+        // 学习页分组数据-新实现
+        Route::get('/new-sections', [StudyCourseController::class, 'newSections']);
 
         // 筛选后的课程列表
         Route::get('/list', [StudyCourseController::class, 'list']);

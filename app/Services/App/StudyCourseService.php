@@ -509,6 +509,9 @@ class StudyCourseService
     {
         $now = Carbon::now();
         $today = $now->toDateString();
+        $sectionLimit = 3;
+        // 多取一批候选后再按课程去重，尽量让每个分组覆盖不同课程。
+        $candidateLimit = $sectionLimit * 10;
 
         $result = [
             'recentSection'   => ['title' => '最近学习', 'list' => []],
@@ -542,7 +545,7 @@ class StudyCourseService
          * 1. 最近学习
          * 条件：learn_time 不为空，按 learn_time 倒序，取最近 3 条
          */
-        $data['recentSection']['list'] = AppMemberSchedule::query()
+        $recentSchedules = AppMemberSchedule::query()
             ->byMember($memberId)
             ->chapterBiz()
             ->select($baseSelect)
@@ -550,8 +553,10 @@ class StudyCourseService
             ->whereNotNull('learn_time')
             ->orderByDesc('learn_time')
             ->orderByDesc('id')
-            ->limit(3)
-            ->get()
+            ->limit($candidateLimit)
+            ->get();
+        $data['recentSection']['list'] = $this->pickSchedulesByDifferentCourses($recentSchedules, $sectionLimit)
+            ->values()
             ->toArray();
 
         /**
@@ -562,7 +567,7 @@ class StudyCourseService
          * - 优先今天及未来的课
          * - 如果没有未来课，再补过去未学习的课
          */
-        $data['pendingSection']['list'] = AppMemberSchedule::query()
+        $pendingSchedules = AppMemberSchedule::query()
             ->byMember($memberId)
             ->chapterBiz()
             ->select($baseSelect)
@@ -582,8 +587,10 @@ class StudyCourseService
         ) ASC
     ", [$now->toDateTimeString()])
             ->orderBy('id')
-            ->limit(3)
-            ->get()
+            ->limit($candidateLimit)
+            ->get();
+        $data['pendingSection']['list'] = $this->pickSchedulesByDifferentCourses($pendingSchedules, $sectionLimit)
+            ->values()
             ->toArray();
 
         /**
@@ -594,7 +601,7 @@ class StudyCourseService
          * 这里假设 chapter_end_time 是完整 datetime 字段
          * 如果它只是 time 字段，需要按你的实际业务再拼日期
          */
-        $data['finishedSection']['list'] = AppMemberSchedule::query()
+        $finishedSchedules = AppMemberSchedule::query()
             ->byMember($memberId)
             ->chapterBiz()
             ->select($baseSelect)
@@ -606,8 +613,10 @@ class StudyCourseService
             ->orderByDesc('schedule_date')
             ->orderByDesc('schedule_time')
             ->orderByDesc('id')
-            ->limit(3)
-            ->get()
+            ->limit($candidateLimit)
+            ->get();
+        $data['finishedSection']['list'] = $this->pickSchedulesByDifferentCourses($finishedSchedules, $sectionLimit)
+            ->values()
             ->toArray();
 
 
@@ -758,6 +767,62 @@ class StudyCourseService
                 'finishedSection' => ['title' => '已结课', 'list' => []],
             ];
         }
+    }
+
+    /**
+     * 优先选择不同课程的课表，数量不足时再回填同课程条目。
+     *
+     * @param Collection<int, AppMemberSchedule> $schedules
+     * @param int $limit
+     * @return Collection<int, AppMemberSchedule>
+     */
+    private function pickSchedulesByDifferentCourses(Collection $schedules, int $limit): Collection
+    {
+        if ($limit <= 0 || $schedules->isEmpty()) {
+            return collect();
+        }
+
+        $picked = collect();
+        $pickedIds = [];
+        $usedCourseIds = [];
+
+        foreach ($schedules as $schedule) {
+            $courseId = (int)($schedule->course_id ?? 0);
+            if ($courseId > 0 && isset($usedCourseIds[$courseId])) {
+                continue;
+            }
+
+            $scheduleId = (int)($schedule->id ?? 0);
+            $picked->push($schedule);
+            if ($scheduleId > 0) {
+                $pickedIds[$scheduleId] = true;
+            }
+            if ($courseId > 0) {
+                $usedCourseIds[$courseId] = true;
+            }
+
+            if ($picked->count() >= $limit) {
+                return $picked;
+            }
+        }
+
+        foreach ($schedules as $schedule) {
+            if ($picked->count() >= $limit) {
+                break;
+            }
+
+            $scheduleId = (int)($schedule->id ?? 0);
+            if ($scheduleId > 0 && isset($pickedIds[$scheduleId])) {
+                continue;
+            }
+
+            $picked->push($schedule);
+            if ($scheduleId > 0) {
+                $pickedIds[$scheduleId] = true;
+            }
+        }
+
+        return $picked;
     }
 
 

@@ -42,21 +42,22 @@ class AppMemberSchedule extends Model
     ];
 
     protected $casts = [
-        'id' => 'integer',
-        'member_id' => 'integer',
-        'biz_type' => 'integer',
-        'room_id' => 'integer',
-        'course_id' => 'integer',
-        'chapter_id' => 'integer',
+        'id'               => 'integer',
+        'member_id'        => 'integer',
+        'biz_type'         => 'integer',
+        'room_id'          => 'integer',
+        'course_id'        => 'integer',
+        'chapter_id'       => 'integer',
         'member_course_id' => 'integer',
-        'schedule_date' => 'date',
-        'is_unlocked' => 'integer',
-        'unlock_time' => 'datetime',
-        'is_learned' => 'integer',
-        'learn_time' => 'datetime',
-        'is_notified' => 'integer',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        // TODO 把 cast 改成带格式的 date
+        'schedule_date'    => 'date:Y-m-d',
+        'is_unlocked'      => 'integer',
+        'unlock_time'      => 'datetime',
+        'is_learned'       => 'integer',
+        'learn_time'       => 'datetime',
+        'is_notified'      => 'integer',
+        'created_at'       => 'datetime',
+        'updated_at'       => 'datetime',
     ];
 
     /**
@@ -212,15 +213,15 @@ class AppMemberSchedule extends Model
             }
 
             self::create([
-                'member_id' => $memberId,
-                'biz_type' => self::BIZ_TYPE_CHAPTER,
-                'course_id' => $courseId,
-                'chapter_id' => $chapter->chapter_id,
+                'member_id'        => $memberId,
+                'biz_type'         => self::BIZ_TYPE_CHAPTER,
+                'course_id'        => $courseId,
+                'chapter_id'       => $chapter->chapter_id,
                 'member_course_id' => $memberCourseId,
-                'schedule_date' => $scheduleDate,
-                'schedule_time' => $chapter->unlock_time,
-                'is_unlocked' => $scheduleDate <= date('Y-m-d') ? 1 : 0,
-                'unlock_time' => $scheduleDate <= date('Y-m-d') ? now() : null,
+                'schedule_date'    => $scheduleDate,
+                'schedule_time'    => $chapter->unlock_time,
+                'is_unlocked'      => $scheduleDate <= date('Y-m-d') ? 1 : 0,
+                'unlock_time'      => $scheduleDate <= date('Y-m-d') ? now() : null,
             ]);
         }
     }

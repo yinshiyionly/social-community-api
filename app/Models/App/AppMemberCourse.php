@@ -103,8 +103,7 @@ class AppMemberCourse extends Model
      */
     public function chapterProgress()
     {
-        return $this->hasMany(AppMemberChapterProgress::class, 'course_id', 'course_id')
-            ->where('member_id', $this->member_id);
+        return $this->hasMany(AppMemberChapterProgress::class, 'course_id', 'course_id');
     }
 
     /**

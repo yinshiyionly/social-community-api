@@ -4,7 +4,6 @@ namespace App\Services\App;
 
 use App\Models\App\AppChapterHomework;
 use App\Models\App\AppCourseChapter;
-use App\Models\App\AppMemberChapterProgress;
 use App\Models\App\AppMemberCourse;
 use App\Models\App\AppMemberHomeworkSubmit;
 use App\Models\App\AppMemberSchedule;
@@ -316,7 +315,8 @@ class LearningCenterService
         $chapterIds = $schedules->pluck('chapter_id')->unique()->filter()->values()->toArray();
         $progressMap = [];
         if (!empty($chapterIds)) {
-            $progressMap = AppMemberChapterProgress::byMember($memberId)
+            $progressMap = AppMemberSchedule::byMember($memberId)
+                ->chapterBiz()
                 ->whereIn('chapter_id', $chapterIds)
                 ->select(['chapter_id', 'progress', 'is_completed'])
                 ->get()

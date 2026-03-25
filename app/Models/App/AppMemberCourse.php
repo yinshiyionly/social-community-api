@@ -99,14 +99,6 @@ class AppMemberCourse extends Model
     }
 
     /**
-     * 关联章节进度
-     */
-    public function chapterProgress()
-    {
-        return $this->hasMany(AppMemberChapterProgress::class, 'course_id', 'course_id');
-    }
-
-    /**
      * 查询作用域：按用户
      */
     public function scopeByMember($query, int $memberId)

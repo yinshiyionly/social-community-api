@@ -6,7 +6,6 @@ use App\Models\App\AppCourseChapter;
 use App\Models\App\AppCourseBase;
 use App\Models\App\AppCourseCategory;
 use App\Models\App\AppChapterContentVideo;
-use App\Models\App\AppMemberChapterProgress;
 use App\Models\App\AppMemberCourse;
 use App\Models\App\AppMemberHomeworkSubmit;
 use App\Models\App\AppMemberSchedule;
@@ -148,7 +147,7 @@ class StudyCourseService
             }
 
             $chapter = AppCourseChapter::query()
-                ->select(['chapter_id', 'course_id'])
+                ->select(['chapter_id', 'course_id', 'duration'])
                 ->where('course_id', $courseId)
                 ->where('chapter_id', $chapterId)
                 ->first();
@@ -176,10 +175,21 @@ class StudyCourseService
             // 幂等约束：重复上报仍刷新 learn_time，保证“最近学习”排序可感知最新学习行为。
             $schedule->is_learned = 1;
             $schedule->learn_time = $now->copy();
-            $schedule->save();
 
-            $chapterProgress = AppMemberChapterProgress::getOrCreate($memberId, $courseId, $chapterId);
-            $chapterProgress->markCompleted();
+            $totalDuration = max(
+                0,
+                max((int)$schedule->total_duration, (int)$chapter->duration)
+            );
+            $schedule->total_duration = $totalDuration;
+            $schedule->learned_duration = $totalDuration;
+            $schedule->last_position = $totalDuration;
+            $schedule->progress = 100;
+            $schedule->is_completed = 1;
+            $schedule->complete_time = $schedule->complete_time ?: $now->copy();
+            $schedule->view_count = max(1, (int)$schedule->view_count);
+            $schedule->first_view_time = $schedule->first_view_time ?: $now->copy();
+            $schedule->last_view_time = $now->copy();
+            $schedule->save();
 
             $this->syncMemberCourseLearnSnapshot($memberCourse, $memberId, $courseId, $chapterId, $now);
 
@@ -1955,13 +1965,14 @@ class StudyCourseService
             return [];
         }
 
-        return AppMemberChapterProgress::query()
+        return AppMemberSchedule::query()
             ->byMember($memberId)
+            ->chapterBiz()
             ->whereIn('chapter_id', $chapterIds)
             ->select(['chapter_id', 'progress', 'is_completed'])
             ->get()
             ->keyBy('chapter_id')
-            ->map(function (AppMemberChapterProgress $progress) {
+            ->map(function (AppMemberSchedule $progress) {
                 return [
                     'progress'     => $progress->progress,
                     'is_completed' => (int)$progress->is_completed,
@@ -2130,38 +2141,36 @@ class StudyCourseService
             /** @var AppMemberSchedule $schedule */
             $schedule = $context['schedule'];
 
-            $chapterProgress = $this->lockOrCreateChapterProgress($memberId, $courseId, $chapterId, $chapter, $now);
-
             $chapterDuration = max(0, (int)$chapter->duration);
-            $storedTotalDuration = max(0, (int)$chapterProgress->total_duration);
+            $storedTotalDuration = max(0, (int)$schedule->total_duration);
             $totalDuration = max($chapterDuration, $storedTotalDuration);
             $normalizedPosition = $this->normalizeProgressPosition($currentPositionSeconds, $totalDuration);
-            $learnedDuration = max((int)$chapterProgress->learned_duration, $normalizedPosition);
+            $learnedDuration = max((int)$schedule->learned_duration, $normalizedPosition);
             $progressPct = $totalDuration > 0
                 ? round(min(100, ($learnedDuration / $totalDuration) * 100), 2)
                 : 0.0;
 
-            $chapterProgress->total_duration = $totalDuration;
-            $chapterProgress->last_position = $normalizedPosition;
-            $chapterProgress->learned_duration = $learnedDuration;
-            $chapterProgress->progress = $progressPct;
-            $chapterProgress->view_count = max(0, (int)$chapterProgress->view_count) + 1;
-            if (!$chapterProgress->first_view_time) {
-                $chapterProgress->first_view_time = $now->copy();
+            $schedule->total_duration = $totalDuration;
+            $schedule->last_position = $normalizedPosition;
+            $schedule->learned_duration = $learnedDuration;
+            $schedule->progress = $progressPct;
+            $schedule->view_count = max(0, (int)$schedule->view_count) + 1;
+            if (!$schedule->first_view_time) {
+                $schedule->first_view_time = $now->copy();
             }
-            $chapterProgress->last_view_time = $now->copy();
+            $schedule->last_view_time = $now->copy();
 
-            $alreadyCompleted = (int)$chapterProgress->is_completed === 1;
+            $alreadyCompleted = (int)$schedule->is_completed === 1;
             $completeThreshold = $this->resolveChapterCompleteThreshold($totalDuration, (int)$chapter->min_learn_time);
             $reachCompleteThreshold = $completeThreshold > 0 && $learnedDuration >= $completeThreshold;
 
             if (!$alreadyCompleted && $reachCompleteThreshold) {
-                $chapterProgress->is_completed = 1;
-                $chapterProgress->complete_time = $now->copy();
+                $schedule->is_completed = 1;
+                $schedule->complete_time = $now->copy();
                 $alreadyCompleted = true;
             }
 
-            $chapterProgress->save();
+            $schedule->save();
 
             if ($alreadyCompleted) {
                 // 自动完课后统一刷新章节课表学习态，保证学习页状态和进度查询保持一致。
@@ -2174,7 +2183,7 @@ class StudyCourseService
                 $this->syncMemberCoursePlaybackSnapshot($memberCourse, $chapterId, $normalizedPosition, $now);
             }
 
-            return $this->buildChapterProgressPayload($courseId, $chapterId, $schedule, $chapterProgress);
+            return $this->buildChapterProgressPayload($courseId, $chapterId, $schedule);
         });
     }
 
@@ -2193,12 +2202,7 @@ class StudyCourseService
         /** @var AppMemberSchedule $schedule */
         $schedule = $context['schedule'];
 
-        $chapterProgress = AppMemberChapterProgress::query()
-            ->byMember($memberId)
-            ->where('chapter_id', $chapterId)
-            ->first();
-
-        return $this->buildChapterProgressPayload($courseId, $chapterId, $schedule, $chapterProgress);
+        return $this->buildChapterProgressPayload($courseId, $chapterId, $schedule);
     }
 
     /**
@@ -2284,64 +2288,6 @@ class StudyCourseService
             'chapter'      => $chapter,
             'schedule'     => $schedule,
         ];
-    }
-
-    /**
-     * 锁定或创建章节进度记录。
-     *
-     * @param int $memberId
-     * @param int $courseId
-     * @param int $chapterId
-     * @param AppCourseChapter $chapter
-     * @param Carbon $now
-     * @return AppMemberChapterProgress
-     */
-    private function lockOrCreateChapterProgress(
-        int              $memberId,
-        int              $courseId,
-        int              $chapterId,
-        AppCourseChapter $chapter,
-        Carbon           $now
-    ): AppMemberChapterProgress
-    {
-        $chapterProgress = AppMemberChapterProgress::query()
-            ->byMember($memberId)
-            ->where('chapter_id', $chapterId)
-            ->lockForUpdate()
-            ->first();
-
-        if ($chapterProgress) {
-            return $chapterProgress;
-        }
-
-        // 并发首次上报时使用 insertOrIgnore，避免唯一键(member_id,chapter_id)冲突导致事务失败。
-        DB::table('app_member_chapter_progress')->insertOrIgnore([
-            'member_id'        => $memberId,
-            'course_id'        => $courseId,
-            'chapter_id'       => $chapterId,
-            'learned_duration' => 0,
-            'total_duration'   => max(0, (int)$chapter->duration),
-            'progress'         => 0,
-            'last_position'    => 0,
-            'is_completed'     => 0,
-            'view_count'       => 0,
-            'first_view_time'  => $now->copy(),
-            'last_view_time'   => $now->copy(),
-            'created_at'       => $now->copy(),
-            'updated_at'       => $now->copy(),
-        ]);
-
-        $chapterProgress = AppMemberChapterProgress::query()
-            ->byMember($memberId)
-            ->where('chapter_id', $chapterId)
-            ->lockForUpdate()
-            ->first();
-
-        if (!$chapterProgress) {
-            throw new \DomainException('progress_init_failed');
-        }
-
-        return $chapterProgress;
     }
 
     /**
@@ -2442,22 +2388,20 @@ class StudyCourseService
      * @param int $courseId
      * @param int $chapterId
      * @param AppMemberSchedule $schedule
-     * @param AppMemberChapterProgress|null $chapterProgress
      * @return array{courseId:int,chapterId:int,lastPosition:int,progress:float,isCompleted:int,isLearned:int,learnTime:?string}
      */
     private function buildChapterProgressPayload(
-        int                       $courseId,
-        int                       $chapterId,
-        AppMemberSchedule         $schedule,
-        ?AppMemberChapterProgress $chapterProgress
+        int               $courseId,
+        int               $chapterId,
+        AppMemberSchedule $schedule
     ): array
     {
         return [
             'courseId'     => $courseId,
             'chapterId'    => $chapterId,
-            'lastPosition' => $chapterProgress ? (int)$chapterProgress->last_position : 0,
-            'progress'     => $chapterProgress ? round((float)$chapterProgress->progress, 2) : 0.0,
-            'isCompleted'  => $chapterProgress ? (int)$chapterProgress->is_completed : 0,
+            'lastPosition' => (int)$schedule->last_position,
+            'progress'     => round((float)$schedule->progress, 2),
+            'isCompleted'  => (int)$schedule->is_completed,
             'isLearned'    => (int)$schedule->is_learned,
             'learnTime'    => $schedule->learn_time
                 ? $schedule->learn_time->format('Y-m-d H:i:s')

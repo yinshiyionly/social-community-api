@@ -184,7 +184,7 @@ class StudyCourseService
             $this->syncMemberCourseLearnSnapshot($memberCourse, $memberId, $courseId, $chapterId, $now);
 
             return [
-                'courseId' => $courseId,
+                'courseId'  => $courseId,
                 'chapterId' => $chapterId,
                 'isLearned' => 1,
                 'learnTime' => $schedule->learn_time
@@ -211,11 +211,12 @@ class StudyCourseService
      */
     private function syncMemberCourseLearnSnapshot(
         AppMemberCourse $memberCourse,
-        int $memberId,
-        int $courseId,
-        int $chapterId,
-        Carbon $now
-    ): void {
+        int             $memberId,
+        int             $courseId,
+        int             $chapterId,
+        Carbon          $now
+    ): void
+    {
         $learnedChapters = AppMemberSchedule::query()
             ->byMember($memberId)
             ->chapterBiz()
@@ -313,25 +314,86 @@ class StudyCourseService
         }
 
         return [
-            'course' => [
-                'courseId' => $courseId,
-                'courseTitle' => (string)($course->course_title ?? ''),
-                'lecturerName' => (string)($course->teacher_name ?? ''),
+            'course'    => [
+                'courseId'         => $courseId,
+                'courseTitle'      => (string)($course->course_title ?? ''),
+                'lecturerName'     => (string)($course->teacher_name ?? ''),
                 'classTeacherName' => (string)($course->class_teacher_name ?? ''),
-                'classTeacherQr' => (string)($course->class_teacher_qr ?? ''),
+                'classTeacherQr'   => (string)($course->class_teacher_qr ?? ''),
             ],
             'dailyPlan' => [
                 'selectedPlanKey' => $selectedPlanKey,
-                'todayPlanKey' => in_array($todayKey, $dayKeys, true) ? $todayKey : '',
-                'tabs' => $this->buildDailyPlanTabs(
+                'todayPlanKey'    => in_array($todayKey, $dayKeys, true) ? $todayKey : '',
+                'tabs'            => $this->buildDailyPlanTabs(
                     $previewChapters->isNotEmpty(),
                     $dayKeys,
                     $dateCountMap,
                     $todayKey
                 ),
-                'items' => $items,
+                'items'           => $items,
             ],
         ];
+    }
+
+    /**
+     * 今日学习任务服务新实现
+     *
+     * @param int $memberId
+     * @return array
+     */
+    public function newGetTodayTasks(int $memberId)
+    {
+        // 1. 获取今日的日期
+        $today = Carbon::now('Asia/Shanghai')->format('Y-m-d');
+        // 2. 在用户课表中查询今天的课程和章节数据
+        $data = AppMemberSchedule::query()
+            ->byMember($memberId)
+            ->chapterBiz()
+            ->select([
+                'id',
+                'course_id',
+                'chapter_id',
+                'schedule_date',
+                'schedule_time',
+                'is_learned',
+                'learn_time',
+            ])
+            ->with([
+                'course:course_id,course_title,cover_image,pay_type',
+                'chapter:chapter_id,course_id,chapter_title,chapter_subtitle,chapter_start_time,chapter_end_time',
+            ])
+            ->where('schedule_date', $today)
+            ->orderBy('schedule_date')
+            ->orderBy('schedule_time')
+            ->orderBy('id')
+            ->limit(3)
+            ->get()
+            ->toArray();
+        $result = [];
+        foreach ($data as $item) {
+            $result[] = [
+                'id'         => $item['course_id'] ?? null,
+                'time'       => Carbon::make($item['schedule_time'])->format('H:i'),
+                'title'      => $item['course']['course_title'] ?? null,
+                'subTitle'   => sprintf(
+                    "%s: %s",
+                    Carbon::make($item['schedule_date'])->format('m月d日'),
+                    $item['chapter']['chapter_title'] ?? null
+                ),
+                'statusText' => Carbon::make($item['schedule_time'])->gt(Carbon::now()) ? '待开课' : '去学习',
+            ];
+        }
+        return $result;
+
+        // 前端文档定义格式
+        return [
+            "id"         => 1,
+            "time"       => "19:00",
+            "title"      => "节气养正公开课",
+            "subtitle"   => "小寒养生计划",
+            "statusText" => "待开课"
+        ];
+
     }
 
     /**
@@ -379,16 +441,16 @@ class StudyCourseService
 
             $todayTasks[] = array_merge($card, [
                 // 兼容旧字段：time/subtitle 继续保留，避免前端一次性切换。
-                'time' => $this->formatScheduleTime(
+                'time'       => $this->formatScheduleTime(
                     $representativeSchedule ? (string)$representativeSchedule->schedule_time : null
                 ),
-                'subtitle' => $representativeChapter ? (string)($representativeChapter->chapter_subtitle ?? '') : '',
+                'subtitle'   => $representativeChapter ? (string)($representativeChapter->chapter_subtitle ?? '') : '',
                 'scheduleId' => $representativeSchedule ? (int)($representativeSchedule->id ?? 0) : 0,
-                'courseId' => (int)($course->course_id ?? 0),
-                'chapterId' => $representativeSchedule ? (int)($representativeSchedule->chapter_id ?? 0) : 0,
-                'liveId' => 0,
-                'bizType' => 'chapter',
-                'bizId' => $representativeSchedule ? (int)($representativeSchedule->chapter_id ?? 0) : 0,
+                'courseId'   => (int)($course->course_id ?? 0),
+                'chapterId'  => $representativeSchedule ? (int)($representativeSchedule->chapter_id ?? 0) : 0,
+                'liveId'     => 0,
+                'bizType'    => 'chapter',
+                'bizId'      => $representativeSchedule ? (int)($representativeSchedule->chapter_id ?? 0) : 0,
             ]);
         }
 
@@ -411,8 +473,8 @@ class StudyCourseService
         $schedules = $this->queryChapterSchedules($memberId, [], null, true);
         if ($schedules->isEmpty()) {
             return [
-                'recentSection' => ['title' => '最近学习', 'list' => []],
-                'pendingSection' => ['title' => '待学习', 'list' => []],
+                'recentSection'   => ['title' => '最近学习', 'list' => []],
+                'pendingSection'  => ['title' => '待学习', 'list' => []],
                 'finishedSection' => ['title' => '已结课', 'list' => []],
             ];
         }
@@ -466,17 +528,17 @@ class StudyCourseService
         }
 
         return [
-            'recentSection' => [
+            'recentSection'   => [
                 'title' => '最近学习',
-                'list' => $this->sortAndNormalizeSectionItems($recentList, true),
+                'list'  => $this->sortAndNormalizeSectionItems($recentList, true),
             ],
-            'pendingSection' => [
+            'pendingSection'  => [
                 'title' => '待学习',
-                'list' => $this->sortAndNormalizeSectionItems($pendingList, false),
+                'list'  => $this->sortAndNormalizeSectionItems($pendingList, false),
             ],
             'finishedSection' => [
                 'title' => '已结课',
-                'list' => $this->sortAndNormalizeSectionItems($finishedList, true),
+                'list'  => $this->sortAndNormalizeSectionItems($finishedList, true),
             ],
         ];
     }
@@ -565,9 +627,9 @@ class StudyCourseService
         }
 
         return [
-            'list' => $list,
-            'total' => $paginator->total(),
-            'page' => $paginator->currentPage(),
+            'list'     => $list,
+            'total'    => $paginator->total(),
+            'page'     => $paginator->currentPage(),
             'pageSize' => $paginator->perPage(),
         ];
     }
@@ -585,11 +647,12 @@ class StudyCourseService
      * @return Collection<int, AppMemberSchedule>
      */
     private function queryChapterSchedules(
-        int $memberId,
-        array $courseIds = [],
+        int     $memberId,
+        array   $courseIds = [],
         ?string $scheduleDate = null,
-        bool $withCourse = true
-    ): Collection {
+        bool    $withCourse = true
+    ): Collection
+    {
         $query = AppMemberSchedule::query()
             ->byMember($memberId)
             ->chapterBiz()
@@ -692,7 +755,7 @@ class StudyCourseService
         return [
             'chapterCount' => 0,
             'firstChapter' => null,
-            'chapterMap' => [],
+            'chapterMap'   => [],
         ];
     }
 
@@ -873,29 +936,30 @@ class StudyCourseService
      * @return array<string, mixed>
      */
     private function buildCourseCardPayload(
-        AppCourseBase $course,
-        array $chapterMeta,
+        AppCourseBase      $course,
+        array              $chapterMeta,
         ?AppMemberSchedule $representativeSchedule,
-        ?AppCourseChapter $representativeChapter,
-        Carbon $now,
-        string $statusScene = self::STATUS_SCENE_GENERAL
-    ): array {
+        ?AppCourseChapter  $representativeChapter,
+        Carbon             $now,
+        string             $statusScene = self::STATUS_SCENE_GENERAL
+    ): array
+    {
         $firstChapter = $chapterMeta['firstChapter'] ?? null;
         $timeText = $this->buildCourseTimeText($firstChapter);
 
         return [
-            'id' => (int)($course->course_id ?? 0),
-            'title' => (string)($course->course_title ?? ''),
-            'cover' => (string)($course->cover_image ?? ''),
+            'id'          => (int)($course->course_id ?? 0),
+            'title'       => (string)($course->course_title ?? ''),
+            'cover'       => (string)($course->cover_image ?? ''),
             'overlayText' => $this->buildCourseOverlayText((int)($course->pay_type ?? 0), (int)($chapterMeta['chapterCount'] ?? 0)),
-            'timeText' => $timeText,
-            'statusText' => $this->resolveCourseStatusText(
+            'timeText'    => $timeText,
+            'statusText'  => $this->resolveCourseStatusText(
                 $statusScene,
                 $representativeSchedule,
                 $representativeChapter,
                 $now
             ),
-            'actionText' => $this->buildCourseActionText($representativeSchedule, $representativeChapter, $now),
+            'actionText'  => $this->buildCourseActionText($representativeSchedule, $representativeChapter, $now),
         ];
     }
 
@@ -983,11 +1047,12 @@ class StudyCourseService
      * @return string
      */
     private function resolveCourseStatusText(
-        string $statusScene,
+        string             $statusScene,
         ?AppMemberSchedule $schedule,
-        ?AppCourseChapter $chapter,
-        Carbon $now
-    ): string {
+        ?AppCourseChapter  $chapter,
+        Carbon             $now
+    ): string
+    {
         if ($statusScene === self::STATUS_SCENE_TODAY) {
             return $this->resolveTodayCourseStatusText($chapter, $now);
         }
@@ -1050,8 +1115,8 @@ class StudyCourseService
      */
     private function resolveGeneralCourseStatusText(
         ?AppMemberSchedule $schedule,
-        ?AppCourseChapter $chapter,
-        Carbon $now
+        ?AppCourseChapter  $chapter,
+        Carbon             $now
     ): string
     {
         if ($chapter && $chapter->chapter_end_time) {
@@ -1079,12 +1144,13 @@ class StudyCourseService
      * @return array<string, mixed>
      */
     private function buildSectionItem(
-        AppCourseBase $course,
-        array $chapterMeta,
+        AppCourseBase      $course,
+        array              $chapterMeta,
         ?AppMemberSchedule $representativeSchedule,
-        ?AppCourseChapter $representativeChapter,
-        Carbon $now
-    ): array {
+        ?AppCourseChapter  $representativeChapter,
+        Carbon             $now
+    ): array
+    {
         $item = $this->buildCourseCardPayload(
             $course,
             $chapterMeta,
@@ -1096,11 +1162,11 @@ class StudyCourseService
 
         return array_merge($item, [
             'scheduleId' => $representativeSchedule ? (int)($representativeSchedule->id ?? 0) : 0,
-            'courseId' => (int)($course->course_id ?? 0),
-            'chapterId' => $representativeSchedule ? (int)($representativeSchedule->chapter_id ?? 0) : 0,
-            'liveId' => 0,
-            'bizType' => 'chapter',
-            'bizId' => $representativeSchedule ? (int)($representativeSchedule->chapter_id ?? 0) : 0,
+            'courseId'   => (int)($course->course_id ?? 0),
+            'chapterId'  => $representativeSchedule ? (int)($representativeSchedule->chapter_id ?? 0) : 0,
+            'liveId'     => 0,
+            'bizType'    => 'chapter',
+            'bizId'      => $representativeSchedule ? (int)($representativeSchedule->chapter_id ?? 0) : 0,
         ]);
     }
 
@@ -1287,12 +1353,12 @@ class StudyCourseService
         $dayNo = 1;
         foreach ($dayKeys as $dayKey) {
             $tabs[] = [
-                'key' => $dayKey,
-                'type' => 'day',
-                'label' => '第' . $dayNo . '天',
-                'date' => Carbon::make($dayKey)->format('m.d'),
-                'dayNo' => $dayNo,
-                'hasDot' => (int)($dateCountMap[$dayKey] ?? 0) > 0,
+                'key'     => $dayKey,
+                'type'    => 'day',
+                'label'   => '第' . $dayNo . '天',
+                'date'    => Carbon::make($dayKey)->format('m.d'),
+                'dayNo'   => $dayNo,
+                'hasDot'  => (int)($dateCountMap[$dayKey] ?? 0) > 0,
                 'isToday' => $dayKey === $todayKey,
             ];
 
@@ -1340,10 +1406,11 @@ class StudyCourseService
      */
     private function resolveSelectedPlanKey(
         ?string $requestedPlanKey,
-        string $todayKey,
-        array $availablePlanKeys,
-        array $unlearnedDayKeys
-    ): string {
+        string  $todayKey,
+        array   $availablePlanKeys,
+        array   $unlearnedDayKeys
+    ): string
+    {
         if (empty($availablePlanKeys)) {
             return '';
         }
@@ -1413,15 +1480,15 @@ class StudyCourseService
             $isChapterCompleted = $this->isChapterCompleted(0, $progress);
 
             $items[] = [
-                'itemType' => 'chapter',
-                'chapterId' => (int)$chapter->chapter_id,
+                'itemType'     => 'chapter',
+                'chapterId'    => (int)$chapter->chapter_id,
                 'chapterTitle' => (string)($chapter->chapter_title ?? ''),
                 'scheduleTime' => '',
                 'progressText' => $this->buildProgressText($isChapterCompleted, $progress),
-                'actionText' => $isChapterCompleted ? '已学完' : '去学习',
-                'actionType' => $isChapterCompleted ? 'view' : 'learn',
-                'coverImage' => (string)($chapter->cover_image ?: $course->cover_image ?: ''),
-                'videoUrl' => (string)($chapterVideoUrlMap[(int)$chapter->chapter_id] ?? ''),
+                'actionText'   => $isChapterCompleted ? '已学完' : '去学习',
+                'actionType'   => $isChapterCompleted ? 'view' : 'learn',
+                'coverImage'   => (string)($chapter->cover_image ?: $course->cover_image ?: ''),
+                'videoUrl'     => (string)($chapterVideoUrlMap[(int)$chapter->chapter_id] ?? ''),
             ];
 
             // 先导课不依赖课表日期，不进行过期判定，只展示“去完成/已完成”。
@@ -1430,13 +1497,13 @@ class StudyCourseService
                 $isSubmitted = !empty($submittedHomeworkMap[$homeworkId]);
 
                 $items[] = [
-                    'itemType' => 'homework',
-                    'homeworkId' => $homeworkId,
+                    'itemType'      => 'homework',
+                    'homeworkId'    => $homeworkId,
                     'homeworkTitle' => (string)($homework->homework_title ?? ''),
-                    'deadlineAt' => null,
-                    'statusText' => $isSubmitted ? '已完成' : '待完成',
-                    'actionText' => $isSubmitted ? '已完成' : '去完成',
-                    'actionType' => $isSubmitted ? 'view' : 'task',
+                    'deadlineAt'    => null,
+                    'statusText'    => $isSubmitted ? '已完成' : '待完成',
+                    'actionText'    => $isSubmitted ? '已完成' : '去完成',
+                    'actionType'    => $isSubmitted ? 'view' : 'task',
                 ];
             }
         }
@@ -1524,18 +1591,18 @@ class StudyCourseService
             $isChapterCompleted = $this->isChapterCompleted((int)$schedule->is_learned, $progress);
 
             $items[] = [
-                'id' => $schedule->id,
+                'id'             => $schedule->id,
                 'memberCourseId' => $schedule->member_course_id,
-                'itemType' => 'chapter',
-                'chapterId' => (int)$schedule->chapter_id,
-                'chapterTitle' => (string)($chapter->chapter_title ?? ''),
-                'scheduleTime' => $this->formatScheduleTime($schedule->schedule_time),
-                'progressText' => $this->buildProgressText($isChapterCompleted, $progress),
-                'actionText' => $isChapterCompleted ? '已学完' : '去学习',
-                'actionType' => $isChapterCompleted ? 'view' : 'learn',
-                'coverImage' => (string)($chapter->cover_image ?? $course->cover_image ?? ''),
-                'videoUrl' => (string)($chapterVideoUrlMap[(int)$schedule->chapter_id] ?? ''),
-                'isUnlocked' => true
+                'itemType'       => 'chapter',
+                'chapterId'      => (int)$schedule->chapter_id,
+                'chapterTitle'   => (string)($chapter->chapter_title ?? ''),
+                'scheduleTime'   => $this->formatScheduleTime($schedule->schedule_time),
+                'progressText'   => $this->buildProgressText($isChapterCompleted, $progress),
+                'actionText'     => $isChapterCompleted ? '已学完' : '去学习',
+                'actionType'     => $isChapterCompleted ? 'view' : 'learn',
+                'coverImage'     => (string)($chapter->cover_image ?? $course->cover_image ?? ''),
+                'videoUrl'       => (string)($chapterVideoUrlMap[(int)$schedule->chapter_id] ?? ''),
+                'isUnlocked'     => true
             ];
 
             if (!$chapter || !$chapter->homeworks || $chapter->homeworks->isEmpty()) {
@@ -1567,13 +1634,13 @@ class StudyCourseService
                 }
 
                 $items[] = [
-                    'itemType' => 'homework',
-                    'homeworkId' => $homeworkId,
+                    'itemType'      => 'homework',
+                    'homeworkId'    => $homeworkId,
                     'homeworkTitle' => (string)($homework->homework_title ?? ''),
-                    'deadlineAt' => $deadlineAt ? $deadlineAt->format('Y-m-d H:i:s') : null,
-                    'statusText' => $statusText,
-                    'actionText' => $actionText,
-                    'actionType' => $actionType,
+                    'deadlineAt'    => $deadlineAt ? $deadlineAt->format('Y-m-d H:i:s') : null,
+                    'statusText'    => $statusText,
+                    'actionText'    => $actionText,
+                    'actionType'    => $actionType,
                 ];
             }
         }
@@ -1602,7 +1669,7 @@ class StudyCourseService
             ->keyBy('chapter_id')
             ->map(function (AppMemberChapterProgress $progress) {
                 return [
-                    'progress' => $progress->progress,
+                    'progress'     => $progress->progress,
                     'is_completed' => (int)$progress->is_completed,
                 ];
             })
@@ -1750,11 +1817,12 @@ class StudyCourseService
      * @return array{courseId:int,chapterId:int,lastPosition:int,progress:float,isCompleted:int,isLearned:int,learnTime:?string}
      */
     public function reportChapterProgress(
-        int $memberId,
-        int $courseId,
-        int $chapterId,
+        int    $memberId,
+        int    $courseId,
+        int    $chapterId,
         string $currentPosition
-    ): array {
+    ): array
+    {
         $currentPositionSeconds = $this->parsePositionTextToSeconds($currentPosition);
         $now = Carbon::now('Asia/Shanghai');
 
@@ -1855,11 +1923,12 @@ class StudyCourseService
      * @return array{memberCourse:AppMemberCourse,chapter:AppCourseChapter,schedule:AppMemberSchedule}
      */
     private function resolveStudyChapterLearnContext(
-        int $memberId,
-        int $courseId,
-        int $chapterId,
+        int  $memberId,
+        int  $courseId,
+        int  $chapterId,
         bool $lockForUpdate
-    ): array {
+    ): array
+    {
         $memberCourseQuery = AppMemberCourse::query()
             ->byMember($memberId)
             ->notExpired()
@@ -1918,8 +1987,8 @@ class StudyCourseService
 
         return [
             'memberCourse' => $memberCourse,
-            'chapter' => $chapter,
-            'schedule' => $schedule,
+            'chapter'      => $chapter,
+            'schedule'     => $schedule,
         ];
     }
 
@@ -1934,12 +2003,13 @@ class StudyCourseService
      * @return AppMemberChapterProgress
      */
     private function lockOrCreateChapterProgress(
-        int $memberId,
-        int $courseId,
-        int $chapterId,
+        int              $memberId,
+        int              $courseId,
+        int              $chapterId,
         AppCourseChapter $chapter,
-        Carbon $now
-    ): AppMemberChapterProgress {
+        Carbon           $now
+    ): AppMemberChapterProgress
+    {
         $chapterProgress = AppMemberChapterProgress::query()
             ->byMember($memberId)
             ->where('chapter_id', $chapterId)
@@ -1952,19 +2022,19 @@ class StudyCourseService
 
         // 并发首次上报时使用 insertOrIgnore，避免唯一键(member_id,chapter_id)冲突导致事务失败。
         DB::table('app_member_chapter_progress')->insertOrIgnore([
-            'member_id' => $memberId,
-            'course_id' => $courseId,
-            'chapter_id' => $chapterId,
+            'member_id'        => $memberId,
+            'course_id'        => $courseId,
+            'chapter_id'       => $chapterId,
             'learned_duration' => 0,
-            'total_duration' => max(0, (int)$chapter->duration),
-            'progress' => 0,
-            'last_position' => 0,
-            'is_completed' => 0,
-            'view_count' => 0,
-            'first_view_time' => $now->copy(),
-            'last_view_time' => $now->copy(),
-            'created_at' => $now->copy(),
-            'updated_at' => $now->copy(),
+            'total_duration'   => max(0, (int)$chapter->duration),
+            'progress'         => 0,
+            'last_position'    => 0,
+            'is_completed'     => 0,
+            'view_count'       => 0,
+            'first_view_time'  => $now->copy(),
+            'last_view_time'   => $now->copy(),
+            'created_at'       => $now->copy(),
+            'updated_at'       => $now->copy(),
         ]);
 
         $chapterProgress = AppMemberChapterProgress::query()
@@ -2061,10 +2131,11 @@ class StudyCourseService
      */
     private function syncMemberCoursePlaybackSnapshot(
         AppMemberCourse $memberCourse,
-        int $chapterId,
-        int $position,
-        Carbon $now
-    ): void {
+        int             $chapterId,
+        int             $position,
+        Carbon          $now
+    ): void
+    {
         $memberCourse->last_chapter_id = $chapterId;
         $memberCourse->last_position = $position;
         $memberCourse->last_learn_time = $now->copy();
@@ -2081,19 +2152,20 @@ class StudyCourseService
      * @return array{courseId:int,chapterId:int,lastPosition:int,progress:float,isCompleted:int,isLearned:int,learnTime:?string}
      */
     private function buildChapterProgressPayload(
-        int $courseId,
-        int $chapterId,
-        AppMemberSchedule $schedule,
+        int                       $courseId,
+        int                       $chapterId,
+        AppMemberSchedule         $schedule,
         ?AppMemberChapterProgress $chapterProgress
-    ): array {
+    ): array
+    {
         return [
-            'courseId' => $courseId,
-            'chapterId' => $chapterId,
+            'courseId'     => $courseId,
+            'chapterId'    => $chapterId,
             'lastPosition' => $chapterProgress ? (int)$chapterProgress->last_position : 0,
-            'progress' => $chapterProgress ? round((float)$chapterProgress->progress, 2) : 0.0,
-            'isCompleted' => $chapterProgress ? (int)$chapterProgress->is_completed : 0,
-            'isLearned' => (int)$schedule->is_learned,
-            'learnTime' => $schedule->learn_time
+            'progress'     => $chapterProgress ? round((float)$chapterProgress->progress, 2) : 0.0,
+            'isCompleted'  => $chapterProgress ? (int)$chapterProgress->is_completed : 0,
+            'isLearned'    => (int)$schedule->is_learned,
+            'learnTime'    => $schedule->learn_time
                 ? $schedule->learn_time->format('Y-m-d H:i:s')
                 : null,
         ];

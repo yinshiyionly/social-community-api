@@ -397,7 +397,7 @@ class CourseService
      */
     public function claimFreeCourse(int $memberId, int $courseId, string $phone, string $ageRange): AppMemberCourse
     {
-        $course = $this->getCourseDetail($courseId);
+        $course = $this->getCourseInfo($courseId);
 
         if (!$course) {
             throw new \Exception('课程不存在');
@@ -430,17 +430,17 @@ class CourseService
             }
 
             $enrollTime = now();
-            $expireTime = null;
+            /*$expireTime = null;
             if ((int)$course->valid_days > 0) {
                 $expireTime = $enrollTime->copy()->addDays((int)$course->valid_days);
-            }
+            }*/
 
             $order = AppCourseOrder::query()->create([
                 'order_no'         => AppCourseOrder::generateOrderNo(),
                 'member_id'        => $memberId,
                 'course_id'        => $courseId,
                 'course_title'     => (string)$course->course_title,
-                'course_cover'     => (string)($course->cover_image ?? ''),
+                'course_cover'     => ($course->cover_image ?? ''),
                 'enroll_phone'     => $phone,
                 'enroll_age_range' => $ageRange,
                 // 免费领取订单金额字段统一置 0，避免与支付单口径混淆。
@@ -467,8 +467,8 @@ class CourseService
                 'enroll_age_range' => $ageRange,
                 'paid_amount'      => 0,
                 'enroll_time'      => $enrollTime,
-                'expire_time'      => $expireTime,
-                'total_chapters'   => $course->total_chapter,
+                // 'expire_time'      => $expireTime,
+                'total_chapters'   => $course->chapters_count,
             ]);
 
             // 更新课程报名人数
@@ -485,6 +485,34 @@ class CourseService
 
             return $memberCourse;
         });
+    }
+
+    /**
+     * 获取课程信息和上架章节数目
+     *
+     * @param $courseId
+     * @return mixed
+     */
+    protected function getCourseInfo($courseId)
+    {
+        return AppCourseBase::query()
+            ->select([
+                'course_id',
+                'course_title',
+                'cover_image',
+                'current_price',
+                'original_price',
+                'is_free'
+            ])
+            // 统计该课程上架的章节数目
+            ->withCount([
+                'chapters' => function ($q) {
+                    $q->where('status', AppCourseChapter::STATUS_ONLINE);
+                }
+            ])
+            ->online()
+            ->where('course_id', $courseId)
+            ->first();
     }
 
     /**
